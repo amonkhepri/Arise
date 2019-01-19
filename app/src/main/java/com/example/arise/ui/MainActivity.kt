@@ -1,4 +1,4 @@
-package com.example.arise
+package com.example.arise.ui
 
 import android.os.Bundle
 import android.support.design.widget.BottomNavigationView
@@ -8,17 +8,18 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : AppCompatActivity() {
 
     private val mOnNavigationItemSelectedListener = BottomNavigationView.OnNavigationItemSelectedListener { item ->
+
         when (item.itemId) {
-            R.id.navigation_home -> {
-                message.setText(R.string.title_home)
+            com.example.arise.R.id.navigation_home -> {
+                message.setText(com.example.arise.R.string.title_home)
                 return@OnNavigationItemSelectedListener true
             }
-            R.id.navigation_dashboard -> {
-                message.setText(R.string.title_dashboard)
+            com.example.arise.R.id.navigation_dashboard -> {
+                message.setText(com.example.arise.R.string.title_dashboard)
                 return@OnNavigationItemSelectedListener true
             }
-            R.id.navigation_notifications -> {
-                message.setText(R.string.title_notifications)
+            com.example.arise.R.id.navigation_notifications -> {
+                message.setText(com.example.arise.R.string.title_notifications)
                 return@OnNavigationItemSelectedListener true
             }
         }
@@ -27,7 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(com.example.arise.R.layout.activity_main)
 
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
     }
