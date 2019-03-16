@@ -1,4 +1,4 @@
-package com.example.arise
+package com.example.rise
 
 import org.junit.Test
 
