@@ -1,21 +1,28 @@
 package com.example.rise.ui
 
-import android.os.Bundle
-import android.support.design.widget.BottomNavigationView
-import android.support.v7.app.AppCompatActivity
-import android.util.Log
 
-import com.example.rise.data.Alarm
-import com.google.firebase.firestore.FirebaseFirestore
+import android.content.Intent
+import android.os.Bundle
+
+import android.util.Log
 import kotlinx.android.synthetic.main.activity_main.*
 import org.jetbrains.anko.longToast
-import android.support.v7.widget.LinearLayoutManager
-import android.support.design.widget.Snackbar
-import com.example.rise.R
-import com.google.firebase.firestore.FirebaseFirestoreException
 
-import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.Query
+
+import android.view.View
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProviders
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.firebase.firestore.*
+import com.example.rise.ui.viewModel.MainActivityViewModel
+import com.firebase.ui.auth.AuthUI
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.snackbar.Snackbar
+import com.google.firebase.auth.FirebaseAuth
+
+
+
 
 
 class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppCompatActivity() {
@@ -24,15 +31,19 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-
     val TAG = "MainActivity"
     val mFirestore = FirebaseFirestore.getInstance().document("sampleData/user")
-    private val mQuery: Query? = null
-    private val myAlarmRecyclerViewAdapter :MyAlarmRecyclerViewAdapter
+    private lateinit var mQuery: Query
+    private lateinit var myAlarmRecyclerViewAdapter :MyAlarmRecyclerViewAdapter
+    private lateinit var mViewModel:MainActivityViewModel
+
+
+    private val RC_SIGN_IN = 9001
 
 
     private val mOnNavigationItemSelectedListener = BottomNavigationView.OnNavigationItemSelectedListener { item ->
 
+        //bottom navigation
         when (item.itemId) {
             com.example.rise.R.id.navigation_home -> {
 
@@ -50,91 +61,71 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
         false
     }
 
-    override fun onListFragmentInteraction(item: Alarm?) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    public override fun onStart() {
+        super.onStart()
+
+        // Start sign in if necessary
+        if (shouldStartSignIn()) {
+            startSignIn()
+            return
+        }
+
     }
-
-
-
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(com.example.rise.R.layout.activity_main)
 
-        navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
+        bottomNavigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
 
-        if(savedInstanceState==null){
-                supportFragmentManager
-                .beginTransaction()
-                .add(R.id.fragment, AlarmListFragment.newInstance(), "alarmList")
-                .commit()
+        mViewModel = ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
 
-        }
+        FirebaseFirestore.setLoggingEnabled(true);
 
-
-        firestoreAddUsername()
-        firestoreAddAlarm()
-        firestoreReadAlarmsIntoUI()
-        initRecyclerView()
-
+        mQuery=queryFirestore()
+        testQuery(mQuery)
+        initRecyclerView(mQuery)
     }
 
-    fun firestoreReadAlarmsIntoUI(){
 
-        mFirestore.collection("users")
-            .get()
-            .addOnSuccessListener { result ->
-                for (document in result) {
-                    Log.d(TAG, document.id + " => " + document.data)
+    override  fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        super.onActivityResult(requestCode, resultCode, data)
 
+        if (requestCode == RC_SIGN_IN) {
+            mViewModel.mSignIn=false
 
-                    longToast(document.data.toString())
-                }
-            }
-            .addOnFailureListener { exception ->
-                Log.w(TAG, "Error getting documents.", exception)
-            }
-
-
-    }
-
-    private fun initRecyclerView() {
-
-        if (mQuery == null) {
-            Log.w(TAG, "No query, not initializing RecyclerView")
-        }
-
-        myAlarmRecyclerViewAdapter = object : MyAlarmRecyclerViewAdapter(this,mQuery) {
-
-            protected fun onDataChanged() {
-                // Show/hide content if the query returns empty.
-                if (getItemCount() === 0) {
-                    mRestaurantsRecycler.setVisibility(View.GONE)
-                    mEmptyView.setVisibility(View.VISIBLE)
-                } else {
-                    mRestaurantsRecycler.setVisibility(View.VISIBLE)
-                    mEmptyView.setVisibility(View.GONE)
-                }
-            }
-
-            protected fun onError(e: FirebaseFirestoreException) {
-                // Show a snackbar on errors
-                Snackbar.make(
-                    findViewById<View>(android.R.id.content),
-                    "Error: check logs for info.", Snackbar.LENGTH_LONG
-                ).show()
+            if (resultCode != RESULT_OK && shouldStartSignIn()) {
+                startSignIn()
             }
         }
-
-        mRestaurantsRecycler.setLayoutManager(LinearLayoutManager(this))
-        mRestaurantsRecycler.setAdapter(mAdapter)
     }
 
-    fun firestoreAddAlarm(){
+    private fun startSignIn() {
+        // Sign in with FirebaseUI
+        val intent = AuthUI.getInstance().createSignInIntentBuilder()
+            .setAvailableProviders(listOf<AuthUI.IdpConfig>(AuthUI.IdpConfig.EmailBuilder().build()))
+            .setIsSmartLockEnabled(false)
+            .build()
+
+        startActivityForResult(intent, RC_SIGN_IN)
+        mViewModel.mSignIn=true
+    }
+
+    private fun shouldStartSignIn(): Boolean {
+        return !mViewModel.mSignIn && FirebaseAuth.getInstance().currentUser == null
+    }
+
+    fun  queryFirestore():CollectionReference{
+
+        //Instead of using POJOS or data classes we use here HashMap
 
         val alarm=HashMap<String,Any>()
-        alarm["testAlarm"]="23:59"
+        alarm["testAlarm"]="23:58"
 
         mFirestore.collection("alarms")
             .add(alarm)
@@ -144,52 +135,12 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
             .addOnFailureListener { e->
                 Log.w(TAG, "Error adding document", e)
             }
-
-
+      return mFirestore.collection("alarms")
     }
 
-    fun firestoreAddUsername(){
+    private  fun testQuery(mQuery: Query){
 
-        //We're using here HashMap's instead of POJO's which I think is neat
-
-        val user = HashMap<String, Any>()
-        user["first"] = "Ada"
-        user["last"] = "Lovelace"
-        user["born"] = 1815
-
-// Add a new document with a generated ID
-        mFirestore.collection("users")
-            .add(user)
-            .addOnSuccessListener { documentReference ->
-                Log.d(TAG, "DocumentSnapshot added with ID: " + documentReference.id)
-            }
-            .addOnFailureListener { e ->
-                Log.w(TAG, "Error adding document", e)
-            }
-
-
-
-        val user1 = HashMap<String, Any>()
-        user1["first"] = "Alan"
-        user1["middle"] = "Mathison"
-        user1["last"] = "Turring"
-        user1["born"] = 1912
-
-// Add a new document with a generated ID
-        mFirestore.collection("users")
-            .add(user1)
-            .addOnSuccessListener { documentReference ->
-                Log.d(TAG, "DocumentSnapshot added with ID: " + documentReference.id)
-            }
-            .addOnFailureListener { e ->
-                Log.w(TAG, "Error adding document", e)
-            }
-
-
-        //read
-
-             mFirestore.collection("users")
-            .get()
+        mQuery.get()
             .addOnSuccessListener { result ->
                 for (document in result) {
                     Log.d(TAG, document.id + " => " + document.data)
@@ -198,7 +149,35 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
             .addOnFailureListener { exception ->
                 Log.w(TAG, "Error getting documents.", exception)
             }
-
     }
 
+
+
+    private fun initRecyclerView(mQuery: Query) {
+
+        myAlarmRecyclerViewAdapter =object: MyAlarmRecyclerViewAdapter(/*this@MainActivity,,*/mQuery,this@MainActivity)
+             {
+                 override fun onDataChanged() =
+            // Show/hide content if the query returns empty
+                if (itemCount == 0) {
+                    longToast("VISIBLE")
+                    alarmList.visibility = View.GONE
+                } else {
+                    Toast.makeText(this@MainActivity, "GONE!", Toast.LENGTH_LONG).show()
+                    // longToast("GONE")
+                    // alarmList.visibility = View.GONE
+                }
+
+            override fun onError(e: FirebaseFirestoreException) =
+                Snackbar.make(
+                    findViewById<View>(android.R.id.content),
+                    "Error: check logs for info.", Snackbar.LENGTH_LONG).show()
+
+        }
+
+
+        alarmList.layoutManager = LinearLayoutManager(this)
+        alarmList.adapter = myAlarmRecyclerViewAdapter
+        longToast(myAlarmRecyclerViewAdapter.itemCount.toString())
+    }
 }

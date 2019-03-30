@@ -15,8 +15,9 @@
  */
 package com.example.rise.ui
 
-import android.support.v7.widget.RecyclerView
+
 import android.util.Log
+import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.firestore.*
 
 import java.util.ArrayList
@@ -101,10 +102,10 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder>(private var mQ
     protected fun getSnapshot(index: Int): DocumentSnapshot {
         return mSnapshots[index]
     }
+//These two methods will have to be @Override during object creation
+    protected open fun onError(e: FirebaseFirestoreException) {}
 
-    protected fun onError(e: FirebaseFirestoreException) {}
-//TODO should I implement this method?
-    protected fun onDataChanged() {}
+    protected open fun onDataChanged() {}
 
     protected fun onDocumentAdded(change: DocumentChange) {
         mSnapshots.add(change.newIndex, change.document)

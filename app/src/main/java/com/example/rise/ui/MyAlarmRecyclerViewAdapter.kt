@@ -1,13 +1,13 @@
 package com.example.rise.ui
 
-import android.support.v7.widget.RecyclerView
+import android.content.Context
+
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.recyclerview.widget.RecyclerView
 import com.example.rise.data.Alarm
-
-
-import com.example.rise.ui.AlarmListFragment.OnListFragmentInteractionListener
 import kotlinx.android.synthetic.main.fragment_alarm_item.view.*
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.DocumentSnapshot
@@ -20,57 +20,47 @@ import com.google.firebase.firestore.DocumentSnapshot
  * specified [OnListFragmentInteractionListener].
  * TODO: Replace the implementation with code for your data type.
  */
-class MyAlarmRecyclerViewAdapter(
-
-
-    private val mListener: OnAlarmSelectedListener?,
-    private val mQuery: Query?
-
+open class MyAlarmRecyclerViewAdapter(
+  //  private val mListener: OnAlarmSelectedListener,
+    mQuery: Query,
+    //TODO adding context for test purpouses, delete later on when unnecessary
+val context: Context
 ) : FirestoreAdapterBase<MyAlarmRecyclerViewAdapter.ViewHolder>(mQuery) {
 
-
-
-
-    private val mOnClickListener: View.OnClickListener
-
     interface OnAlarmSelectedListener {
-
         fun onAlarmSelected(restaurant: DocumentSnapshot)
-
     }
 
-    init {
-        mOnClickListener = View.OnClickListener { v ->
-            val item = v.tag as Alarm
-            // Notify the active callbacks interface (the activity, if the fragment is attached to
-            // one) that an item has been selected.
-            mListener?.onListFragmentInteraction(item)
-        }
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(com.example.rise.R.layout.fragment_alarm_item, parent, false)
+        itemCount
         return ViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(getSnapshot(position), mListener)
-    }
 
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+
+            holder.bind(getSnapshot(position)/*, mListener*/)
+
+    }
 
 
     inner class ViewHolder(val mView: View) : RecyclerView.ViewHolder(mView) {
 
-
         fun bind(
-            snapshot: DocumentSnapshot,
-            listener: OnAlarmSelectedListener
+            snapshot: DocumentSnapshot/*,
+            listener: OnAlarmSelectedListener*/
         ) {
-           val alarm: Alarm? =snapshot.toObject(Alarm::class.java)
-            mView.time_remaining.text = alarm?.timeRemaining.toString()
-            mView.time_set.text = alarm?.timeSet.toString()
+            val alarm:Alarm= snapshot.toObject(Alarm::class.java)!!
 
+
+
+
+            Toast.makeText(context,"test",Toast.LENGTH_LONG).show()
+            mView.time_remaining.text = snapshot.get("time").toString()
+            mView.time_set.text = snapshot.get("time").toString()
         }
 
     }
