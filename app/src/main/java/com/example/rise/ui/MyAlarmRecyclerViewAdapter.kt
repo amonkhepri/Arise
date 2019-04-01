@@ -15,16 +15,11 @@ import com.google.firebase.firestore.DocumentSnapshot
 
 
 
-/**
- * [RecyclerView.Adapter] that can display a [DummyItem] and makes a call to the
- * specified [OnListFragmentInteractionListener].
- * TODO: Replace the implementation with code for your data type.
- */
+
 open class MyAlarmRecyclerViewAdapter(
   //  private val mListener: OnAlarmSelectedListener,
-    mQuery: Query,
-    //TODO adding context for test purpouses, delete later on when unnecessary
-val context: Context
+    mQuery: Query
+
 ) : FirestoreAdapterBase<MyAlarmRecyclerViewAdapter.ViewHolder>(mQuery) {
 
     interface OnAlarmSelectedListener {
@@ -58,9 +53,8 @@ val context: Context
 
 
 
-            Toast.makeText(context,"test",Toast.LENGTH_LONG).show()
-            mView.time_remaining.text = snapshot.get("time").toString()
-            mView.time_set.text = snapshot.get("time").toString()
+            mView.time_remaining.text = snapshot.data!!["myAlarm"].toString()
+            mView.time_set.text = snapshot.data!!["myAlarm"].toString()
         }
 
     }

@@ -3,26 +3,21 @@ package com.example.rise.ui
 
 import android.content.Intent
 import android.os.Bundle
-
 import android.util.Log
-import kotlinx.android.synthetic.main.activity_main.*
-import org.jetbrains.anko.longToast
-
-
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.firebase.firestore.*
 import com.example.rise.ui.viewModel.MainActivityViewModel
 import com.firebase.ui.auth.AuthUI
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
-
-
-
+import com.google.firebase.firestore.*
+import kotlinx.android.synthetic.main.activity_main.*
+import org.jetbrains.anko.db.NULL
+import org.jetbrains.anko.longToast
 
 
 class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppCompatActivity() {
@@ -36,6 +31,8 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
     private lateinit var mQuery: Query
     private lateinit var myAlarmRecyclerViewAdapter :MyAlarmRecyclerViewAdapter
     private lateinit var mViewModel:MainActivityViewModel
+    val alarm=HashMap<String,Any>()
+
 
 
     private val RC_SIGN_IN = 9001
@@ -61,6 +58,14 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
         false
     }
 
+    public override fun onStop() {
+        super.onStop()
+        if (myAlarmRecyclerViewAdapter != null) {
+            myAlarmRecyclerViewAdapter.stopListening()
+        }
+    }
+
+
     public override fun onStart() {
         super.onStart()
 
@@ -68,6 +73,9 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
         if (shouldStartSignIn()) {
             startSignIn()
             return
+        }
+        if (myAlarmRecyclerViewAdapter!= null) {
+           myAlarmRecyclerViewAdapter.startListening()
         }
 
     }
@@ -83,9 +91,21 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
         FirebaseFirestore.setLoggingEnabled(true);
 
+
+
+        floatingActionButton.setOnClickListener {alarm["myAlarm"]=simpleTimePicker.hour.toString() + " " + simpleTimePicker.minute.toString()
+
+            mQuery=queryFirestore()
+
+        }
+
+
         mQuery=queryFirestore()
         testQuery(mQuery)
         initRecyclerView(mQuery)
+
+
+
     }
 
 
@@ -122,19 +142,17 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
     fun  queryFirestore():CollectionReference{
 
-        //Instead of using POJOS or data classes we use here HashMap
 
-        val alarm=HashMap<String,Any>()
-        alarm["testAlarm"]="23:58"
-
-        mFirestore.collection("alarms")
-            .add(alarm)
-            .addOnSuccessListener { documentReference ->
-                Log.d(TAG,"DocumentSnapshot add with ID: " + documentReference.id)
-            }
-            .addOnFailureListener { e->
-                Log.w(TAG, "Error adding document", e)
-            }
+        if(alarm["myAlarm"]!=null) {
+            mFirestore.collection("alarms")
+                .add(alarm)
+                .addOnSuccessListener { documentReference ->
+                    Log.d(TAG, "DocumentSnapshot add with ID: " + documentReference.id)
+                }
+                .addOnFailureListener { e ->
+                    Log.w(TAG, "Error adding document", e)
+                }
+        }
       return mFirestore.collection("alarms")
     }
 
@@ -144,6 +162,7 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
             .addOnSuccessListener { result ->
                 for (document in result) {
                     Log.d(TAG, document.id + " => " + document.data)
+                    longToast(document.data.toString())
                 }
             }
             .addOnFailureListener { exception ->
@@ -155,7 +174,7 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
     private fun initRecyclerView(mQuery: Query) {
 
-        myAlarmRecyclerViewAdapter =object: MyAlarmRecyclerViewAdapter(/*this@MainActivity,,*/mQuery,this@MainActivity)
+        myAlarmRecyclerViewAdapter =object: MyAlarmRecyclerViewAdapter(mQuery)
              {
                  override fun onDataChanged() =
             // Show/hide content if the query returns empty
@@ -176,8 +195,10 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
         }
 
 
+
         alarmList.layoutManager = LinearLayoutManager(this)
         alarmList.adapter = myAlarmRecyclerViewAdapter
-        longToast(myAlarmRecyclerViewAdapter.itemCount.toString())
+        myAlarmRecyclerViewAdapter.setQuery(mQuery)
+
     }
 }
