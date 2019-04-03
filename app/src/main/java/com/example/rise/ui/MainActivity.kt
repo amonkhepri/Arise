@@ -16,7 +16,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.activity_main.*
-import org.jetbrains.anko.db.NULL
 import org.jetbrains.anko.longToast
 
 
@@ -60,9 +59,9 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
     public override fun onStop() {
         super.onStop()
-        if (myAlarmRecyclerViewAdapter != null) {
+
             myAlarmRecyclerViewAdapter.stopListening()
-        }
+
     }
 
 
@@ -74,9 +73,9 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
             startSignIn()
             return
         }
-        if (myAlarmRecyclerViewAdapter!= null) {
+
            myAlarmRecyclerViewAdapter.startListening()
-        }
+
 
     }
 
@@ -100,11 +99,10 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
         }
 
 
+
         mQuery=queryFirestore()
         testQuery(mQuery)
         initRecyclerView(mQuery)
-
-
 
     }
 
@@ -142,7 +140,6 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
     fun  queryFirestore():CollectionReference{
 
-
         if(alarm["myAlarm"]!=null) {
             mFirestore.collection("alarms")
                 .add(alarm)
@@ -157,7 +154,6 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
     }
 
     private  fun testQuery(mQuery: Query){
-
         mQuery.get()
             .addOnSuccessListener { result ->
                 for (document in result) {
@@ -193,9 +189,6 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
                     "Error: check logs for info.", Snackbar.LENGTH_LONG).show()
 
         }
-
-
-
         alarmList.layoutManager = LinearLayoutManager(this)
         alarmList.adapter = myAlarmRecyclerViewAdapter
         myAlarmRecyclerViewAdapter.setQuery(mQuery)

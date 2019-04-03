@@ -1,24 +1,20 @@
 package com.example.rise.ui
 
-import android.content.Context
-
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.example.rise.data.Alarm
-import kotlinx.android.synthetic.main.fragment_alarm_item.view.*
-import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.DocumentSnapshot
-
-
-
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import kotlinx.android.synthetic.main.recycler_alarm_item.view.*
 
 
 open class MyAlarmRecyclerViewAdapter(
   //  private val mListener: OnAlarmSelectedListener,
-    mQuery: Query
+    var mQuery: Query
 
 ) : FirestoreAdapterBase<MyAlarmRecyclerViewAdapter.ViewHolder>(mQuery) {
 
@@ -26,11 +22,15 @@ open class MyAlarmRecyclerViewAdapter(
         fun onAlarmSelected(restaurant: DocumentSnapshot)
     }
 
+    lateinit var mSnapshot: DocumentSnapshot
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(com.example.rise.R.layout.fragment_alarm_item, parent, false)
+            .inflate(com.example.rise.R.layout.recycler_alarm_item, parent, false)
         itemCount
+
+
         return ViewHolder(view)
     }
 
@@ -48,13 +48,17 @@ open class MyAlarmRecyclerViewAdapter(
             snapshot: DocumentSnapshot/*,
             listener: OnAlarmSelectedListener*/
         ) {
+            mSnapshot=snapshot
             val alarm:Alarm= snapshot.toObject(Alarm::class.java)!!
-
-
-
-
             mView.time_remaining.text = snapshot.data!!["myAlarm"].toString()
             mView.time_set.text = snapshot.data!!["myAlarm"].toString()
+
+
+            mView.imageButton.setOnClickListener{v->
+                FirebaseFirestore.getInstance().document("sampleData/user").collection("alarms").document(snapshot.id)
+                    .delete()
+                    .addOnSuccessListener { /*Log.d(TAG, "DocumentSnapshot successfully deleted!")*/ }
+                    .addOnFailureListener { /*e -> Log.w(TAG, "Error deleting document", e) */}}
         }
 
     }
