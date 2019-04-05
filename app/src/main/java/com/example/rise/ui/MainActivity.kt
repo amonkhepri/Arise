@@ -59,9 +59,7 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
     public override fun onStop() {
         super.onStop()
-
-            myAlarmRecyclerViewAdapter.stopListening()
-
+        myAlarmRecyclerViewAdapter.stopListening()
     }
 
 
@@ -74,9 +72,7 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
             return
         }
 
-           myAlarmRecyclerViewAdapter.startListening()
-
-//test
+           myAlarmRecyclerViewAdapter.startListening() //test
     }
 
 
@@ -93,17 +89,12 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
 
         floatingActionButton.setOnClickListener {alarm["myAlarm"]=simpleTimePicker.hour.toString() + " " + simpleTimePicker.minute.toString()
-
             mQuery=queryFirestore()
-
         }
-
-
 
         mQuery=queryFirestore()
         testQuery(mQuery)
         initRecyclerView(mQuery)
-
     }
 
 
@@ -175,8 +166,8 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
                  override fun onDataChanged() =
             // Show/hide content if the query returns empty
                 if (itemCount == 0) {
-                    longToast("VISIBLE")
-                    alarmList.visibility = View.GONE
+                  //  longToast("VISIBLE")
+                  //  alarmList.visibility = View.GONE
                 } else {
                     Toast.makeText(this@MainActivity, "GONE!", Toast.LENGTH_LONG).show()
                     // longToast("GONE")
