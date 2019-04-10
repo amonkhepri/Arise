@@ -17,6 +17,12 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.activity_main.*
 import org.jetbrains.anko.longToast
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.IntentFilter
+import androidx.legacy.content.WakefulBroadcastReceiver
+
+
 
 
 class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppCompatActivity() {
@@ -26,7 +32,11 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
     }
 
     val TAG = "MainActivity"
+
+
     val mFirestore = FirebaseFirestore.getInstance().document("sampleData/user")
+
+
     private lateinit var mQuery: Query
     private lateinit var myAlarmRecyclerViewAdapter :MyAlarmRecyclerViewAdapter
     private lateinit var mViewModel:MainActivityViewModel
@@ -90,6 +100,14 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
         floatingActionButton.setOnClickListener {alarm["myAlarm"]=simpleTimePicker.hour.toString() + " " + simpleTimePicker.minute.toString()
             mQuery=queryFirestore()
+
+           /* AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+WakefulBroadcasterReceiver wbr = new WakefulBroadcastReceiver();
+registerReceiver(wbr, new IntentFilter("Receiver"));
+Intent myIntent = new Intent("Receiver");
+myIntent.putExtra("uri",audioFileUri.toString()); // Here we pass the URI of audio file
+PendingIntent pendingIntent = PendingIntent.getBroadcast(MainActivity.this, 1234, myIntent, 0);
+alarmManager.setExact(AlarmManager.RTC_WAKEUP, alarmtime, pendingIntent);*/
         }
 
         mQuery=queryFirestore()
@@ -132,6 +150,7 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
     fun  queryFirestore():CollectionReference{
 
         if(alarm["myAlarm"]!=null) {
+
             mFirestore.collection("alarms")
                 .add(alarm)
                 .addOnSuccessListener { documentReference ->

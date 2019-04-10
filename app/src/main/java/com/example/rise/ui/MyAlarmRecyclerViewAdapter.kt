@@ -49,7 +49,7 @@ open class MyAlarmRecyclerViewAdapter(
             listener: OnAlarmSelectedListener*/
         ) {
             mSnapshot=snapshot
-            val alarm:Alarm= snapshot.toObject(Alarm::class.java)!!
+         //   val alarm:Alarm= snapshot.toObject(Alarm::class.java)!!
             mView.time_remaining.text = snapshot.data!!["myAlarm"].toString()
             mView.time_set.text = snapshot.data!!["myAlarm"].toString()
 
