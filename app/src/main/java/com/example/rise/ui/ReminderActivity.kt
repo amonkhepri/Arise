@@ -7,22 +7,12 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.view.MotionEvent
-import android.view.ViewGroup
 import android.view.animation.AnimationUtils
 import androidx.appcompat.app.AppCompatActivity
 import com.example.rise.R
 import com.example.rise.data.Alarm
 import com.example.rise.extensions.*
-import com.example.rise.helpers.ALARM_ID
-import com.example.rise.helpers.MINUTE_SECONDS
-import com.example.rise.helpers.getColoredDrawableWithColor
-
-import com.simplemobiletools.clock.extensions.*
-import com.simplemobiletools.clock.helpers.ALARM_ID
-import com.simplemobiletools.clock.helpers.getPassedSeconds
-import com.simplemobiletools.clock.models.Alarm
-import com.simplemobiletools.commons.extensions.*
-import com.simplemobiletools.commons.helpers.MINUTE_SECONDS
+import com.example.rise.helpers.*
 import kotlinx.android.synthetic.main.activity_reminder.*
 
 class ReminderActivity : AppCompatActivity (){
@@ -44,6 +34,9 @@ class ReminderActivity : AppCompatActivity (){
         showOverLockscreen()
         //updateTextColors(reminder_holder as ViewGroup)
 
+
+
+        //TODO swap Sqlite for Firestore
         val id = intent.getIntExtra(ALARM_ID, -1)
         isAlarmReminder = id != -1
         if (id != -1) {

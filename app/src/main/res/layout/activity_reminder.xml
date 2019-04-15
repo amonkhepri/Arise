@@ -7,7 +7,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.simplemobiletools.commons.views.MyTextView
+    <com.example.rise.helpers.MyTextView
         android:id="@+id/reminder_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -19,7 +19,7 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:text="@string/time_expired"/>
 
-    <com.simplemobiletools.commons.views.MyTextView
+    <com.example.rise.helpers.MyTextView
         android:id="@+id/reminder_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

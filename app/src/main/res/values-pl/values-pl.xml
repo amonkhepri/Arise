@@ -1,4 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
     <string name="app_name">Rise</string>
     <string name="title_home">Alarm</string>
     <string name="title_dashboard">Dashboard</string>
@@ -32,10 +34,7 @@
     <string name="weeks" msgid="6509623834583944518">"weeks"</string>
     <string name="year" msgid="4001118221013892076">"year"</string>
     <string name="years" msgid="6881577717993213522">"years"</string>
-    <string name="snooze">Snooze</string>
+    <string name="snooze">drzemka</string>
     <string name="dismiss">Dismiss</string>
 
-
 </resources>
-
-

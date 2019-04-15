@@ -14,11 +14,17 @@ import kotlin.math.pow
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.graphics.Color
+import android.media.RingtoneManager
+import android.text.SpannableString
+import android.text.style.RelativeSizeSpan
 import android.widget.Toast
 import androidx.core.app.AlarmManagerCompat
 import androidx.core.app.NotificationCompat
+import com.example.models.AlarmSound
 import com.example.rise.helpers.*
 import com.example.rise.receivers.AlarmReceiver
+import com.example.rise.receivers.HideAlarmReceiver
 import com.example.rise.services.SnoozeService
 import com.example.rise.ui.SnoozeReminderActivity
 import org.jetbrains.anko.toast
@@ -26,11 +32,26 @@ import org.jetbrains.anko.toast
 
 fun Context.isScreenOn() = (getSystemService(Context.POWER_SERVICE) as PowerManager).isScreenOn
 
-fun Context.getOpenAlarmTabIntent(): PendingIntent {
-    val intent = getLaunchIntent() ?: Intent(this, SplashActivity::class.java)
-    intent.putExtra(OPEN_TAB, TAB_ALARM)
-    return PendingIntent.getActivity(this, OPEN_ALARMS_TAB_INTENT_ID, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+
+
+
+fun Context.getDefaultAlarmUri(type: Int) = RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
+
+fun Context.getDefaultAlarmTitle(type: Int): String {
+    val alarmString = getString(R.string.alarm)
+    return try {
+        RingtoneManager.getRingtone(this, getDefaultAlarmUri(type))?.getTitle(this) ?: alarmString
+    } catch (e: Exception) {
+        alarmString
+    }
 }
+
+fun Context.getDefaultAlarmSound(type: Int) = AlarmSound(0, getDefaultAlarmTitle(type), getDefaultAlarmUri(type).toString())
+
+
+val Context.config: Config get() = Config.newInstance(applicationContext)
+
+
 
 fun Context.getLaunchIntent() = packageManager.getLaunchIntentForPackage(baseConfig.appId)
 
@@ -41,6 +62,9 @@ fun Context.showAlarmNotification(alarm: Alarm) {
     notificationManager.notify(alarm.id, notification)
     scheduleNextAlarm(alarm, false)
 }
+
+
+
 
 fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
     val calendar = Calendar.getInstance()
@@ -63,6 +87,8 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
     }
 }
 
+
+
 fun Context.formatMinutesToTimeString(totalMinutes: Int) = formatSecondsToTimeString(totalMinutes * 60)
 
 fun Context.formatSecondsToTimeString(totalSeconds: Int): String {
@@ -71,10 +97,12 @@ fun Context.formatSecondsToTimeString(totalSeconds: Int): String {
     val minutes = (totalSeconds % HOUR_SECONDS) / MINUTE_SECONDS
     val seconds = totalSeconds % MINUTE_SECONDS
     val timesString = StringBuilder()
+
     if (days > 0) {
         val daysString = String.format(resources.getQuantityString(R.plurals.days, days, days))
         timesString.append("$daysString, ")
     }
+
 
     if (hours > 0) {
         val hoursString = String.format(resources.getQuantityString(R.plurals.hours, hours, hours))
@@ -99,16 +127,39 @@ fun Context.formatSecondsToTimeString(totalSeconds: Int): String {
 }
 
 
+val Context.baseConfig: BaseConfig get() = BaseConfig.newInstance(this)
+
+
+
+fun Context.getAdjustedPrimaryColor() = if (isBlackAndWhiteTheme()) Color.WHITE else baseConfig.primaryColor
+
+fun Context.isBlackAndWhiteTheme() = baseConfig.textColor == Color.WHITE && baseConfig.primaryColor == Color.BLACK && baseConfig.backgroundColor == Color.BLACK
+
+
+
+
 fun Context.showRemainingTimeMessage(totalMinutes: Int) {
     val fullString = String.format(getString(R.string.alarm_goes_off_in), formatMinutesToTimeString(totalMinutes))
     toast(fullString, Toast.LENGTH_LONG)
 }
 
+
+
 fun Context.setupAlarmClock(alarm: Alarm, triggerInSeconds: Int) {
     val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val targetMS = System.currentTimeMillis() + triggerInSeconds * 1000
     AlarmManagerCompat.setAlarmClock(alarmManager, targetMS, getOpenAlarmTabIntent(), getAlarmIntent(alarm))
+
+
 }
+
+fun Context.getOpenAlarmTabIntent(): PendingIntent {
+    val intent = getLaunchIntent() ?: Intent(this, SplashActivity::class.java)
+    intent.putExtra(OPEN_TAB, TAB_ALARM)
+    return PendingIntent.getActivity(this, OPEN_ALARMS_TAB_INTENT_ID, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+}
+
+
 
 fun Context.getAlarmIntent(alarm: Alarm): PendingIntent {
     val intent = Intent(this, AlarmReceiver::class.java)
@@ -125,6 +176,8 @@ fun Context.grantReadUriPermission(uriString: String) {
     }
 }
 
+
+
 @SuppressLint("NewApi")
 fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): Notification {
     var soundUri = alarm.soundUri
@@ -136,6 +189,21 @@ fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): No
 
     val channelId = "simple_alarm_channel_$soundUri"
     val label = if (alarm.label.isNotEmpty()) alarm.label else getString(R.string.alarm)
+
+    fun Context.getDefaultAlarmUri(type: Int) = RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
+
+    fun Context.getDefaultAlarmTitle(type: Int): String {
+        val alarmString = getString(R.string.alarm)
+        return try {
+            RingtoneManager.getRingtone(this, getDefaultAlarmUri(type))?.getTitle(this) ?: alarmString
+        } catch (e: Exception) {
+            alarmString
+        }
+    }
+
+    fun Context.getDefaultAlarmSound(type: Int) = AlarmSound(0, getDefaultAlarmTitle(type), getDefaultAlarmUri(type).toString())
+
+    fun Context.getSharedPrefs() = getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE)
 
     if (isOreoPlus()) {
         val audioAttributes = AudioAttributes.Builder()
@@ -229,4 +297,29 @@ fun Context.getHideAlarmPendingIntent(alarm: Alarm): PendingIntent {
     val intent = Intent(this, HideAlarmReceiver::class.java)
     intent.putExtra(ALARM_ID, alarm.id)
     return PendingIntent.getBroadcast(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+}
+
+
+fun Context.getFormattedTime(passedSeconds: Int, showSeconds: Boolean, makeAmPmSmaller: Boolean): SpannableString {
+    val use24HourFormat = config.use24HourFormat
+    val hours = (passedSeconds / 3600) % 24
+    val minutes = (passedSeconds / 60) % 60
+    val seconds = passedSeconds % 60
+
+    return if (!use24HourFormat) {
+        val formattedTime = formatTo12HourFormat(showSeconds, hours, minutes, seconds)
+        val spannableTime = SpannableString(formattedTime)
+        val amPmMultiplier = if (makeAmPmSmaller) 0.4f else 1f
+        spannableTime.setSpan(RelativeSizeSpan(amPmMultiplier), spannableTime.length - 5, spannableTime.length, 0)
+        spannableTime
+    } else {
+        val formattedTime = formatTime(showSeconds, use24HourFormat, hours, minutes, seconds)
+        SpannableString(formattedTime)
+    }
+}
+
+fun Context.formatTo12HourFormat(showSeconds: Boolean, hours: Int, minutes: Int, seconds: Int): String {
+    val appendable = getString(if (hours >= 12) R.string.p_m else R.string.a_m)
+    val newHours = if (hours == 0 || hours == 12) 12 else hours % 12
+    return "${formatTime(showSeconds, false, newHours, minutes, seconds)} $appendable"
 }
