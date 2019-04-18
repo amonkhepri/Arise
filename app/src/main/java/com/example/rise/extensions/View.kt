@@ -22,3 +22,9 @@ fun View.onGlobalLayout(callback: () -> Unit) {
         }
     })
 }
+
+fun View.beVisibleIf(beVisible: Boolean) = if (beVisible) beVisible() else beGone()
+
+fun View.beVisible() {
+    visibility = View.VISIBLE
+}

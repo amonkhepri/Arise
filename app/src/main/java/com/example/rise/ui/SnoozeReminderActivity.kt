@@ -14,6 +14,7 @@ class SnoozeReminderActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val id = intent.getIntExtra(ALARM_ID, -1)
+
         val alarm = dbHelper.getAlarmWithId(id) ?: return
 
         hideNotification(id)

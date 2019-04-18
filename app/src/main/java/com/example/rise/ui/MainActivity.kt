@@ -17,10 +17,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.activity_main.*
 import org.jetbrains.anko.longToast
-import android.app.AlarmManager
-import android.app.PendingIntent
-import android.content.IntentFilter
-import androidx.legacy.content.WakefulBroadcastReceiver
 
 
 

@@ -13,6 +13,7 @@ import com.example.rise.R
 import com.example.rise.data.Alarm
 import com.example.rise.extensions.*
 import com.example.rise.helpers.*
+import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.activity_reminder.*
 
 class ReminderActivity : AppCompatActivity (){
@@ -27,17 +28,20 @@ class ReminderActivity : AppCompatActivity (){
     private var mediaPlayer: MediaPlayer? = null
     private var lastVolumeValue = 0.1f
     private var dragDownX = 0f
+    val mFirestore = FirebaseFirestore.getInstance().document("sampleData/user")
+    private lateinit var mQuery: Query
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_reminder)
         showOverLockscreen()
-        //updateTextColors(reminder_holder as ViewGroup)
 
 
 
         //TODO swap Sqlite for Firestore
         val id = intent.getIntExtra(ALARM_ID, -1)
+
         isAlarmReminder = id != -1
         if (id != -1) {
             alarm = dbHelper.getAlarmWithId(id) ?: return

@@ -25,6 +25,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".ui.ReminderActivity"/>
+        <activity android:name=".ui.SnoozeReminderActivity"/>
         <service android:name=".services.SnoozeService"/>
     </application>
 

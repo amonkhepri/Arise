@@ -26,6 +26,7 @@ import com.example.rise.helpers.*
 import com.example.rise.receivers.AlarmReceiver
 import com.example.rise.receivers.HideAlarmReceiver
 import com.example.rise.services.SnoozeService
+import com.example.rise.ui.MainActivity
 import com.example.rise.ui.SnoozeReminderActivity
 import org.jetbrains.anko.toast
 
@@ -154,7 +155,7 @@ fun Context.setupAlarmClock(alarm: Alarm, triggerInSeconds: Int) {
 }
 
 fun Context.getOpenAlarmTabIntent(): PendingIntent {
-    val intent = getLaunchIntent() ?: Intent(this, SplashActivity::class.java)
+    val intent = getLaunchIntent() ?: Intent(this, MainActivity::class.java)
     intent.putExtra(OPEN_TAB, TAB_ALARM)
     return PendingIntent.getActivity(this, OPEN_ALARMS_TAB_INTENT_ID, intent, PendingIntent.FLAG_UPDATE_CURRENT)
 }
@@ -178,6 +179,8 @@ fun Context.grantReadUriPermission(uriString: String) {
 
 
 
+fun Context.getSharedPrefs() = getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE)
+
 @SuppressLint("NewApi")
 fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): Notification {
     var soundUri = alarm.soundUri
@@ -190,20 +193,7 @@ fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): No
     val channelId = "simple_alarm_channel_$soundUri"
     val label = if (alarm.label.isNotEmpty()) alarm.label else getString(R.string.alarm)
 
-    fun Context.getDefaultAlarmUri(type: Int) = RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
 
-    fun Context.getDefaultAlarmTitle(type: Int): String {
-        val alarmString = getString(R.string.alarm)
-        return try {
-            RingtoneManager.getRingtone(this, getDefaultAlarmUri(type))?.getTitle(this) ?: alarmString
-        } catch (e: Exception) {
-            alarmString
-        }
-    }
-
-    fun Context.getDefaultAlarmSound(type: Int) = AlarmSound(0, getDefaultAlarmTitle(type), getDefaultAlarmUri(type).toString())
-
-    fun Context.getSharedPrefs() = getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE)
 
     if (isOreoPlus()) {
         val audioAttributes = AudioAttributes.Builder()
@@ -299,6 +289,32 @@ fun Context.getHideAlarmPendingIntent(alarm: Alarm): PendingIntent {
     return PendingIntent.getBroadcast(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
 }
 
+fun Context.getFormattedSeconds(seconds: Int, showBefore: Boolean = true) = when (seconds) {
+    -1 -> getString(R.string.no_reminder)
+    0 -> getString(R.string.at_start)
+    else -> {
+        if (seconds % YEAR_SECONDS == 0)
+            resources.getQuantityString(R.plurals.years, seconds / YEAR_SECONDS, seconds / YEAR_SECONDS)
+
+        when {
+            seconds % MONTH_SECONDS == 0 -> resources.getQuantityString(R.plurals.months, seconds / MONTH_SECONDS, seconds / MONTH_SECONDS)
+            seconds % WEEK_SECONDS == 0 -> resources.getQuantityString(R.plurals.weeks, seconds / WEEK_SECONDS, seconds / WEEK_SECONDS)
+            seconds % DAY_SECONDS == 0 -> resources.getQuantityString(R.plurals.days, seconds / DAY_SECONDS, seconds / DAY_SECONDS)
+            seconds % HOUR_SECONDS == 0 -> {
+                val base = if (showBefore) R.plurals.hours_before else R.plurals.by_hours
+                resources.getQuantityString(base, seconds / HOUR_SECONDS, seconds / HOUR_SECONDS)
+            }
+            seconds % MINUTE_SECONDS == 0 -> {
+                val base = if (showBefore) R.plurals.minutes_before else R.plurals.by_minutes
+                resources.getQuantityString(base, seconds / MINUTE_SECONDS, seconds / MINUTE_SECONDS)
+            }
+            else -> {
+                val base = if (showBefore) R.plurals.seconds_before else R.plurals.by_seconds
+                resources.getQuantityString(base, seconds, seconds)
+            }
+        }
+    }
+}
 
 fun Context.getFormattedTime(passedSeconds: Int, showSeconds: Boolean, makeAmPmSmaller: Boolean): SpannableString {
     val use24HourFormat = config.use24HourFormat

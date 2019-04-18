@@ -2,12 +2,20 @@ package com.example.rise.extensions
 
 import android.app.Activity
 import android.content.Context
+import android.graphics.drawable.ColorDrawable
 import android.view.View
+import android.view.ViewGroup
+import android.view.Window
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import com.example.models.RadioItem
 import com.example.rise.R
 import com.example.rise.helpers.MINUTE_SECONDS
+import com.example.rise.helpers.MyTextView
+import com.example.rise.ui.dialogs.CustomIntervalPickerDialog
+import com.example.rise.ui.dialogs.RadioGroupDialog
 import java.util.*
 
 fun Activity.showOverLockscreen() {
@@ -65,5 +73,11 @@ fun Activity.showPickSecondsDialog(curSeconds: Int, isSnoozePicker: Boolean = fa
             callback(it as Int)
         }
     }
+
 }
+
+
+
+
+
 
