@@ -10,7 +10,7 @@ import android.view.MotionEvent
 import android.view.animation.AnimationUtils
 import androidx.appcompat.app.AppCompatActivity
 import com.example.rise.R
-import com.example.rise.data.Alarm
+import com.example.rise.models.Alarm
 import com.example.rise.extensions.*
 import com.example.rise.helpers.*
 import com.google.firebase.firestore.*

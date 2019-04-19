@@ -1,20 +1,23 @@
 package com.example.rise.ui.dialogs
 
 import android.app.Activity
+import android.content.Context
 import android.view.ViewGroup
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat.getSystemService
 import com.example.rise.R
 import com.example.rise.extensions.beVisibleIf
 import com.example.rise.extensions.hideKeyboard
 import com.example.rise.helpers.DAY_SECONDS
 import com.example.rise.helpers.HOUR_SECONDS
 import com.example.rise.helpers.MINUTE_SECONDS
-import com.simplemobiletools.commons.R
-import com.simplemobiletools.commons.extensions.*
-import com.simplemobiletools.commons.helpers.DAY_SECONDS
-import com.simplemobiletools.commons.helpers.HOUR_SECONDS
-import com.simplemobiletools.commons.helpers.MINUTE_SECONDS
+import com.example.rise.extensions.*
+
 import kotlinx.android.synthetic.main.dialog_custom_interval_picker.view.*
+
 
 class CustomIntervalPickerDialog(val activity: Activity, val selectedSeconds: Int = 0, val showSeconds: Boolean = false, val callback: (minutes: Int) -> Unit) {
     var dialog: AlertDialog
@@ -54,8 +57,21 @@ class CustomIntervalPickerDialog(val activity: Activity, val selectedSeconds: In
             }
     }
 
+    fun AlertDialog.showKeyboard(editText: EditText) {
+        window!!.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+        editText.apply {
+            requestFocus()
+            onGlobalLayout {
+                setSelection(text.toString().length)
+            }
+        }
+    }
+
+
+
     private fun confirmReminder() {
-        val value = view.dialog_custom_interval_value.value
+        //TODO teporary fix here
+        val value = view.dialog_custom_interval_value.transitionName
         val multiplier = getMultiplier(view.dialog_radio_view.checkedRadioButtonId)
         val minutes = Integer.valueOf(if (value.isEmpty()) "0" else value)
         callback(minutes * multiplier)

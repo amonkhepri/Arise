@@ -6,12 +6,11 @@ import android.view.ViewGroup
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import androidx.appcompat.app.AlertDialog
-import com.example.models.RadioItem
+import com.example.rise.models.RadioItem
 import com.example.rise.R
 import com.example.rise.extensions.onGlobalLayout
 import com.example.rise.extensions.setupDialogStuff
 import kotlinx.android.synthetic.main.dialog_radio_group.view.*
-import org.jetbrains.anko.internals.AnkoInternals.addView
 
 class RadioGroupDialog(val activity: Activity, val items: ArrayList<RadioItem>, val checkedItemId: Int = -1, val titleId: Int = 0,
                        showOKButton: Boolean = false, val cancelCallback: (() -> Unit)? = null, val callback: (newValue: Any) -> Unit) {

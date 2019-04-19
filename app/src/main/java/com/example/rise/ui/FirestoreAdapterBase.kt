@@ -33,7 +33,7 @@ import java.util.ArrayList
 ]
  =432q* more efficient implementation of a Firestore RecyclerView Adapter.
  */
-abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder>(private var mQuery: Query?) : RecyclerView.Adapter<VH>(),
+abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var mQuery: Query?) : RecyclerView.Adapter<VH>(),
     EventListener<QuerySnapshot> {
 
     private var mRegistration: ListenerRegistration? = null

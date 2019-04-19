@@ -1,7 +1,7 @@
-package com.simplemobiletools.clock.extensions
+package com.example.rise.extensions
 
 import android.widget.TextView
-import com.simplemobiletools.commons.extensions.applyColorFilter
+import com.example.rise.helpers.applyColorFilter
 
 fun TextView.colorLeftDrawable(color: Int) {
     val leftImage = compoundDrawables.first()

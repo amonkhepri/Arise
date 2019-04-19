@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.rise.models.Alarm
 import com.example.rise.ui.viewModel.MainActivityViewModel
 import com.firebase.ui.auth.AuthUI
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -36,8 +37,8 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
     private lateinit var mQuery: Query
     private lateinit var myAlarmRecyclerViewAdapter :MyAlarmRecyclerViewAdapter
     private lateinit var mViewModel:MainActivityViewModel
-    val alarm=HashMap<String,Any>()
-
+    val alarms = ArrayList<Alarm>()
+    lateinit var alarm:Alarm
 
 
     private val RC_SIGN_IN = 9001
@@ -94,16 +95,12 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
 
 
-        floatingActionButton.setOnClickListener {alarm["myAlarm"]=simpleTimePicker.hour.toString() + " " + simpleTimePicker.minute.toString()
-            mQuery=queryFirestore()
+        floatingActionButton.setOnClickListener {
 
-           /* AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
-WakefulBroadcasterReceiver wbr = new WakefulBroadcastReceiver();
-registerReceiver(wbr, new IntentFilter("Receiver"));
-Intent myIntent = new Intent("Receiver");
-myIntent.putExtra("uri",audioFileUri.toString()); // Here we pass the URI of audio file
-PendingIntent pendingIntent = PendingIntent.getBroadcast(MainActivity.this, 1234, myIntent, 0);
-alarmManager.setExact(AlarmManager.RTC_WAKEUP, alarmtime, pendingIntent);*/
+            alarm= Alarm()
+            alarm.timeInMinutes=simpleTimePicker.hour * 60 +  simpleTimePicker.minute
+
+            mQuery=queryFirestore()
         }
 
         mQuery=queryFirestore()
@@ -143,9 +140,9 @@ alarmManager.setExact(AlarmManager.RTC_WAKEUP, alarmtime, pendingIntent);*/
         return !mViewModel.mSignIn && FirebaseAuth.getInstance().currentUser == null
     }
 
-    fun  queryFirestore():CollectionReference{
+    fun  queryFirestore():CollectionReference {
 
-        if(alarm["myAlarm"]!=null) {
+        if(alarms.size!=0) {
 
             mFirestore.collection("alarms")
                 .add(alarm)
@@ -193,8 +190,8 @@ alarmManager.setExact(AlarmManager.RTC_WAKEUP, alarmtime, pendingIntent);*/
                 Snackbar.make(
                     findViewById<View>(android.R.id.content),
                     "Error: check logs for info.", Snackbar.LENGTH_LONG).show()
+             }
 
-        }
         alarmList.layoutManager = LinearLayoutManager(this)
         alarmList.adapter = myAlarmRecyclerViewAdapter
         myAlarmRecyclerViewAdapter.setQuery(mQuery)

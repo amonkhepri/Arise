@@ -1,11 +1,9 @@
 package com.example.rise.ui
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.rise.data.Alarm
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -14,7 +12,7 @@ import kotlinx.android.synthetic.main.recycler_alarm_item.view.*
 
 open class MyAlarmRecyclerViewAdapter(
   //  private val mListener: OnAlarmSelectedListener,
-    var mQuery: Query
+    mQuery: Query
 
 ) : FirestoreAdapterBase<MyAlarmRecyclerViewAdapter.ViewHolder>(mQuery) {
 
@@ -45,11 +43,12 @@ open class MyAlarmRecyclerViewAdapter(
     inner class ViewHolder(val mView: View) : RecyclerView.ViewHolder(mView) {
 
         fun bind(
-            snapshot: DocumentSnapshot/*,
-            listener: OnAlarmSelectedListener*/
+            snapshot: DocumentSnapshot
         ) {
             mSnapshot=snapshot
-         //   val alarm:Alarm= snapshot.toObject(Alarm::class.java)!!
+
+
+            //   val alarm:Alarm= snapshot.toObject(Alarm::class.java)!!
             mView.time_remaining.text = snapshot.data!!["myAlarm"].toString()
             mView.time_set.text = snapshot.data!!["myAlarm"].toString()
 

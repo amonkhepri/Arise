@@ -8,14 +8,16 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
-import com.example.models.RadioItem
+import com.example.rise.models.RadioItem
 import com.example.rise.R
 import com.example.rise.helpers.MINUTE_SECONDS
 import com.example.rise.helpers.MyTextView
 import com.example.rise.ui.dialogs.CustomIntervalPickerDialog
 import com.example.rise.ui.dialogs.RadioGroupDialog
+import kotlinx.android.synthetic.main.dialog_tile_textview.view.*
 import java.util.*
 
 fun Activity.showOverLockscreen() {
@@ -75,6 +77,52 @@ fun Activity.showPickSecondsDialog(curSeconds: Int, isSnoozePicker: Boolean = fa
     }
 
 }
+fun Activity.showKeyboard(et: EditText) {
+    et.requestFocus()
+    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+    imm.showSoftInput(et, InputMethodManager.SHOW_IMPLICIT)
+}
+
+fun Activity.setupDialogStuff(view: View, dialog: AlertDialog, titleId: Int = 0, titleText: String = "", callback: (() -> Unit)? = null) {
+    if (isDestroyed || isFinishing) {
+        return
+    }
+
+    if (view is ViewGroup)
+        updateTextColors(view)
+    else if (view is MyTextView) {
+        view.setColors(baseConfig.textColor, getAdjustedPrimaryColor(), baseConfig.backgroundColor)
+    }
+
+    var title: TextView? = null
+
+
+    if (titleId != 0 || titleText.isNotEmpty()) {
+        title = layoutInflater.inflate(R.layout.dialog_title, null) as TextView
+        title.dialog_title_textview.apply {
+            if (titleText.isNotEmpty()) {
+                text = titleText
+            } else {
+                setText(titleId)
+            }
+            setTextColor(baseConfig.textColor)
+        }
+    }
+
+    dialog.apply {
+        setView(view)
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
+        setCustomTitle(title)
+        setCanceledOnTouchOutside(true)
+        show()
+        getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(baseConfig.textColor)
+        getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(baseConfig.textColor)
+        getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(baseConfig.textColor)
+        window?.setBackgroundDrawable(ColorDrawable(baseConfig.backgroundColor))
+    }
+    callback?.invoke()
+}
+
 
 
 

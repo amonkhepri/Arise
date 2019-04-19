@@ -9,7 +9,7 @@ import android.media.AudioManager
 import java.util.*
 import android.os.PowerManager
 import com.example.rise.R
-import com.example.rise.data.Alarm
+import com.example.rise.models.Alarm
 import kotlin.math.pow
 import android.net.Uri
 import android.os.Handler
@@ -18,21 +18,53 @@ import android.graphics.Color
 import android.media.RingtoneManager
 import android.text.SpannableString
 import android.text.style.RelativeSizeSpan
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.app.AlarmManagerCompat
 import androidx.core.app.NotificationCompat
-import com.example.models.AlarmSound
+import com.example.rise.models.AlarmSound
 import com.example.rise.helpers.*
 import com.example.rise.receivers.AlarmReceiver
 import com.example.rise.receivers.HideAlarmReceiver
 import com.example.rise.services.SnoozeService
 import com.example.rise.ui.MainActivity
 import com.example.rise.ui.SnoozeReminderActivity
-import org.jetbrains.anko.toast
 
 
 fun Context.isScreenOn() = (getSystemService(Context.POWER_SERVICE) as PowerManager).isScreenOn
 
+
+fun Context.updateTextColors(viewGroup: ViewGroup, tmpTextColor: Int = 0, tmpAccentColor: Int = 0) {
+    val textColor = if (tmpTextColor == 0) baseConfig.textColor else tmpTextColor
+    val backgroundColor = baseConfig.backgroundColor
+    val accentColor = if (tmpAccentColor == 0) {
+        if (isBlackAndWhiteTheme()) {
+            Color.WHITE
+        } else {
+            baseConfig.primaryColor
+        }
+    } else {
+        tmpAccentColor
+    }
+
+    //TODO stubbing?
+/*    val cnt = viewGroup.childCount
+    (0 until cnt).map { viewGroup.getChildAt(it) }
+        .forEach {
+            when (it) {
+                is MyTextView -> it.setColors(textColor, accentColor, backgroundColor)
+                is MyAppCompatSpinner -> it.setColors(textColor, accentColor, backgroundColor)
+                is MySwitchCompat -> it.setColors(textColor, accentColor, backgroundColor)
+                is MyCompatRadioButton -> it.setColors(textColor, accentColor, backgroundColor)
+                is MyAppCompatCheckbox -> it.setColors(textColor, accentColor, backgroundColor)
+                is MyEditText -> it.setColors(textColor, accentColor, backgroundColor)
+                is MyFloatingActionButton -> it.setColors(textColor, accentColor, backgroundColor)
+                is MySeekBar -> it.setColors(textColor, accentColor, backgroundColor)
+                is MyButton -> it.setColors(textColor, accentColor, backgroundColor)
+                is ViewGroup -> updateTextColors(it, textColor, accentColor)
+            }
+        }*/
+}
 
 
 
