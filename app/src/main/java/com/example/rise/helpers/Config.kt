@@ -5,7 +5,6 @@ import com.example.rise.extensions.getDefaultAlarmTitle
 import com.example.rise.extensions.getDefaultAlarmUri
 
 class Config(context: Context) : BaseConfig(context) {
-
     companion object {
         fun newInstance(context: Context) = Config(context)
     }
@@ -14,13 +13,13 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(SHOW_SECONDS, true)
         set(showSeconds) = prefs.edit().putBoolean(SHOW_SECONDS, showSeconds).apply()
 
-   /* var selectedTimeZones: Set<String>
+    var selectedTimeZones: Set<String>
         get() = prefs.getStringSet(SELECTED_TIME_ZONES, HashSet())
         set(selectedTimeZones) = prefs.edit().putStringSet(SELECTED_TIME_ZONES, selectedTimeZones).apply()
 
     var editedTimeZoneTitles: Set<String>
         get() = prefs.getStringSet(EDITED_TIME_ZONE_TITLES, HashSet())
-        set(editedTimeZoneTitles) = prefs.edit().putStringSet(EDITED_TIME_ZONE_TITLES, editedTimeZoneTitles).apply()*/
+        set(editedTimeZoneTitles) = prefs.edit().putStringSet(EDITED_TIME_ZONE_TITLES, editedTimeZoneTitles).apply()
 
     var timerSeconds: Int
         get() = prefs.getInt(TIMER_SECONDS, 300)

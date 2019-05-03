@@ -15,7 +15,9 @@ class SnoozeReminderActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         val id = intent.getIntExtra(ALARM_ID, -1)
 
-        val alarm = dbHelper.getAlarmWithId(id) ?: return
+
+        //TODO fix this
+       /* val alarm = dbHelper.getAlarmWithId(id) ?: return
 
         hideNotification(id)
 
@@ -33,5 +35,5 @@ class SnoozeReminderActivity : AppCompatActivity() {
     private fun finishActivity() {
         finish()
         overridePendingTransition(0, 0)
-    }
-}
+    }*/
+}}

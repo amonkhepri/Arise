@@ -19,14 +19,13 @@ class SnoozeService : IntentService("Snooze") {
         val id = intent.getIntExtra(ALARM_ID, -1)
 
         val alarms = ArrayList<Alarm>()
+        lateinit var alarm:Alarm
 
         val mFirestore = FirebaseFirestore.getInstance().document("sampleData/user")
 
         fun queryFirestore(): CollectionReference {
 
-//TODO read operation
-
-            if (alarm["myAlarm"] != null) {
+            if (alarms.size != 0) {
 
                 mFirestore.collection("alarms")
                     .add(alarm)
@@ -39,8 +38,6 @@ class SnoozeService : IntentService("Snooze") {
             }
             return mFirestore.collection("alarms")
         }
-
-        alarm =queryFirestore()
 
             //dbHelper.getAlarmWithId(id) ?: return
         hideNotification(id)

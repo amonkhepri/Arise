@@ -2218,6 +2218,5 @@
         <item name="android:backgroundDimEnabled">false</item>
 
     </style>
-  <item name="dialogTitleDecorLayout">"title"</item>
 
 </resources>

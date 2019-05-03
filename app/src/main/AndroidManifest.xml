@@ -3,6 +3,10 @@
           package="com.example.rise">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
 
     <application
@@ -27,6 +31,7 @@
         <activity android:name=".ui.ReminderActivity"/>
         <activity android:name=".ui.SnoozeReminderActivity"/>
         <service android:name=".services.SnoozeService"/>
+        <receiver android:name=".receivers.AlarmReceiver"/>
     </application>
 
 </manifest>

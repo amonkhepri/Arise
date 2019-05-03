@@ -17,6 +17,7 @@ import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.activity_reminder.*
 
 class ReminderActivity : AppCompatActivity (){
+
     private val INCREASE_VOLUME_DELAY = 3000L
 
     private val increaseVolumeHandler = Handler()
@@ -42,10 +43,11 @@ class ReminderActivity : AppCompatActivity (){
         //TODO swap Sqlite for Firestore
         val id = intent.getIntExtra(ALARM_ID, -1)
 
-        isAlarmReminder = id != -1
+        //TODO fix this
+      /*  isAlarmReminder = id != -1
         if (id != -1) {
             alarm = dbHelper.getAlarmWithId(id) ?: return
-        }
+        }*/
 
         val label = if (isAlarmReminder) {
             if (alarm!!.label.isEmpty()) {

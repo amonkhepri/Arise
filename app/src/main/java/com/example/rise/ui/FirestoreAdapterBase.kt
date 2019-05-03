@@ -16,8 +16,11 @@
 package com.example.rise.ui
 
 
+import android.content.Context
 import android.util.Log
 import androidx.recyclerview.widget.RecyclerView
+import com.example.rise.extensions.scheduleNextAlarm
+import com.example.rise.models.Alarm
 import com.google.firebase.firestore.*
 
 import java.util.ArrayList
@@ -33,12 +36,16 @@ import java.util.ArrayList
 ]
  =432q* more efficient implementation of a Firestore RecyclerView Adapter.
  */
-abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var mQuery: Query?) : RecyclerView.Adapter<VH>(),
+abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var mQuery: Query?,var context: Context) : RecyclerView.Adapter<VH>(),
     EventListener<QuerySnapshot> {
+
+
+
+
 
     private var mRegistration: ListenerRegistration? = null
 
-    private val mSnapshots = ArrayList<DocumentSnapshot>()
+    val mSnapshots = ArrayList<DocumentSnapshot>()
 
     override fun onEvent(
         documentSnapshots: QuerySnapshot?,
@@ -50,7 +57,6 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
             Log.w(TAG, "onEvent:error", e)
             return
         }
-
         // Dispatch the event
         for (change in documentSnapshots!!.documentChanges) {
             // Snapshot of the changed document
@@ -107,9 +113,12 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
 
     protected open fun onDataChanged() {}
 
-    protected fun onDocumentAdded(change: DocumentChange) {
+    open fun onDocumentAdded(change: DocumentChange) {
         mSnapshots.add(change.newIndex, change.document)
         notifyItemInserted(change.newIndex)
+        context.scheduleNextAlarm(change.document.toObject(Alarm::class.java), true)
+
+
     }
 
     protected fun onDocumentModified(change: DocumentChange) {
@@ -128,10 +137,10 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
     protected fun onDocumentRemoved(change: DocumentChange) {
         mSnapshots.removeAt(change.oldIndex)
         notifyItemRemoved(change.oldIndex)
+
     }
 
     companion object {
-
         private val TAG = "Firestore Adapter"
     }
 }

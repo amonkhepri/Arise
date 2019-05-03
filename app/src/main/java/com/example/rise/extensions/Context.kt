@@ -10,13 +10,14 @@ import java.util.*
 import android.os.PowerManager
 import com.example.rise.R
 import com.example.rise.models.Alarm
-import kotlin.math.pow
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.graphics.Color
 import android.media.RingtoneManager
+import android.os.Environment
 import android.text.SpannableString
+import android.text.TextUtils
 import android.text.style.RelativeSizeSpan
 import android.view.ViewGroup
 import android.widget.Toast
@@ -29,6 +30,8 @@ import com.example.rise.receivers.HideAlarmReceiver
 import com.example.rise.services.SnoozeService
 import com.example.rise.ui.MainActivity
 import com.example.rise.ui.SnoozeReminderActivity
+import java.io.File
+import java.util.regex.Pattern
 
 
 fun Context.isScreenOn() = (getSystemService(Context.POWER_SERVICE) as PowerManager).isScreenOn
@@ -46,24 +49,6 @@ fun Context.updateTextColors(viewGroup: ViewGroup, tmpTextColor: Int = 0, tmpAcc
     } else {
         tmpAccentColor
     }
-
-    //TODO stubbing?
-/*    val cnt = viewGroup.childCount
-    (0 until cnt).map { viewGroup.getChildAt(it) }
-        .forEach {
-            when (it) {
-                is MyTextView -> it.setColors(textColor, accentColor, backgroundColor)
-                is MyAppCompatSpinner -> it.setColors(textColor, accentColor, backgroundColor)
-                is MySwitchCompat -> it.setColors(textColor, accentColor, backgroundColor)
-                is MyCompatRadioButton -> it.setColors(textColor, accentColor, backgroundColor)
-                is MyAppCompatCheckbox -> it.setColors(textColor, accentColor, backgroundColor)
-                is MyEditText -> it.setColors(textColor, accentColor, backgroundColor)
-                is MyFloatingActionButton -> it.setColors(textColor, accentColor, backgroundColor)
-                is MySeekBar -> it.setColors(textColor, accentColor, backgroundColor)
-                is MyButton -> it.setColors(textColor, accentColor, backgroundColor)
-                is ViewGroup -> updateTextColors(it, textColor, accentColor)
-            }
-        }*/
 }
 
 
@@ -82,13 +67,47 @@ fun Context.getDefaultAlarmTitle(type: Int): String {
 fun Context.getDefaultAlarmSound(type: Int) = AlarmSound(0, getDefaultAlarmTitle(type), getDefaultAlarmUri(type).toString())
 
 
+
 val Context.config: Config get() = Config.newInstance(applicationContext)
 
 
 
+fun Context.getInternalStoragePath() = Environment.getExternalStorageDirectory().absolutePath.trimEnd('/')
+
+fun Context.isPathOnSD(path: String) = sdCardPath.isNotEmpty() && path.startsWith(sdCardPath)
+
+fun Context.isPathOnOTG(path: String) = otgPath.isNotEmpty() && path.startsWith(otgPath)
+
+
+val Context.sdCardPath: String get() = baseConfig.sdCardPath
+
+val Context.otgPath: String get() = baseConfig.OTGPath
+
+
+// avoid these being set as SD card paths
+private val physicalPaths = arrayListOf(
+    "/storage/sdcard1", // Motorola Xoom
+    "/storage/extsdcard", // Samsung SGS3
+    "/storage/sdcard0/external_sdcard", // User request
+    "/mnt/extsdcard", "/mnt/sdcard/external_sd", // Samsung galaxy family
+    "/mnt/external_sd", "/mnt/media_rw/sdcard1", // 4.4.2 on CyanogenMod S3
+    "/removable/microsd", // Asus transformer prime
+    "/mnt/emmc", "/storage/external_SD", // LG
+    "/storage/ext_sd", // HTC One Max
+    "/storage/removable/sdcard1", // Sony Xperia Z1
+    "/data/sdext", "/data/sdext2", "/data/sdext3", "/data/sdext4", "/sdcard1", // Sony Xperia Z
+    "/sdcard2", // HTC One M8s
+    "/storage/usbdisk0",
+    "/storage/usbdisk1",
+    "/storage/usbdisk2"
+)
+
+
 fun Context.getLaunchIntent() = packageManager.getLaunchIntentForPackage(baseConfig.appId)
 
+
 fun Context.showAlarmNotification(alarm: Alarm) {
+
     val pendingIntent = getOpenAlarmTabIntent()
     val notification = getAlarmNotification(pendingIntent, alarm)
     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -100,24 +119,52 @@ fun Context.showAlarmNotification(alarm: Alarm) {
 
 
 fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
-    val calendar = Calendar.getInstance()
+
+
+    val cur_cal = Calendar.getInstance()
+    cur_cal.timeInMillis = System.currentTimeMillis();//set the current time and date for this calendar
+
+val cal = Calendar.getInstance()
+cal.add(Calendar.DAY_OF_YEAR, cur_cal.get(Calendar.DAY_OF_YEAR));
+cal.set(Calendar.HOUR_OF_DAY, alarm.timeInMinutes/60);
+cal.set(Calendar.MINUTE, alarm.timeInMinutes%60);
+cal.set(Calendar.SECOND, cur_cal.get(0));
+cal.set(Calendar.MILLISECOND, cur_cal.get(Calendar.MILLISECOND));
+cal.set(Calendar.DATE, cur_cal.get(Calendar.DATE));
+cal.set(Calendar.MONTH, cur_cal.get(Calendar.MONTH));
+
+    val intent = Intent(this, AlarmReceiver::class.java)
+
+    intent.putExtra(ALARM_ID, alarm.id)
+
+    var pintent: PendingIntent = PendingIntent.getBroadcast(this, alarm.id, intent, 0);
+    var alarmManage :AlarmManager=getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    alarmManage.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pintent);
+
+
+
+ /*   val calendar = Calendar.getInstance()
     calendar.firstDayOfWeek = Calendar.MONDAY
+
     for (i in 0..7) {
+
         val currentDay = (calendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
         val isCorrectDay = alarm.days and 2.0.pow(currentDay).toInt() != 0
         val currentTimeInMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
+
+
         if (isCorrectDay && (alarm.timeInMinutes > currentTimeInMinutes || i > 0)) {
             val triggerInMinutes = alarm.timeInMinutes - currentTimeInMinutes + (i * DAY_MINUTES)
             setupAlarmClock(alarm, triggerInMinutes * 60 - calendar.get(Calendar.SECOND))
-
             if (showToast) {
                 showRemainingTimeMessage(triggerInMinutes)
+
             }
             break
         } else {
             calendar.add(Calendar.DAY_OF_MONTH, 1)
         }
-    }
+    }*/
 }
 
 
@@ -181,8 +228,9 @@ fun Context.showRemainingTimeMessage(totalMinutes: Int) {
 fun Context.setupAlarmClock(alarm: Alarm, triggerInSeconds: Int) {
     val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val targetMS = System.currentTimeMillis() + triggerInSeconds * 1000
-    AlarmManagerCompat.setAlarmClock(alarmManager, targetMS, getOpenAlarmTabIntent(), getAlarmIntent(alarm))
-
+   /* AlarmManagerCompat.setAlarmClock(alarmManager, targetMS, getOpenAlarmTabIntent(), getAlarmIntent(alarm.id))*/
+    AlarmManagerCompat.setExactAndAllowWhileIdle(alarmManager, ALARM_SOUND_TYPE_ALARM,
+        triggerInSeconds.toLong(),getAlarmIntent(alarm.id))
 
 }
 
@@ -194,10 +242,10 @@ fun Context.getOpenAlarmTabIntent(): PendingIntent {
 
 
 
-fun Context.getAlarmIntent(alarm: Alarm): PendingIntent {
+fun Context.getAlarmIntent(alarm: Int): PendingIntent {
     val intent = Intent(this, AlarmReceiver::class.java)
-    intent.putExtra(ALARM_ID, alarm.id)
-    return PendingIntent.getBroadcast(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+    intent.putExtra(ALARM_ID, alarm)
+    return PendingIntent.getBroadcast(this, alarm, intent, PendingIntent.FLAG_UPDATE_CURRENT)
 }
 
 
@@ -206,6 +254,7 @@ fun Context.grantReadUriPermission(uriString: String) {
         // ensure custom reminder sounds play well
         grantUriPermission("com.android.systemui", Uri.parse(uriString), Intent.FLAG_GRANT_READ_URI_PERMISSION)
     } catch (ignored: Exception) {
+
     }
 }
 
@@ -313,6 +362,86 @@ fun Context.getSnoozePendingIntent(alarm: Alarm): PendingIntent {
     } else {
         PendingIntent.getActivity(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
     }
+}
+
+
+
+fun Context.getStorageDirectories(): Array<String> {
+    val paths = HashSet<String>()
+    val rawExternalStorage = System.getenv("EXTERNAL_STORAGE")
+    val rawSecondaryStoragesStr = System.getenv("SECONDARY_STORAGE")
+    val rawEmulatedStorageTarget = System.getenv("EMULATED_STORAGE_TARGET")
+    if (TextUtils.isEmpty(rawEmulatedStorageTarget)) {
+        if (isMarshmallowPlus()) {
+            getExternalFilesDirs(null).filterNotNull().map { it.absolutePath }
+                .mapTo(paths) { it.substring(0, it.indexOf("Android/data")) }
+        } else {
+            if (TextUtils.isEmpty(rawExternalStorage)) {
+                paths.addAll(physicalPaths)
+            } else {
+                paths.add(rawExternalStorage)
+            }
+        }
+    } else {
+        val path = Environment.getExternalStorageDirectory().absolutePath
+        val folders = Pattern.compile("/").split(path)
+        val lastFolder = folders[folders.size - 1]
+        var isDigit = false
+        try {
+            Integer.valueOf(lastFolder)
+            isDigit = true
+        } catch (ignored: NumberFormatException) {
+        }
+
+        val rawUserId = if (isDigit) lastFolder else ""
+        if (TextUtils.isEmpty(rawUserId)) {
+            paths.add(rawEmulatedStorageTarget)
+        } else {
+            paths.add(rawEmulatedStorageTarget + File.separator + rawUserId)
+        }
+    }
+
+    if (!TextUtils.isEmpty(rawSecondaryStoragesStr)) {
+        val rawSecondaryStorages = rawSecondaryStoragesStr.split(File.pathSeparator.toRegex()).dropLastWhile(String::isEmpty).toTypedArray()
+        Collections.addAll(paths, *rawSecondaryStorages)
+    }
+    return paths.map { it.trimEnd('/') }.toTypedArray()
+}
+
+fun Context.getSDCardPath(): String {
+    val directories = getStorageDirectories().filter {
+        it != getInternalStoragePath() && (baseConfig.OTGPartition.isEmpty() || !it.endsWith(baseConfig.OTGPartition))
+    }
+
+    val fullSDpattern = Pattern.compile("^/storage/[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$")
+    var sdCardPath = directories.firstOrNull { fullSDpattern.matcher(it).matches() }
+        ?: directories.firstOrNull { !physicalPaths.contains(it.toLowerCase()) } ?: ""
+
+    // on some devices no method retrieved any SD card path, so test if its not sdcard1 by any chance. It happened on an Android 5.1
+    if (sdCardPath.trimEnd('/').isEmpty()) {
+        val file = File("/storage/sdcard1")
+        if (file.exists()) {
+            return file.absolutePath
+        }
+
+        sdCardPath = directories.firstOrNull() ?: ""
+    }
+
+    if (sdCardPath.isEmpty()) {
+        val SDpattern = Pattern.compile("^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$")
+        try {
+            File("/storage").listFiles()?.forEach {
+                if (SDpattern.matcher(it.name).matches()) {
+                    sdCardPath = "/storage/${it.name}"
+                }
+            }
+        } catch (e: Exception) {
+        }
+    }
+
+    val finalPath = sdCardPath.trimEnd('/')
+    baseConfig.sdCardPath = finalPath
+    return finalPath
 }
 
 fun Context.getHideAlarmPendingIntent(alarm: Alarm): PendingIntent {

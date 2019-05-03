@@ -1,6 +1,9 @@
 package com.example.rise.ui
 
 
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -9,7 +12,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
+
 import com.example.rise.models.Alarm
+
 import com.example.rise.ui.viewModel.MainActivityViewModel
 import com.firebase.ui.auth.AuthUI
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -18,8 +23,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.activity_main.*
 import org.jetbrains.anko.longToast
-
-
+import java.util.*
+import kotlin.collections.ArrayList
 
 
 class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppCompatActivity() {
@@ -38,14 +43,17 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
     private lateinit var myAlarmRecyclerViewAdapter :MyAlarmRecyclerViewAdapter
     private lateinit var mViewModel:MainActivityViewModel
     val alarms = ArrayList<Alarm>()
+    var firstrun:Boolean=true
     lateinit var alarm:Alarm
+    lateinit var alarmManager :AlarmManager
+    lateinit var context: Context
+
 
 
     private val RC_SIGN_IN = 9001
 
 
     private val mOnNavigationItemSelectedListener = BottomNavigationView.OnNavigationItemSelectedListener { item ->
-
         //bottom navigation
         when (item.itemId) {
             com.example.rise.R.id.navigation_home -> {
@@ -72,13 +80,11 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
 
     public override fun onStart() {
         super.onStart()
-
         // Start sign in if necessary
         if (shouldStartSignIn()) {
             startSignIn()
             return
         }
-
            myAlarmRecyclerViewAdapter.startListening() //test
     }
 
@@ -88,23 +94,34 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
         setContentView(com.example.rise.R.layout.activity_main)
 
         bottomNavigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
-
         mViewModel = ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
-
         FirebaseFirestore.setLoggingEnabled(true);
 
-
+        context=this
 
         floatingActionButton.setOnClickListener {
 
-            alarm= Alarm()
-            alarm.timeInMinutes=simpleTimePicker.hour * 60 +  simpleTimePicker.minute
 
+            alarm=Alarm()
+            firstrun=false
+            alarm.timeInMinutes=simpleTimePicker.hour * 60 +  simpleTimePicker.minute
             mQuery=queryFirestore()
+
+           /* alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+          *//*  val second = alarm.timeInMinutes*3600000*//*
+            val second=alarm.timeInMinutes*1000
+            val intent = Intent(context, AlarmReceiver::class.java)
+
+            val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+       *//*     context.scheduleNextAlarm(alarm,true)
+*//*
+
+
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + second, pendingIntent)*/
+
         }
 
         mQuery=queryFirestore()
-        testQuery(mQuery)
         initRecyclerView(mQuery)
     }
 
@@ -136,44 +153,40 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
         mViewModel.mSignIn=true
     }
 
+
     private fun shouldStartSignIn(): Boolean {
         return !mViewModel.mSignIn && FirebaseAuth.getInstance().currentUser == null
     }
 
+
     fun  queryFirestore():CollectionReference {
 
-        if(alarms.size!=0) {
+        if(!firstrun) {
+            mFirestore.collection("alarms")
+            mFirestore.update("id", FieldValue.increment(1))
+            //TODO Consider more multiwriteprooof id's
+            val timestamp=System.currentTimeMillis().toInt()
+            alarm.id=timestamp
 
             mFirestore.collection("alarms")
-                .add(alarm)
+                .document(timestamp.toString()).set(alarm)
                 .addOnSuccessListener { documentReference ->
-                    Log.d(TAG, "DocumentSnapshot add with ID: " + documentReference.id)
+                    Log.d(TAG, "DocumentSnapshot add with ID: " )
                 }
                 .addOnFailureListener { e ->
                     Log.w(TAG, "Error adding document", e)
                 }
+            return mFirestore.collection("alarms")
+        }else {
+
+
+            return mFirestore.collection("alarms")
         }
-      return mFirestore.collection("alarms")
     }
-
-    private  fun testQuery(mQuery: Query){
-        mQuery.get()
-            .addOnSuccessListener { result ->
-                for (document in result) {
-                    Log.d(TAG, document.id + " => " + document.data)
-                    longToast(document.data.toString())
-                }
-            }
-            .addOnFailureListener { exception ->
-                Log.w(TAG, "Error getting documents.", exception)
-            }
-    }
-
-
 
     private fun initRecyclerView(mQuery: Query) {
 
-        myAlarmRecyclerViewAdapter =object: MyAlarmRecyclerViewAdapter(mQuery)
+        myAlarmRecyclerViewAdapter =object: MyAlarmRecyclerViewAdapter(mQuery,context)
              {
                  override fun onDataChanged() =
             // Show/hide content if the query returns empty
@@ -181,7 +194,6 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
                   //  longToast("VISIBLE")
                   //  alarmList.visibility = View.GONE
                 } else {
-                    Toast.makeText(this@MainActivity, "GONE!", Toast.LENGTH_LONG).show()
                     // longToast("GONE")
                     // alarmList.visibility = View.GONE
                 }
@@ -196,5 +208,19 @@ class MainActivity : MyAlarmRecyclerViewAdapter.OnAlarmSelectedListener, AppComp
         alarmList.adapter = myAlarmRecyclerViewAdapter
         myAlarmRecyclerViewAdapter.setQuery(mQuery)
 
+    }
+
+    private  fun testQuery(mQuery: Query){
+
+        mQuery.get()
+            .addOnSuccessListener { result ->
+                for (document in result) {
+                    Log.d(TAG, document.id + " => " + document.data)
+                  //  longToast(document.data.toString())
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents.", exception)
+            }
     }
 }

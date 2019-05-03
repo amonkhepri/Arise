@@ -9,7 +9,7 @@ android {
     compileSdkVersion 28
     defaultConfig {
         applicationId "com.example.rise"
-        minSdkVersion 23
+        minSdkVersion 24
         targetSdkVersion 28
           versionCode 1
         versionName "1.0"
@@ -24,6 +24,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     packagingOptions {
         exclude 'META-INF/androidx.localbroadcastmanager_localbroadcastmanager.version'
         exclude 'META-INF/androidx.customview_customview.version'
@@ -33,10 +34,6 @@ android {
         exclude 'META-INF/androidx.legacy_legacy-support-core-utils.version'
         exclude 'META-INF/androidx.slidingpanelayout_slidingpanelayout.version'
         exclude 'META-INF/androidx.*'
-
-
-
-
     }
 }
 
@@ -60,8 +57,6 @@ dependencies {
     implementation 'com.google.firebase:firebase-firestore:18.2.0'
 
     implementation "androidx.lifecycle:lifecycle-extensions:$lifecycle_version"
-
-
 
     // Other Firebase/Play services deps
     implementation 'com.google.firebase:firebase-auth:16.2.1'
