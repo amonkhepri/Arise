@@ -1,13 +1,10 @@
 package com.example.rise.ui.dialogs
 
-import android.app.Activity
-import android.content.Context
+import androidx.appcompat.app.AppCompatActivity
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.ContextCompat.getSystemService
 import com.example.rise.R
 import com.example.rise.extensions.beVisibleIf
 import com.example.rise.extensions.hideKeyboard
@@ -19,7 +16,7 @@ import com.example.rise.extensions.*
 import kotlinx.android.synthetic.main.dialog_custom_interval_picker.view.*
 
 
-class CustomIntervalPickerDialog(val activity: Activity, val selectedSeconds: Int = 0, val showSeconds: Boolean = false, val callback: (minutes: Int) -> Unit) {
+class CustomIntervalPickerDialog(val activity: AppCompatActivity, val selectedSeconds: Int = 0, val showSeconds: Boolean = false, val callback: (minutes: Int) -> Unit) {
     var dialog: AlertDialog
     var view = (activity.layoutInflater.inflate(R.layout.dialog_custom_interval_picker, null) as ViewGroup)
 

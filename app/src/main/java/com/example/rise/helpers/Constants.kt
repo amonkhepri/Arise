@@ -8,6 +8,12 @@ import com.example.rise.R
 import java.util.*
 
 
+
+object AppConstants {
+    const val USER_NAME = "USER_NAME"
+    const val USER_ID = "USER_ID"
+}
+
 // sorting
 const val SORT_ORDER = "sort_order"
 const val SORT_BY_NAME = 1

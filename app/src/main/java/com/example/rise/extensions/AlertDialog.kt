@@ -1,6 +1,6 @@
 package com.example.rise.extensions
 
-import android.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
 import android.view.WindowManager
 import android.widget.EditText
 

@@ -1,6 +1,6 @@
 package com.example.rise.ui.dialogs
 
-import android.app.Activity
+import androidx.appcompat.app.AppCompatActivity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.RadioButton
@@ -12,7 +12,7 @@ import com.example.rise.extensions.onGlobalLayout
 import com.example.rise.extensions.setupDialogStuff
 import kotlinx.android.synthetic.main.dialog_radio_group.view.*
 
-class RadioGroupDialog(val activity: Activity, val items: ArrayList<RadioItem>, val checkedItemId: Int = -1, val titleId: Int = 0,
+class RadioGroupDialog(val activity: AppCompatActivity, val items: ArrayList<RadioItem>, val checkedItemId: Int = -1, val titleId: Int = 0,
                        showOKButton: Boolean = false, val cancelCallback: (() -> Unit)? = null, val callback: (newValue: Any) -> Unit) {
     private val dialog: AlertDialog
     private var wasInit = false

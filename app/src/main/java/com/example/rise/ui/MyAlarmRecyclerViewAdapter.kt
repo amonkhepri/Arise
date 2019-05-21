@@ -1,45 +1,35 @@
 package com.example.rise.ui
 
 import android.content.Context
-import android.os.Handler
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.rise.extensions.scheduleNextAlarm
 import com.example.rise.models.Alarm
-import com.google.firebase.firestore.*
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.android.synthetic.main.recycler_alarm_item.view.*
-import java.util.*
-import kotlin.concurrent.schedule
 
 
 open class MyAlarmRecyclerViewAdapter(
-  //  private val mListener: OnAlarmSelectedListener,
     mQuery: Query,
     context: Context
 
 ) : FirestoreAdapterBase<MyAlarmRecyclerViewAdapter.ViewHolder>(mQuery,context) {
 
-    lateinit var alarm:Alarm
 
-    interface OnAlarmSelectedListener {
-        fun onAlarmSelected(restaurant: DocumentSnapshot)
-    }
+
+
+    lateinit var alarm:Alarm
 
 
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(getSnapshot(position)/*, mListener*/)
     }
-
-    override fun onDataChanged() {
-        super.onDataChanged()
-
-    }
-
-
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -73,10 +63,15 @@ open class MyAlarmRecyclerViewAdapter(
                 mView.time_set.text = snapshot.data!!["myAlarm"].toString()
             }
             mView.deleteButton.setOnClickListener{ v->
+
                 FirebaseFirestore.getInstance().document("sampleData/user").collection("alarms").document(snapshot.id)
                     .delete()
                     .addOnSuccessListener { /*Log.d(TAG, "DocumentSnapshot successfully deleted!")*/ }
                     .addOnFailureListener { /*e -> Log.w(TAG, "Error deleting document", e) */}}
+
+
+
+
         }
 
     }

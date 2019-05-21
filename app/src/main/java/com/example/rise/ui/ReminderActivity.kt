@@ -82,8 +82,10 @@ class ReminderActivity : AppCompatActivity (){
     private fun setupAlarmButtons() {
         reminder_stop.beGone()
         reminder_draggable_background.startAnimation(AnimationUtils.loadAnimation(this, R.anim.pulsing_animation))
-        reminder_draggable_background.applyColorFilter(getAdjustedPrimaryColor())
-        reminder_snooze.applyColorFilter(config.textColor)
+
+       // TODO
+      /*  reminder_draggable_background.applyColorFilter(getAdjustedPrimaryColor())
+        reminder_snooze.applyColorFilter(config.textColor)*/
 
         var minDragX = 0f
         var maxDragX = 0f

@@ -1,6 +1,6 @@
 package com.example.rise.extensions
 
-import android.app.Activity
+import androidx.appcompat.app.AppCompatActivity
 import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import android.view.View
@@ -10,6 +10,7 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.example.rise.models.RadioItem
 import com.example.rise.R
@@ -18,25 +19,32 @@ import com.example.rise.helpers.MyTextView
 import com.example.rise.ui.dialogs.CustomIntervalPickerDialog
 import com.example.rise.ui.dialogs.RadioGroupDialog
 import kotlinx.android.synthetic.main.dialog_tile_textview.view.*
+import org.jetbrains.anko.toast
 import java.util.*
 
-fun Activity.showOverLockscreen() {
+fun AppCompatActivity.showOverLockscreen() {
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
             WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
             WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
 }
 
+inline fun androidx.fragment.app.Fragment.toast(message: CharSequence): Toast? {
+    return activity?.toast(message)
+}
 
-fun Activity.hideKeyboard() {
+
+
+
+fun AppCompatActivity.hideKeyboard() {
     val inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     inputMethodManager.hideSoftInputFromWindow((currentFocus ?: View(this)).windowToken, 0)
     window!!.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
     currentFocus?.clearFocus()
 }
 
-fun Activity.showPickSecondsDialog(curSeconds: Int, isSnoozePicker: Boolean = false, showSecondsAtCustomDialog: Boolean = false,
-                                   cancelCallback: (() -> Unit)? = null, callback: (seconds: Int) -> Unit) {
+fun AppCompatActivity.showPickSecondsDialog(curSeconds: Int, isSnoozePicker: Boolean = false, showSecondsAtCustomDialog: Boolean = false,
+                                                                   cancelCallback: (() -> Unit)? = null, callback: (seconds: Int) -> Unit) {
     hideKeyboard()
     val seconds = TreeSet<Int>()
     seconds.apply {
@@ -77,13 +85,13 @@ fun Activity.showPickSecondsDialog(curSeconds: Int, isSnoozePicker: Boolean = fa
     }
 
 }
-fun Activity.showKeyboard(et: EditText) {
+fun AppCompatActivity.showKeyboard(et: EditText) {
     et.requestFocus()
     val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     imm.showSoftInput(et, InputMethodManager.SHOW_IMPLICIT)
 }
 
-fun Activity.setupDialogStuff(view: View, dialog: AlertDialog, titleId: Int = 0, titleText: String = "", callback: (() -> Unit)? = null) {
+fun AppCompatActivity.setupDialogStuff(view: View, dialog: AlertDialog, titleId: Int = 0, titleText: String = "", callback: (() -> Unit)? = null) {
     if (isDestroyed || isFinishing) {
         return
     }

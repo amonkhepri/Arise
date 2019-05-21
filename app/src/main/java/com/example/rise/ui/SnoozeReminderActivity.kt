@@ -16,7 +16,7 @@ class SnoozeReminderActivity : AppCompatActivity() {
         val id = intent.getIntExtra(ALARM_ID, -1)
 
 
-        //TODO fix this
+        //TODO implement later
        /* val alarm = dbHelper.getAlarmWithId(id) ?: return
 
         hideNotification(id)

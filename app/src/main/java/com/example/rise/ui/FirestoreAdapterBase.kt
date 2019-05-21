@@ -40,9 +40,6 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
     EventListener<QuerySnapshot> {
 
 
-
-
-
     private var mRegistration: ListenerRegistration? = null
 
     val mSnapshots = ArrayList<DocumentSnapshot>()
@@ -122,6 +119,7 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
     }
 
     protected fun onDocumentModified(change: DocumentChange) {
+
         if (change.oldIndex == change.newIndex) {
             // Item changed but remained in same position
             mSnapshots[change.oldIndex] = change.document

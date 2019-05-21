@@ -1,19 +1,30 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name">Rise</string>
-    <string name="title_home">Alarm</string>
+    <string name="title_people">People</string>
     <string name="title_dashboard">Dashboard</string>
-    <string name="title_notifications">Pomodoro</string>
+    <string name="title_account">My account</string>
     <string name="timer">Timer</string>
     <string name="time_expired">Time expired</string>
 
+    <string name="title_home">Home</string>
 
+    <string name="title_notifications">Notifications</string>
+    <string name="lorem_ipsum">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
+        ut labore et dolore magna aliqua.
+    </string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 
 
     <string name="last_month" msgid="3959346739979055432">"Last month"</string>
     <string name="older" msgid="5211975022815554840">"Older"</string>
-    <string name="preposition_for_date" msgid="9093949757757445117">"on <xliff:g id="DATE">%s</xliff:g>"</string>
-    <string name="preposition_for_time" msgid="5506831244263083793">"at <xliff:g id="TIME">%s</xliff:g>"</string>
-    <string name="preposition_for_year" msgid="5040395640711867177">"in<xliff:g id="YEAR">%s</xliff:g>"</string>
+    <string name="preposition_for_date" msgid="9093949757757445117">"on <xliff:g id="DATE">%s</xliff:g>"
+    </string>
+    <string name="preposition_for_time" msgid="5506831244263083793">"at <xliff:g id="TIME">%s</xliff:g>"
+    </string>
+    <string name="preposition_for_year" msgid="5040395640711867177">"in<xliff:g id="YEAR">%s</xliff:g>"
+    </string>
     <string name="day" msgid="8144195776058119424">"day"</string>
     <string name="hour" msgid="2126771916426189481">"hour"</string>
     <string name="hours" msgid="894424005266852993">"hours"</string>
@@ -24,13 +35,6 @@
     <string name="year" msgid="4001118221013892076">"year"</string>
     <string name="years" msgid="6881577717993213522">"years"</string>
     <string name="swipe_right_to_dismiss">Swipe right to Dismiss, or left to Snooze.</string>
-
-
-
-
-
-
-
 
 
 </resources>
