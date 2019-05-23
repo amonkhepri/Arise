@@ -1,10 +1,9 @@
 package com.example.rise.ui
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
 import com.example.rise.R
-import com.example.rise.extensions.toast
 import com.example.rise.helpers.AppConstants
 import com.example.rise.models.TextMessage
 import com.example.rise.models.User
@@ -37,13 +36,15 @@ class ChatActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = intent.getStringExtra(AppConstants.USER_NAME)
 
+        otherUserId = intent.getStringExtra(AppConstants.USER_ID)
+
+
         FirestoreUtil.getCurrentUser {
             currentUser = it
         }
 
-
-        otherUserId = intent.getStringExtra(AppConstants.USER_ID)
         FirestoreUtil.getOrCreateChatChannel(otherUserId) { channelId ->
+
             currentChannelId = channelId
 
             messagesListenerRegistration =
@@ -70,27 +71,6 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    /*override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == RC_SELECT_IMAGE && resultCode == Activity.RESULT_OK &&
-                data != null && data.data != null) {
-            val selectedImagePath = data.data
-
-            val selectedImageBmp = MediaStore.Images.Media.getBitmap(contentResolver, selectedImagePath)
-
-            val outputStream = ByteArrayOutputStream()
-
-            selectedImageBmp.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
-            val selectedImageBytes = outputStream.toByteArray()
-
-            StorageUtil.uploadMessageImage(selectedImageBytes) { imagePath ->
-                val messageToSend =
-                        ImageMessage(imagePath, Calendar.getInstance().time,
-                                FirebaseAuth.getInstance().currentUser!!.uid,
-                                otherUserId, currentUser.name)
-                FirestoreUtil.sendMessage(messageToSend, currentChannelId)
-            }
-        }
-    }*/
 
     private fun updateRecyclerView(messages: List<Item>) {
 

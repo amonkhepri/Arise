@@ -62,7 +62,7 @@ class MyAccountFragment : androidx.fragment.app.Fragment() {
             btn_sign_out.setOnClickListener {
                 val intent = Intent(this.context, SignInActivity::class.java)
 
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
 
 
                 AuthUI.getInstance()

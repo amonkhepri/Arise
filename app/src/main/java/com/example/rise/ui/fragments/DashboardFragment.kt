@@ -29,6 +29,8 @@ class DashboardFragment : Fragment() {
 
     var firstrun:Boolean=true
 
+    var userID :String?=null
+
     lateinit var alarm:Alarm
 
     private val firestoreInstance: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
@@ -76,8 +78,9 @@ class DashboardFragment : Fragment() {
         //if we are here because of ChatActivity
         val userID: String?= activity?.intent?.getStringExtra("UsrID")
 
-        if(userID!=null){
 
+        if(userID!=null){
+            this.userID= userID.toString()
             mFirestore=firestoreInstance.document(
                 "users/$userID")
         }
@@ -119,11 +122,15 @@ class DashboardFragment : Fragment() {
 
         myAlarmRecyclerViewAdapter =object: MyAlarmRecyclerViewAdapter(mQuery,context!!)
         {
+
+
+
             override fun onError(e: FirebaseFirestoreException) =
                 Snackbar.make(
                     view!!.findViewById<View>(android.R.id.content),
                     "Error: check logs for info.", Snackbar.LENGTH_LONG).show()
         }
+        myAlarmRecyclerViewAdapter.otherUsrId=this.userID
 
         alarmList.layoutManager = LinearLayoutManager(this.context)
         alarmList.adapter = myAlarmRecyclerViewAdapter

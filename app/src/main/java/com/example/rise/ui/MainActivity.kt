@@ -8,15 +8,11 @@ import androidx.lifecycle.ViewModelProviders
 import com.example.rise.ui.fragments.DashboardFragment
 import com.example.rise.ui.fragments.MyAccountFragment
 import com.example.rise.ui.fragments.PeopleFragment
-
 import com.example.rise.ui.viewModel.MainActivityViewModel
 import com.firebase.ui.auth.AuthUI
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.activity_main.*
-import org.jetbrains.anko.db.NULL
-import org.jetbrains.anko.toast
 
 
 class MainActivity : AppCompatActivity() {
@@ -75,12 +71,12 @@ class MainActivity : AppCompatActivity() {
 
         bottomNavigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
 
-
         //If we are here because of ChatActivity
+
         if(intent.extras!=null)
         {
             replaceFragment(DashboardFragment())
-        }
+        }else replaceFragment(MyAccountFragment()   )
 
         mViewModel = ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
 

@@ -12,6 +12,8 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.android.synthetic.main.recycler_alarm_item.view.*
+import org.jetbrains.anko.intentFor
+import org.jetbrains.anko.toast
 
 
 open class MyAlarmRecyclerViewAdapter(
@@ -21,14 +23,14 @@ open class MyAlarmRecyclerViewAdapter(
 ) : FirestoreAdapterBase<MyAlarmRecyclerViewAdapter.ViewHolder>(mQuery,context) {
 
 
-
-
     lateinit var alarm:Alarm
+    open var otherUsrId: String? =null
 
 
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(getSnapshot(position)/*, mListener*/)
+
     }
 
 
@@ -36,6 +38,7 @@ open class MyAlarmRecyclerViewAdapter(
         val view = LayoutInflater.from(parent.context)
             .inflate(com.example.rise.R.layout.recycler_alarm_item, parent, false)
         itemCount
+
         return ViewHolder(view)
     }
 
@@ -46,6 +49,7 @@ open class MyAlarmRecyclerViewAdapter(
         fun bind(
             snapshot: DocumentSnapshot
         ) {
+
 
 
             alarm = snapshot.toObject(Alarm::class.java)!!
@@ -64,14 +68,17 @@ open class MyAlarmRecyclerViewAdapter(
             }
             mView.deleteButton.setOnClickListener{ v->
 
-                FirebaseFirestore.getInstance().document("sampleData/user").collection("alarms").document(snapshot.id)
+                context.toast(otherUsrId.toString())
+
+                if(otherUsrId!=null){
+
+                /*FirebaseFirestore.getInstance().document("/user").collection("alarms").document(snapshot.id)
                     .delete()
-                    .addOnSuccessListener { /*Log.d(TAG, "DocumentSnapshot successfully deleted!")*/ }
-                    .addOnFailureListener { /*e -> Log.w(TAG, "Error deleting document", e) */}}
-
-
-
-
+                    .addOnSuccessListener { *//*Log.d(TAG, "DocumentSnapshot successfully deleted!")*//* }
+                    .addOnFailureListener { *//*e -> Log.w(TAG, "Error deleting document", e) *//*}*/{
+                    }
+                }
+            }
         }
 
     }

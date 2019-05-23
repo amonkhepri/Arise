@@ -105,7 +105,8 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
     protected fun getSnapshot(index: Int): DocumentSnapshot {
         return mSnapshots[index]
     }
-//These two methods will have to be @Override during object creation
+
+    //These two methods will have to be @Override during object creation
     protected open fun onError(e: FirebaseFirestoreException) {}
 
     protected open fun onDataChanged() {}
