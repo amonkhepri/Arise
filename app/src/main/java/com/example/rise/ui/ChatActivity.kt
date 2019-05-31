@@ -33,7 +33,6 @@ class ChatActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
 
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = intent.getStringExtra(AppConstants.USER_NAME)
 
         otherUserId = intent.getStringExtra(AppConstants.USER_ID)
@@ -50,7 +49,8 @@ class ChatActivity : AppCompatActivity() {
             messagesListenerRegistration =
                     FirestoreUtil.addChatMessagesListener(channelId, this, this::updateRecyclerView)
 
-            imageView_send.setOnClickListener {
+
+            send_message_button.setOnClickListener {
 
                 val messageToSend =
                         TextMessage(editText_message.text.toString(), Calendar.getInstance().time,
@@ -60,10 +60,20 @@ class ChatActivity : AppCompatActivity() {
                 FirestoreUtil.sendMessage(messageToSend, channelId)
             }
 
-            fab_set_alarm.setOnClickListener {
+            send_with_delay.setOnClickListener {
+
+                val messageToSend =
+                    TextMessage(editText_message.text.toString(), Calendar.getInstance().time,
+                        FirebaseAuth.getInstance().currentUser!!.uid,
+                        otherUserId, currentUser.name)
+
+                editText_message.setText("")
+
 
                 val intent = Intent(this, MainActivity::class.java).apply {
                     putExtra("UsrID", otherUserId)
+                    putExtra("Message", messageToSend.toString())
+                    putExtra("ChannelId",channelId)
                 }
 
                 startActivity(intent)
@@ -75,6 +85,7 @@ class ChatActivity : AppCompatActivity() {
     private fun updateRecyclerView(messages: List<Item>) {
 
         fun init() {
+
             recycler_view_messages.apply {
                 layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@ChatActivity)
                 adapter = GroupAdapter<ViewHolder>().apply {
@@ -94,4 +105,5 @@ class ChatActivity : AppCompatActivity() {
 
         recycler_view_messages.scrollToPosition(recycler_view_messages.adapter!!.itemCount - 1)
     }
+
 }

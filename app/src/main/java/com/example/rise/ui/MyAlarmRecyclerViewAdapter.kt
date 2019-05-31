@@ -7,13 +7,12 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.rise.models.Alarm
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.android.synthetic.main.recycler_alarm_item.view.*
-import org.jetbrains.anko.intentFor
 import org.jetbrains.anko.toast
+import timber.log.Timber
 
 
 open class MyAlarmRecyclerViewAdapter(
@@ -25,6 +24,7 @@ open class MyAlarmRecyclerViewAdapter(
 
     lateinit var alarm:Alarm
     open var otherUsrId: String? =null
+
 
 
 
@@ -51,35 +51,45 @@ open class MyAlarmRecyclerViewAdapter(
         ) {
 
 
-
             alarm = snapshot.toObject(Alarm::class.java)!!
 
             if(alarm.timeInMinutes.rem(60)>=10) {
 
-
                 mView.time_remaining.text =
                     alarm.timeInMinutes.div(60).toString() + " : " + alarm.timeInMinutes.rem(60).toString()
-                mView.time_set.text = snapshot.data!!["myAlarm"].toString()
+                mView.display_name.text =alarm.userName
             }
             else{
+
                 mView.time_remaining.text =
                     alarm.timeInMinutes.div(60).toString() + " : " +" 0" + alarm.timeInMinutes.rem(60).toString()
-                mView.time_set.text = snapshot.data!!["myAlarm"].toString()
+                mView.display_name.text = alarm.userName
             }
+
             mView.deleteButton.setOnClickListener{ v->
 
-                context.toast(otherUsrId.toString())
+
+                //if otherUsrID!-= null it means we're accessing dashboard of other user, otherwise we're at our own dashboard
 
                 if(otherUsrId!=null){
 
-                /*FirebaseFirestore.getInstance().document("/user").collection("alarms").document(snapshot.id)
-                    .delete()
-                    .addOnSuccessListener { *//*Log.d(TAG, "DocumentSnapshot successfully deleted!")*//* }
-                    .addOnFailureListener { *//*e -> Log.w(TAG, "Error deleting document", e) *//*}*/{
-                    }
+                FirebaseFirestore.getInstance().collection("/users")
+                    .document("$otherUsrId").collection("/alarms").document(snapshot.id).delete()
+                    .addOnSuccessListener { Timber.d("DocumentSnapshot successfully deleted!") }
+                    .addOnFailureListener { e -> Timber.w("Error deleting document") } }
+
+                else{
+                    FirebaseFirestore.getInstance()
+                        .collection("/users")
+                        .document(FirebaseAuth.getInstance().currentUser?.uid.toString()).collection("/alarms")
+                        .document(snapshot.id)
+                        .delete()
+                        .addOnSuccessListener { Timber.d("DocumentSnapshot successfully deleted!") }
+                        .addOnFailureListener { e -> Timber.w("Error deleting document") } }
                 }
+              }
             }
         }
 
-    }
-}
+
+

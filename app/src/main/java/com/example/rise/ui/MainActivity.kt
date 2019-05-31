@@ -23,17 +23,23 @@ class MainActivity : AppCompatActivity() {
     private val RC_SIGN_IN = 9001
 
 
+
     private val mOnNavigationItemSelectedListener = BottomNavigationView.OnNavigationItemSelectedListener { item ->
+
         //bottom navigation
         when (item.itemId) {
             com.example.rise.R.id.navigation_people -> {
+
                 replaceFragment(PeopleFragment())
 
                 return@OnNavigationItemSelectedListener true
             }
             com.example.rise.R.id.navigation_dashboard -> {
 
-                replaceFragment(DashboardFragment())
+                var fragment =DashboardFragment()
+                fragment.byBottomNavigation=true
+                replaceFragment(fragment)
+
                 return@OnNavigationItemSelectedListener true
             }
             com.example.rise.R.id.navigation_account -> {
@@ -48,10 +54,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-    public override fun onStop() {
-        super.onStop()
 
-    }
 
 
     public override fun onStart() {
@@ -61,7 +64,7 @@ class MainActivity : AppCompatActivity() {
             startSignIn()
             return
         }
-        //test
+
     }
 
 
@@ -79,7 +82,6 @@ class MainActivity : AppCompatActivity() {
         }else replaceFragment(MyAccountFragment()   )
 
         mViewModel = ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
-
 
 
     }

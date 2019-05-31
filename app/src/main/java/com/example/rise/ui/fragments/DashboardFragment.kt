@@ -9,7 +9,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.R
-import com.example.rise.extensions.toast
 import com.example.rise.models.Alarm
 import com.example.rise.ui.MyAlarmRecyclerViewAdapter
 import com.google.android.material.snackbar.Snackbar
@@ -20,8 +19,10 @@ import kotlinx.android.synthetic.main.fragment_dashboard.*
 
 
 
-class DashboardFragment : Fragment() {
+open class DashboardFragment : Fragment() {
 
+
+   open var byBottomNavigation:Boolean=false
 
     private lateinit var mQuery: Query
     private lateinit var myAlarmRecyclerViewAdapter : MyAlarmRecyclerViewAdapter
@@ -71,26 +72,25 @@ class DashboardFragment : Fragment() {
         floatingActionButton.setOnClickListener {
             alarm= Alarm()
             firstrun=false
+            alarm.userName= FirebaseAuth.getInstance().currentUser?.displayName.toString()
             alarm.timeInMinutes=simpleTimePicker.hour * 60 +  simpleTimePicker.minute
             mQuery=queryFirestore()
         }
 
         //if we are here because of ChatActivity
+
         val userID: String?= activity?.intent?.getStringExtra("UsrID")
 
-
-        if(userID!=null){
+        if(userID!=null && !byBottomNavigation){
             this.userID= userID.toString()
             mFirestore=firestoreInstance.document(
                 "users/$userID")
         }
 
-
-
         mQuery=queryFirestore()
         initRecyclerView(mQuery)
-
     }
+
 
     fun  queryFirestore(): CollectionReference {
 
@@ -130,6 +130,7 @@ class DashboardFragment : Fragment() {
                     view!!.findViewById<View>(android.R.id.content),
                     "Error: check logs for info.", Snackbar.LENGTH_LONG).show()
         }
+
         myAlarmRecyclerViewAdapter.otherUsrId=this.userID
 
         alarmList.layoutManager = LinearLayoutManager(this.context)
