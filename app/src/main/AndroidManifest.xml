@@ -10,6 +10,7 @@
 
 
     <application
+            android:name=".App"
             android:excludeFromRecents="true"
             android:allowBackup="true"
             android:icon="@mipmap/ic_launcher"

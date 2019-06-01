@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
 
         bottomNavigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
 
-        //If we are here because of ChatActivity
+        //If we are here because of ChatActivity,else proceed to Myaccount
 
         if(intent.extras!=null)
         {

@@ -122,10 +122,12 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
 
 
     val cur_cal = Calendar.getInstance()
-    cur_cal.timeInMillis = System.currentTimeMillis()//set the current time and date for this calendar
+    cur_cal.timeInMillis = System.currentTimeMillis()
+    //set the current time and date for this calendar
 
-val cal = Calendar.getInstance()
-cal.add(Calendar.DAY_OF_YEAR, cur_cal.get(Calendar.DAY_OF_YEAR))
+    val cal = Calendar.getInstance()
+
+    cal.add(Calendar.DAY_OF_YEAR, cur_cal.get(Calendar.DAY_OF_YEAR))
     cal.set(Calendar.HOUR_OF_DAY, alarm.timeInMinutes/60)
     cal.set(Calendar.MINUTE, alarm.timeInMinutes%60)
     cal.set(Calendar.SECOND, cur_cal.get(0))
@@ -135,35 +137,15 @@ cal.add(Calendar.DAY_OF_YEAR, cur_cal.get(Calendar.DAY_OF_YEAR))
 
     val intent = Intent(this, AlarmReceiver::class.java)
 
-    intent.putExtra(ALARM_ID, alarm.id)
+   /* intent.putExtra(ALARM_ID, alarm.id)*/
+    intent.putExtra(CHAT_CHANNEL, alarm.chatChannel)
+    intent.putExtra(MESSAGE_CONTENT, alarm.messsage)
+
+
 
     var pintent: PendingIntent = PendingIntent.getBroadcast(this, alarm.id, intent, 0)
     var alarmManage :AlarmManager=getSystemService(Context.ALARM_SERVICE) as AlarmManager
     alarmManage.setExact(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pintent)
-
-
-    /*   val calendar = Calendar.getInstance()
-       calendar.firstDayOfWeek = Calendar.MONDAY
-
-       for (i in 0..7) {
-
-           val currentDay = (calendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
-           val isCorrectDay = alarm.days and 2.0.pow(currentDay).toInt() != 0
-           val currentTimeInMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
-
-
-           if (isCorrectDay && (alarm.timeInMinutes > currentTimeInMinutes || i > 0)) {
-               val triggerInMinutes = alarm.timeInMinutes - currentTimeInMinutes + (i * DAY_MINUTES)
-               setupAlarmClock(alarm, triggerInMinutes * 60 - calendar.get(Calendar.SECOND))
-               if (showToast) {
-                   showRemainingTimeMessage(triggerInMinutes)
-
-               }
-               break
-           } else {
-               calendar.add(Calendar.DAY_OF_MONTH, 1)
-           }
-       }*/
 }
 
 

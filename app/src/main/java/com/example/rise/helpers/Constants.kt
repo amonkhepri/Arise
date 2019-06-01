@@ -64,7 +64,12 @@ const val CUSTOM_TEXT_COLOR = "custom_text_color"
 const val APP_RUN_COUNT = "app_run_count"
 const val TABS_COUNT = 4
 const val EDITED_TIME_ZONE_SEPARATOR = ":"
+
+//alarm model constants
 var ALARM_ID = "alarm_id"
+val CHAT_CHANNEL="chat_channel"
+val MESSAGE_CONTENT="message"
+
 const val DEFAULT_ALARM_MINUTES = 480
 const val DEFAULT_MAX_ALARM_REMINDER_SECS = 300
 const val DEFAULT_MAX_TIMER_REMINDER_SECS = 60

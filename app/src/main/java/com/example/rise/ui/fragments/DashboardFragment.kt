@@ -9,7 +9,11 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.R
+import com.example.rise.helpers.CHAT_CHANNEL
+import com.example.rise.helpers.MESSAGE_CONTENT
 import com.example.rise.models.Alarm
+import com.example.rise.models.ChatChannel
+import com.example.rise.models.TextMessage
 import com.example.rise.ui.MyAlarmRecyclerViewAdapter
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
@@ -72,6 +76,16 @@ open class DashboardFragment : Fragment() {
         floatingActionButton.setOnClickListener {
             alarm= Alarm()
             firstrun=false
+
+            val userID: String?= activity?.intent?.getStringExtra("UsrID")
+            val chatChannel: String?=activity?.intent?.getStringExtra(CHAT_CHANNEL)
+            val messsage=activity?.intent?.getParcelableExtra<TextMessage>(MESSAGE_CONTENT)
+
+            alarm= Alarm()
+            alarm.chatChannel= chatChannel.toString()
+            alarm.messsage=messsage
+
+
             alarm.userName= FirebaseAuth.getInstance().currentUser?.displayName.toString()
             alarm.timeInMinutes=simpleTimePicker.hour * 60 +  simpleTimePicker.minute
             mQuery=queryFirestore()
@@ -80,6 +94,8 @@ open class DashboardFragment : Fragment() {
         //if we are here because of ChatActivity
 
         val userID: String?= activity?.intent?.getStringExtra("UsrID")
+        val chatChannel: String?=activity?.intent?.getStringExtra("ChannelId")
+        val messsage=activity?.intent?.getParcelableExtra<TextMessage>("Message")
 
         if(userID!=null && !byBottomNavigation){
             this.userID= userID.toString()
@@ -87,7 +103,11 @@ open class DashboardFragment : Fragment() {
                 "users/$userID")
         }
 
+        alarm= Alarm()
+        alarm.chatChannel= chatChannel.toString()
+        alarm.messsage=messsage
         mQuery=queryFirestore()
+
         initRecyclerView(mQuery)
     }
 
@@ -101,6 +121,7 @@ open class DashboardFragment : Fragment() {
             //TODO Consider more multiwriteprooof id's
             val timestamp=System.currentTimeMillis().toInt()
             alarm.id=timestamp
+
 
             mFirestore.collection("alarms")
                 .document(timestamp.toString()).set(alarm)

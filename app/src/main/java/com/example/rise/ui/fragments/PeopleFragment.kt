@@ -10,7 +10,6 @@ import com.example.rise.R
 import com.example.rise.helpers.AppConstants
 import com.example.rise.item.PersonItem
 import com.example.rise.ui.ChatActivity
-import com.example.rise.ui.SignInActivity
 import com.example.rise.util.FirestoreUtil
 import com.google.firebase.firestore.ListenerRegistration
 import com.xwray.groupie.GroupAdapter

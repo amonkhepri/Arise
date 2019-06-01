@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.example.rise.R
 import com.example.rise.helpers.AppConstants
+import com.example.rise.helpers.CHAT_CHANNEL
+import com.example.rise.helpers.MESSAGE_CONTENT
 import com.example.rise.models.TextMessage
 import com.example.rise.models.User
 import com.example.rise.util.FirestoreUtil
@@ -72,8 +74,9 @@ class ChatActivity : AppCompatActivity() {
 
                 val intent = Intent(this, MainActivity::class.java).apply {
                     putExtra("UsrID", otherUserId)
-                    putExtra("Message", messageToSend.toString())
-                    putExtra("ChannelId",channelId)
+
+                    putExtra(MESSAGE_CONTENT, messageToSend)
+                    putExtra(CHAT_CHANNEL, channelId)
                 }
 
                 startActivity(intent)
