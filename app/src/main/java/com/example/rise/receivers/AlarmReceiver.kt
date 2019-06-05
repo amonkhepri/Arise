@@ -3,6 +3,7 @@ package com.example.rise.receivers
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.widget.Toast
 import com.example.rise.helpers.ALARM_ID
 import com.example.rise.helpers.CHAT_CHANNEL
@@ -19,12 +20,19 @@ class AlarmReceiver  : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
 
-        val messageToSend=intent.getParcelableExtra<TextMessage>(MESSAGE_CONTENT)
-        val channelId=intent.getStringExtra(CHAT_CHANNEL)
+
+
+        val bundle = intent.getBundleExtra(MESSAGE_CONTENT)
+        var alarm  = bundle.getParcelable<Alarm>("alarm") as Alarm
+
+        val chatChannel= alarm.chatChannel
+        val messageToSend=alarm.messsage
 
         if(messageToSend!=null){
-        FirestoreUtil.sendMessage(messageToSend, channelId)}else Toast.makeText(context,channelId,Toast.LENGTH_LONG).show()
 
+            FirestoreUtil.sendMessage(messageToSend, chatChannel)}else {
+            Toast.makeText(context, chatChannel + "is null", Toast.LENGTH_LONG).show()
+        }
     }
 
 }

@@ -7,15 +7,12 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
 import java.util.*
-import android.os.PowerManager
 import com.example.rise.R
 import com.example.rise.models.Alarm
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import android.graphics.Color
 import android.media.RingtoneManager
-import android.os.Environment
+import android.os.*
 import android.text.SpannableString
 import android.text.TextUtils
 import android.text.style.RelativeSizeSpan
@@ -135,17 +132,28 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
     cal.set(Calendar.DATE, cur_cal.get(Calendar.DATE))
     cal.set(Calendar.MONTH, cur_cal.get(Calendar.MONTH))
 
+
+
     val intent = Intent(this, AlarmReceiver::class.java)
 
-   /* intent.putExtra(ALARM_ID, alarm.id)*/
-    intent.putExtra(CHAT_CHANNEL, alarm.chatChannel)
-    intent.putExtra(MESSAGE_CONTENT, alarm.messsage)
+
+    var bundle = Bundle()
+    bundle.putParcelable("alarm",alarm)
+    intent.putExtra(MESSAGE_CONTENT,bundle)
+
+    /* intent.putExtra(ALARM_ID, alarm.id)*/
+
+   /* extras.putString(CHAT_CHANNEL,alarm.chatChannel);*/
 
 
 
-    var pintent: PendingIntent = PendingIntent.getBroadcast(this, alarm.id, intent, 0)
+
+
+
+    var pendingIntent: PendingIntent = PendingIntent.getBroadcast(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+
     var alarmManage :AlarmManager=getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    alarmManage.setExact(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pintent)
+    alarmManage.setExact(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pendingIntent)
 }
 
 

@@ -33,9 +33,7 @@ open class DashboardFragment : Fragment() {
     val TAG = "DASHBOARD_FRAGMENT"
 
     var firstrun:Boolean=true
-
     var userID :String?=null
-
     lateinit var alarm:Alarm
 
     private val firestoreInstance: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
@@ -115,14 +113,14 @@ open class DashboardFragment : Fragment() {
     fun  queryFirestore(): CollectionReference {
 
         if(!firstrun) {
+
             mFirestore.collection("alarms")
             mFirestore.update("id", FieldValue.increment(1))
 
             //TODO Consider more multiwriteprooof id's
             val timestamp=System.currentTimeMillis().toInt()
+
             alarm.id=timestamp
-
-
             mFirestore.collection("alarms")
                 .document(timestamp.toString()).set(alarm)
                 .addOnSuccessListener { documentReference ->
@@ -132,6 +130,7 @@ open class DashboardFragment : Fragment() {
                     Log.w(TAG, "Error adding document", e)
                 }
             return mFirestore.collection("alarms")
+
         }else {
 
 
@@ -143,9 +142,7 @@ open class DashboardFragment : Fragment() {
 
         myAlarmRecyclerViewAdapter =object: MyAlarmRecyclerViewAdapter(mQuery,context!!)
         {
-
-
-
+                
             override fun onError(e: FirebaseFirestoreException) =
                 Snackbar.make(
                     view!!.findViewById<View>(android.R.id.content),
