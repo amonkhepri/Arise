@@ -14,11 +14,11 @@ class Config(context: Context) : BaseConfig(context) {
         set(showSeconds) = prefs.edit().putBoolean(SHOW_SECONDS, showSeconds).apply()
 
     var selectedTimeZones: Set<String>
-        get() = prefs.getStringSet(SELECTED_TIME_ZONES, HashSet())
+        get() = prefs.getStringSet(SELECTED_TIME_ZONES, HashSet()) as Set<String>
         set(selectedTimeZones) = prefs.edit().putStringSet(SELECTED_TIME_ZONES, selectedTimeZones).apply()
 
     var editedTimeZoneTitles: Set<String>
-        get() = prefs.getStringSet(EDITED_TIME_ZONE_TITLES, HashSet())
+        get() = prefs.getStringSet(EDITED_TIME_ZONE_TITLES, HashSet()) as Set<String>
         set(editedTimeZoneTitles) = prefs.edit().putStringSet(EDITED_TIME_ZONE_TITLES, editedTimeZoneTitles).apply()
 
     var timerSeconds: Int
@@ -29,11 +29,11 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(TIMER_VIBRATE, false)
         set(timerVibrate) = prefs.edit().putBoolean(TIMER_VIBRATE, timerVibrate).apply()
 
-    var timerSoundUri: String
+    var timerSoundUri: String?
         get() = prefs.getString(TIMER_SOUND_URI, context.getDefaultAlarmUri(ALARM_SOUND_TYPE_ALARM).toString())
         set(timerSoundUri) = prefs.edit().putString(TIMER_SOUND_URI, timerSoundUri).apply()
 
-    var timerSoundTitle: String
+    var timerSoundTitle: String?
         get() = prefs.getString(TIMER_SOUND_TITLE, context.getDefaultAlarmTitle(ALARM_SOUND_TYPE_ALARM))
         set(timerSoundTitle) = prefs.edit().putString(TIMER_SOUND_TITLE, timerSoundTitle).apply()
 

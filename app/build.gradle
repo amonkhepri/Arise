@@ -10,11 +10,11 @@ apply plugin: 'kotlin-kapt'
 
 android {
 
-    compileSdkVersion 28
+    compileSdkVersion 29
     defaultConfig {
         applicationId "com.example.rise"
         minSdkVersion 19
-        targetSdkVersion 28
+        targetSdkVersion 29
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -46,6 +46,10 @@ dependencies {
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'androidx.browser:browser:1.0.0'
+
+    //ktx
+    implementation 'androidx.fragment:fragment-ktx:1.2.0'
+
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
@@ -75,15 +79,10 @@ dependencies {
     //kotlin annotation processor
     apply plugin: 'kotlin-kapt'
 
-  /*THIRD PARTY LIBRARIES*/
+    /*THIRD PARTY LIBRARIES*/
 
     //groupie
     implementation 'com.xwray:groupie:2.3.0'
     implementation 'com.xwray:groupie-kotlin-android-extensions:2.3.0'
-
-
-
-
-
 
 }

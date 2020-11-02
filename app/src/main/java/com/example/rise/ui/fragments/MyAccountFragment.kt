@@ -24,7 +24,6 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.android.synthetic.main.fragment_my_account.*
 import kotlinx.android.synthetic.main.fragment_my_account.view.*
 
-
 class MyAccountFragment : androidx.fragment.app.Fragment() {
 
     private val RC_SELECT_IMAGE = 2

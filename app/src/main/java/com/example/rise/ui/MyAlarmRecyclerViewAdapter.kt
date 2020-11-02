@@ -19,20 +19,15 @@ open class MyAlarmRecyclerViewAdapter(
     mQuery: Query,
     context: Context
 
-) : FirestoreAdapterBase<MyAlarmRecyclerViewAdapter.ViewHolder>(mQuery,context) {
+) : FirestoreAdapterBase<MyAlarmRecyclerViewAdapter.ViewHolder>(mQuery, context) {
 
-
-    lateinit var alarm:Alarm
-    open var otherUsrId: String? =null
-
-
-
+    lateinit var alarm: Alarm
+    open var otherUsrId: String? = null
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(getSnapshot(position)/*, mListener*/)
 
     }
-
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -42,54 +37,50 @@ open class MyAlarmRecyclerViewAdapter(
         return ViewHolder(view)
     }
 
-
-
     inner class ViewHolder(val mView: View) : RecyclerView.ViewHolder(mView) {
 
         fun bind(
             snapshot: DocumentSnapshot
         ) {
-
-
             alarm = snapshot.toObject(Alarm::class.java)!!
 
-            if(alarm.timeInMinutes.rem(60)>=10) {
+            if (alarm.timeInMinutes.rem(60) >= 10) {
 
                 mView.time_remaining.text =
-                    alarm.timeInMinutes.div(60).toString() + " : " + alarm.timeInMinutes.rem(60).toString()
-                mView.display_name.text =alarm.userName
-            }
-            else{
+                    alarm.timeInMinutes.div(60).toString() + " : " + alarm.timeInMinutes.rem(60)
+                        .toString()
+                mView.display_name.text = alarm.userName
+            } else {
 
                 mView.time_remaining.text =
-                    alarm.timeInMinutes.div(60).toString() + " : " +" 0" + alarm.timeInMinutes.rem(60).toString()
+                    alarm.timeInMinutes.div(60).toString() + " : " + " 0" + alarm.timeInMinutes.rem(
+                        60
+                    ).toString()
                 mView.display_name.text = alarm.userName
             }
 
-            mView.deleteButton.setOnClickListener{ v->
-
+            mView.deleteButton.setOnClickListener { v ->
 
                 //if otherUsrID!-= null it means we're accessing dashboard of other user, otherwise we're at our own dashboard
 
-                if(otherUsrId!=null){
+                if (otherUsrId != null) {
 
-                FirebaseFirestore.getInstance().collection("/users")
-                    .document("$otherUsrId").collection("/alarms").document(snapshot.id).delete()
-                    .addOnSuccessListener { Timber.d("DocumentSnapshot successfully deleted!") }
-                    .addOnFailureListener { e -> Timber.w("Error deleting document") } }
-
-                else{
+                    FirebaseFirestore.getInstance().collection("/users")
+                        .document("$otherUsrId").collection("/alarms").document(snapshot.id)
+                        .delete()
+                        .addOnSuccessListener { Timber.d("DocumentSnapshot successfully deleted!") }
+                        .addOnFailureListener { e -> Timber.w("Error deleting document") }
+                } else {
                     FirebaseFirestore.getInstance()
                         .collection("/users")
-                        .document(FirebaseAuth.getInstance().currentUser?.uid.toString()).collection("/alarms")
+                        .document(FirebaseAuth.getInstance().currentUser?.uid.toString())
+                        .collection("/alarms")
                         .document(snapshot.id)
                         .delete()
                         .addOnSuccessListener { Timber.d("DocumentSnapshot successfully deleted!") }
-                        .addOnFailureListener { e -> Timber.w("Error deleting document") } }
+                        .addOnFailureListener { e -> Timber.w("Error deleting document") }
                 }
-              }
             }
         }
-
-
-
+    }
+}

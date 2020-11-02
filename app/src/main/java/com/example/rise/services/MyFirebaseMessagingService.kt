@@ -1,4 +1,4 @@
-package com.example.rise.service
+package com.example.rise.services
 
 import android.util.Log
 import com.example.rise.util.FirestoreUtil
@@ -9,16 +9,6 @@ import com.google.firebase.messaging.RemoteMessage
 
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
-
-
-    override fun onNewToken(p0: String?) {
-        super.onNewToken(p0)
-
-        val newRegistrationToken = FirebaseInstanceId.getInstance().token
-
-        if (FirebaseAuth.getInstance().currentUser != null)
-            addTokenToFirestore(newRegistrationToken)
-    }
 
     companion object {
         fun addTokenToFirestore(newRegistrationToken: String?) {
@@ -32,6 +22,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 FirestoreUtil.setFCMRegistrationTokens(tokens)
             }
         }
+    }
+
+    override fun onNewToken(p0: String?) {
+        super.onNewToken(p0)
+
+        val newRegistrationToken = FirebaseInstanceId.getInstance().token
+
+        if (FirebaseAuth.getInstance().currentUser != null)
+            addTokenToFirestore(
+                newRegistrationToken
+            )
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {

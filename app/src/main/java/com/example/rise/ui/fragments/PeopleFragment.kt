@@ -19,7 +19,6 @@ import com.xwray.groupie.kotlinandroidextensions.Item
 import com.xwray.groupie.kotlinandroidextensions.ViewHolder
 import kotlinx.android.synthetic.main.fragment_people.*
 
-
 class PeopleFragment : androidx.fragment.app.Fragment() {
 
     private lateinit var userListenerRegistration: ListenerRegistration
@@ -71,7 +70,6 @@ class PeopleFragment : androidx.fragment.app.Fragment() {
             val intent = Intent(this.context, ChatActivity::class.java)
             intent.putExtra(AppConstants.USER_NAME,item.person.name)
             intent.putExtra(AppConstants.USER_ID,item.userId)
-
 
             startActivity(
                 intent

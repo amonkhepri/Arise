@@ -17,23 +17,24 @@ class SnoozeReminderActivity : AppCompatActivity() {
 
 
         //TODO implement later
-       /* val alarm = dbHelper.getAlarmWithId(id) ?: return
+        /* val alarm = dbHelper.getAlarmWithId(id) ?: return
 
-        hideNotification(id)
+         hideNotification(id)
 
-        showPickSecondsDialog(config.snoozeTime * MINUTE_SECONDS, true, cancelCallback = { dialogCancelled() }) {
-            config.snoozeTime = it / MINUTE_SECONDS
-            setupAlarmClock(alarm, it)
-            finishActivity()
-        }
+         showPickSecondsDialog(config.snoozeTime * MINUTE_SECONDS, true, cancelCallback = { dialogCancelled() }) {
+             config.snoozeTime = it / MINUTE_SECONDS
+             setupAlarmClock(alarm, it)
+             finishActivity()
+         }
+     }
+
+     private fun dialogCancelled() {
+         finishActivity()
+     }
+
+     private fun finishActivity() {
+         finish()
+         overridePendingTransition(0, 0)
+     } */
     }
-
-    private fun dialogCancelled() {
-        finishActivity()
-    }
-
-    private fun finishActivity() {
-        finish()
-        overridePendingTransition(0, 0)
-    }*/
-}}
+}

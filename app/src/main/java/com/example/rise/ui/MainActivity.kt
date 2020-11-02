@@ -17,45 +17,32 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
-
-
-    private lateinit var mViewModel:MainActivityViewModel
+    private lateinit var mViewModel: MainActivityViewModel
     private val RC_SIGN_IN = 9001
 
+    private val mOnNavigationItemSelectedListener =
+        BottomNavigationView.OnNavigationItemSelectedListener { item -> //bottom navigation
+            when (item.itemId) {
 
+                com.example.rise.R.id.navigation_people -> {
+                    replaceFragment(PeopleFragment())
+                    return@OnNavigationItemSelectedListener true
+                }
 
-    private val mOnNavigationItemSelectedListener = BottomNavigationView.OnNavigationItemSelectedListener { item ->
+                com.example.rise.R.id.navigation_dashboard -> {
+                    var fragment = DashboardFragment()
+                    fragment.byBottomNavigation = true
+                    replaceFragment(fragment)
+                    return@OnNavigationItemSelectedListener true
+                }
 
-        //bottom navigation
-        when (item.itemId) {
-            com.example.rise.R.id.navigation_people -> {
-
-                replaceFragment(PeopleFragment())
-
-                return@OnNavigationItemSelectedListener true
+                com.example.rise.R.id.navigation_account -> {
+                    replaceFragment(MyAccountFragment())
+                    return@OnNavigationItemSelectedListener true
+                }
             }
-            com.example.rise.R.id.navigation_dashboard -> {
-
-                var fragment =DashboardFragment()
-                fragment.byBottomNavigation=true
-                replaceFragment(fragment)
-
-                return@OnNavigationItemSelectedListener true
-            }
-            com.example.rise.R.id.navigation_account -> {
-
-                replaceFragment(MyAccountFragment())
-
-                return@OnNavigationItemSelectedListener true
-            }
+            false
         }
-        false
-    }
-
-
-
-
-
 
     public override fun onStart() {
         super.onStart()
@@ -64,9 +51,7 @@ class MainActivity : AppCompatActivity() {
             startSignIn()
             return
         }
-
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,36 +59,30 @@ class MainActivity : AppCompatActivity() {
 
         bottomNavigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
 
-        //If we are here because of ChatActivity,else proceed to Myaccount
+        // If we are here because of ChatActivity,else proceed to Myaccount
 
-        if(intent.extras!=null)
-        {
+        if (intent.extras != null) {
             replaceFragment(DashboardFragment())
         }else replaceFragment(MyAccountFragment()   )
 
         mViewModel = ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
-
-
     }
 
     private fun replaceFragment(fragment: androidx.fragment.app.Fragment) {
-
         supportFragmentManager.beginTransaction()
             .replace(com.example.rise.R.id.fragment_layout, fragment)
             .commit()
     }
 
-
-    override  fun onActivityResult(
+    override fun onActivityResult(
         requestCode: Int,
         resultCode: Int,
         data: Intent?
     ) {
-
         super.onActivityResult(requestCode, resultCode, data)
 
         if (requestCode == RC_SIGN_IN) {
-            mViewModel.mSignIn=false
+            mViewModel.mSignIn = false
 
             if (resultCode != RESULT_OK && shouldStartSignIn()) {
                 startSignIn()
@@ -114,14 +93,17 @@ class MainActivity : AppCompatActivity() {
     private fun startSignIn() {
         // Sign in with FirebaseUI
         val intent = AuthUI.getInstance().createSignInIntentBuilder()
-            .setAvailableProviders(listOf<AuthUI.IdpConfig>(AuthUI.IdpConfig.EmailBuilder().build()))
+            .setAvailableProviders(
+                listOf<AuthUI.IdpConfig>(
+                    AuthUI.IdpConfig.EmailBuilder().build()
+                )
+            )
             .setIsSmartLockEnabled(false)
             .build()
 
         startActivityForResult(intent, RC_SIGN_IN)
-        mViewModel.mSignIn=true
+        mViewModel.mSignIn = true
     }
-
 
     private fun shouldStartSignIn(): Boolean {
         return !mViewModel.mSignIn && FirebaseAuth.getInstance().currentUser == null

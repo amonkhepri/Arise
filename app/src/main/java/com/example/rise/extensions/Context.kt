@@ -108,13 +108,14 @@ fun Context.showAlarmNotification(alarm: Alarm) {
     val pendingIntent = getOpenAlarmTabIntent()
     val notification = getAlarmNotification(pendingIntent, alarm)
     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    notificationManager.notify(alarm.id, notification)
+    notificationManager.notify(alarm.idTimeStamp, notification)
     scheduleNextAlarm(alarm, false)
 }
 
 
 
 
+@SuppressLint("WrongConstant")
 fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
 
 
@@ -132,10 +133,7 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
     cal.set(Calendar.DATE, cur_cal.get(Calendar.DATE))
     cal.set(Calendar.MONTH, cur_cal.get(Calendar.MONTH))
 
-
-
     val intent = Intent(this, AlarmReceiver::class.java)
-
 
     var bundle = Bundle()
     bundle.putParcelable("alarm",alarm)
@@ -145,18 +143,11 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
 
    /* extras.putString(CHAT_CHANNEL,alarm.chatChannel);*/
 
-
-
-
-
-
-    var pendingIntent: PendingIntent = PendingIntent.getBroadcast(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+    var pendingIntent: PendingIntent = PendingIntent.getBroadcast(this, alarm.idTimeStamp, intent, PendingIntent.FLAG_UPDATE_CURRENT)
 
     var alarmManage :AlarmManager=getSystemService(Context.ALARM_SERVICE) as AlarmManager
     alarmManage.setExact(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pendingIntent)
 }
-
-
 
 fun Context.formatMinutesToTimeString(totalMinutes: Int) = formatSecondsToTimeString(totalMinutes * 60)
 
@@ -212,15 +203,12 @@ fun Context.showRemainingTimeMessage(totalMinutes: Int) {
     toast(fullString, Toast.LENGTH_LONG)
 }
 
-
-
 fun Context.setupAlarmClock(alarm: Alarm, triggerInSeconds: Int) {
     val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val targetMS = System.currentTimeMillis() + triggerInSeconds * 1000
-   /* AlarmManagerCompat.setAlarmClock(alarmManager, targetMS, getOpenAlarmTabIntent(), getAlarmIntent(alarm.id))*/
+    AlarmManagerCompat.setAlarmClock(alarmManager, targetMS, getOpenAlarmTabIntent(), getAlarmIntent(alarm.idTimeStamp))
     AlarmManagerCompat.setExactAndAllowWhileIdle(alarmManager, ALARM_SOUND_TYPE_ALARM,
-        triggerInSeconds.toLong(),getAlarmIntent(alarm.id))
-
+        triggerInSeconds.toLong(),getAlarmIntent(alarm.idTimeStamp))
 }
 
 fun Context.getOpenAlarmTabIntent(): PendingIntent {
@@ -251,7 +239,7 @@ fun Context.grantReadUriPermission(uriString: String) {
 
 fun Context.getSharedPrefs() = getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE)
 
-@SuppressLint("NewApi")
+@SuppressLint("NewApi", "WrongConstant")
 fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): Notification {
     var soundUri = alarm.soundUri
     if (soundUri == SILENT) {
@@ -333,7 +321,6 @@ fun Context.toast(msg: String, length: Int = Toast.LENGTH_SHORT) {
     }
 }
 
-
 fun Context.showErrorToast(msg: String, length: Int = Toast.LENGTH_LONG) {
     toast(String.format("An error occurred", msg), length)
 }
@@ -345,11 +332,11 @@ fun Context.showErrorToast(exception: Exception, length: Int = Toast.LENGTH_LONG
 fun Context.getSnoozePendingIntent(alarm: Alarm): PendingIntent {
     val snoozeClass = if (config.useSameSnooze) SnoozeService::class.java else SnoozeReminderActivity::class.java
     val intent = Intent(this, snoozeClass).setAction("Snooze")
-    intent.putExtra(ALARM_ID, alarm.id)
+    intent.putExtra(ALARM_ID, alarm.idTimeStamp)
     return if (config.useSameSnooze) {
-        PendingIntent.getService(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        PendingIntent.getService(this, alarm.idTimeStamp, intent, PendingIntent.FLAG_UPDATE_CURRENT)
     } else {
-        PendingIntent.getActivity(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        PendingIntent.getActivity(this, alarm.idTimeStamp, intent, PendingIntent.FLAG_UPDATE_CURRENT)
     }
 }
 
@@ -368,7 +355,9 @@ fun Context.getStorageDirectories(): Array<String> {
             if (TextUtils.isEmpty(rawExternalStorage)) {
                 paths.addAll(physicalPaths)
             } else {
-                paths.add(rawExternalStorage)
+                if (rawExternalStorage != null) {
+                    paths.add(rawExternalStorage)
+                }
             }
         }
     } else {
@@ -384,14 +373,16 @@ fun Context.getStorageDirectories(): Array<String> {
 
         val rawUserId = if (isDigit) lastFolder else ""
         if (TextUtils.isEmpty(rawUserId)) {
-            paths.add(rawEmulatedStorageTarget)
+            if (rawEmulatedStorageTarget != null) {
+                paths.add(rawEmulatedStorageTarget)
+            }
         } else {
             paths.add(rawEmulatedStorageTarget + File.separator + rawUserId)
         }
     }
 
     if (!TextUtils.isEmpty(rawSecondaryStoragesStr)) {
-        val rawSecondaryStorages = rawSecondaryStoragesStr.split(File.pathSeparator.toRegex()).dropLastWhile(String::isEmpty).toTypedArray()
+        val rawSecondaryStorages = rawSecondaryStoragesStr!!.split(File.pathSeparator.toRegex()).dropLastWhile(String::isEmpty).toTypedArray()
         Collections.addAll(paths, *rawSecondaryStorages)
     }
     return paths.map { it.trimEnd('/') }.toTypedArray()
@@ -435,8 +426,8 @@ fun Context.getSDCardPath(): String {
 
 fun Context.getHideAlarmPendingIntent(alarm: Alarm): PendingIntent {
     val intent = Intent(this, HideAlarmReceiver::class.java)
-    intent.putExtra(ALARM_ID, alarm.id)
-    return PendingIntent.getBroadcast(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+    intent.putExtra(ALARM_ID, alarm.idTimeStamp)
+    return PendingIntent.getBroadcast(this, alarm.idTimeStamp, intent, PendingIntent.FLAG_UPDATE_CURRENT)
 }
 
 fun Context.getFormattedSeconds(seconds: Int, showBefore: Boolean = true) = when (seconds) {

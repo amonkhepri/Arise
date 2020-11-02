@@ -12,7 +12,6 @@ import com.example.rise.R
 import com.example.rise.helpers.CHAT_CHANNEL
 import com.example.rise.helpers.MESSAGE_CONTENT
 import com.example.rise.models.Alarm
-import com.example.rise.models.ChatChannel
 import com.example.rise.models.TextMessage
 import com.example.rise.ui.MyAlarmRecyclerViewAdapter
 import com.google.android.material.snackbar.Snackbar
@@ -20,30 +19,24 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.fragment_dashboard.*
 
+class DashboardFragment : Fragment() {
 
-
-
-open class DashboardFragment : Fragment() {
-
-
-   open var byBottomNavigation:Boolean=false
+    var byBottomNavigation: Boolean = false
 
     private lateinit var mQuery: Query
-    private lateinit var myAlarmRecyclerViewAdapter : MyAlarmRecyclerViewAdapter
+    private lateinit var myAlarmRecyclerViewAdapter: MyAlarmRecyclerViewAdapter
     val TAG = "DASHBOARD_FRAGMENT"
 
-    var firstrun:Boolean=true
-    var userID :String?=null
-    lateinit var alarm:Alarm
+    var firstrun: Boolean = true
+    var userID: String? = null
+    lateinit var alarm: Alarm
 
     private val firestoreInstance: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 
-        private var mFirestore: DocumentReference=firestoreInstance.document(
-            "users/${FirebaseAuth.getInstance().currentUser?.uid
-                ?: throw NullPointerException("UID is null.")}"
-        )
-
-
+    private var mFirestore: DocumentReference = firestoreInstance.document(
+        "users/${FirebaseAuth.getInstance().currentUser?.uid
+            ?: throw NullPointerException("UID is null.")}"
+    )
 
     override fun onStart() {
         super.onStart()
@@ -59,101 +52,85 @@ open class DashboardFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
-
-        var view : View= inflater.inflate(R.layout.fragment_dashboard, container, false)
-
-        return view
+        return inflater.inflate(R.layout.fragment_dashboard, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         FirebaseFirestore.setLoggingEnabled(true)
 
         floatingActionButton.setOnClickListener {
-            alarm= Alarm()
-            firstrun=false
+            alarm = Alarm()
+            firstrun = false
 
-            val userID: String?= activity?.intent?.getStringExtra("UsrID")
-            val chatChannel: String?=activity?.intent?.getStringExtra(CHAT_CHANNEL)
-            val messsage=activity?.intent?.getParcelableExtra<TextMessage>(MESSAGE_CONTENT)
+            val userID: String? = activity?.intent?.getStringExtra("UsrID")
+            val chatChannel: String? = activity?.intent?.getStringExtra(CHAT_CHANNEL)
+            val message = activity?.intent?.getParcelableExtra<TextMessage>(MESSAGE_CONTENT)
 
-            alarm= Alarm()
-            alarm.chatChannel= chatChannel.toString()
-            alarm.messsage=messsage
+            alarm = Alarm()
+            alarm.chatChannel = chatChannel.toString()
+            alarm.messsage = message
 
-
-            alarm.userName= FirebaseAuth.getInstance().currentUser?.displayName.toString()
-            alarm.timeInMinutes=simpleTimePicker.hour * 60 +  simpleTimePicker.minute
-            mQuery=queryFirestore()
+            /*arguments?.getString("chat_channel")*/
+            alarm.userName = FirebaseAuth.getInstance().currentUser?.displayName.toString()
+            alarm.timeInMinutes = simpleTimePicker.hour * 60 + simpleTimePicker.minute
+            mQuery = queryFirestore()
         }
 
-        //if we are here because of ChatActivity
+        val userID: String? = activity?.intent?.getStringExtra("UsrID")
+        val chatChannel: String? = activity?.intent?.getStringExtra("ChannelId")
 
-        val userID: String?= activity?.intent?.getStringExtra("UsrID")
-        val chatChannel: String?=activity?.intent?.getStringExtra("ChannelId")
-        val messsage=activity?.intent?.getParcelableExtra<TextMessage>("Message")
+        val messsage = activity?.intent?.getParcelableExtra<TextMessage>("Message")
 
-        if(userID!=null && !byBottomNavigation){
-            this.userID= userID.toString()
-            mFirestore=firestoreInstance.document(
-                "users/$userID")
+        if (userID != null && !byBottomNavigation) {
+            this.userID = userID.toString()
+            mFirestore = firestoreInstance.document(
+                "users/$userID"
+            )
         }
 
-        alarm= Alarm()
-        alarm.chatChannel= chatChannel.toString()
-        alarm.messsage=messsage
-        mQuery=queryFirestore()
+        alarm = Alarm()
+        alarm.chatChannel = chatChannel.toString()
+        alarm.messsage = messsage
+        mQuery = queryFirestore()
 
         initRecyclerView(mQuery)
     }
 
-
-    fun  queryFirestore(): CollectionReference {
-
-        if(!firstrun) {
-
+    fun queryFirestore(): CollectionReference {
+        if (!firstrun) {
             mFirestore.collection("alarms")
             mFirestore.update("id", FieldValue.increment(1))
-
             //TODO Consider more multiwriteprooof id's
-            val timestamp=System.currentTimeMillis().toInt()
 
-            alarm.id=timestamp
+            alarm.idTimeStamp = System.currentTimeMillis().toInt()
             mFirestore.collection("alarms")
-                .document(timestamp.toString()).set(alarm)
+                .document(alarm.idTimeStamp.toString()).set(alarm)
                 .addOnSuccessListener { documentReference ->
-                    Log.d(TAG, "DocumentSnapshot add with ID: " )
+                    Log.d(TAG, "DocumentSnapshot add with ID: ")
                 }
                 .addOnFailureListener { e ->
                     Log.w(TAG, "Error adding document", e)
                 }
             return mFirestore.collection("alarms")
-
-        }else {
-
-
+        } else {
             return mFirestore.collection("alarms")
         }
     }
 
     private fun initRecyclerView(mQuery: Query) {
 
-        myAlarmRecyclerViewAdapter =object: MyAlarmRecyclerViewAdapter(mQuery,context!!)
-        {
-                
-            override fun onError(e: FirebaseFirestoreException) =
-                Snackbar.make(
+        myAlarmRecyclerViewAdapter = object : MyAlarmRecyclerViewAdapter(mQuery, context!!) {
+            override fun onError(e: FirebaseFirestoreException) = Snackbar.make(
                     view!!.findViewById<View>(android.R.id.content),
-                    "Error: check logs for info.", Snackbar.LENGTH_LONG).show()
+                    "Error: check logs for info.", Snackbar.LENGTH_LONG
+                ).show()
         }
 
-        myAlarmRecyclerViewAdapter.otherUsrId=this.userID
+        myAlarmRecyclerViewAdapter.otherUsrId = this.userID
 
         alarmList.layoutManager = LinearLayoutManager(this.context)
         alarmList.adapter = myAlarmRecyclerViewAdapter
         myAlarmRecyclerViewAdapter.setQuery(mQuery)
-
     }
 }

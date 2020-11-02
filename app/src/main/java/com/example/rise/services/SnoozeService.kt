@@ -15,8 +15,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 
 
 class SnoozeService : IntentService("Snooze") {
-    override fun onHandleIntent(intent: Intent) {
-        val id = intent.getIntExtra(ALARM_ID, -1)
+
+    override fun onHandleIntent(intent: Intent?) {
+        val id = intent?.getIntExtra(ALARM_ID, -1)
 
         val alarms = ArrayList<Alarm>()
         lateinit var alarm:Alarm
@@ -24,9 +25,7 @@ class SnoozeService : IntentService("Snooze") {
         val mFirestore = FirebaseFirestore.getInstance().document("sampleData/user")
 
         fun queryFirestore(): CollectionReference {
-
             if (alarms.size != 0) {
-
                 mFirestore.collection("alarms")
                     .add(alarm)
                     .addOnSuccessListener { documentReference ->
@@ -39,12 +38,10 @@ class SnoozeService : IntentService("Snooze") {
             return mFirestore.collection("alarms")
         }
 
-            //dbHelper.getAlarmWithId(id) ?: return
-        hideNotification(id)
+        // dbHelper.getAlarmWithId(id) ?: return
+        if (id != null) {
+            hideNotification(id)
+        }
         setupAlarmClock(alarm, config.snoozeTime * MINUTE_SECONDS)
-
-
-
-
     }
 }

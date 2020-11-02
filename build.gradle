@@ -9,10 +9,9 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.5.0-beta03'
+        classpath 'com.android.tools.build:gradle:4.0.0'
         classpath 'com.google.gms:google-services:4.2.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-
     }
 }
 
@@ -24,10 +23,14 @@ allprojects {
         jcenter()
         mavenLocal()
     }
-
-
 }
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+ext {
+    // Stable Koin Version
+    koin_version = "2.1.6"
+// Enable Koin Version
+    koin_version = "2.2.0-rc-3"
 }

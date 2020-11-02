@@ -47,15 +47,10 @@ class ChatActivity : AppCompatActivity() {
         FirestoreUtil.getOrCreateChatChannel(otherUserId) { channelId ->
 
             currentChannelId = channelId
-
-            messagesListenerRegistration =
-                    FirestoreUtil.addChatMessagesListener(channelId, this, this::updateRecyclerView)
-
+            messagesListenerRegistration = FirestoreUtil.addChatMessagesListener(channelId, this, this::updateRecyclerView)
 
             send_message_button.setOnClickListener {
-
-                val messageToSend =
-                        TextMessage(editText_message.text.toString(), Calendar.getInstance().time,
+                val messageToSend = TextMessage(editText_message.text.toString(), Calendar.getInstance().time,
                                 FirebaseAuth.getInstance().currentUser!!.uid,
                                 otherUserId, currentUser.name)
                 editText_message.setText("")
@@ -64,13 +59,10 @@ class ChatActivity : AppCompatActivity() {
 
             send_with_delay.setOnClickListener {
 
-                val messageToSend =
-                    TextMessage(editText_message.text.toString(), Calendar.getInstance().time,
-                        FirebaseAuth.getInstance().currentUser!!.uid,
-                        otherUserId, currentUser.name)
+                val messageToSend = TextMessage(editText_message.text.toString(), Calendar.getInstance().time,
+                    FirebaseAuth.getInstance().currentUser!!.uid, otherUserId, currentUser.name)
 
                 editText_message.setText("")
-
 
                 val intent = Intent(this, MainActivity::class.java).apply {
                     putExtra("UsrID", otherUserId)
@@ -108,5 +100,4 @@ class ChatActivity : AppCompatActivity() {
 
         recycler_view_messages.scrollToPosition(recycler_view_messages.adapter!!.itemCount - 1)
     }
-
 }

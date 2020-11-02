@@ -72,8 +72,7 @@ object FirestoreUtil {
 
     fun removeListener(registration: ListenerRegistration) = registration.remove()
 
-    fun getOrCreateChatChannel(otherUserId: String,
-                               onComplete: (channelId: String) -> Unit) {
+    fun getOrCreateChatChannel(otherUserId: String, onComplete: (channelId: String) -> Unit) {
         currentUserDocRef.collection("engagedChatChannels")
                 .document(otherUserId).get().addOnSuccessListener {
                     if (it.exists()) {

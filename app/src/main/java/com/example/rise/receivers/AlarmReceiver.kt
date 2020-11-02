@@ -20,8 +20,6 @@ class AlarmReceiver  : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
 
-
-
         val bundle = intent.getBundleExtra(MESSAGE_CONTENT)
         var alarm  = bundle.getParcelable<Alarm>("alarm") as Alarm
 
