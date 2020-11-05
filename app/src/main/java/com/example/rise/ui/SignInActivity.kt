@@ -12,6 +12,7 @@ import com.firebase.ui.auth.ErrorCodes
 import com.firebase.ui.auth.IdpResponse
 import com.google.firebase.iid.FirebaseInstanceId
 import com.example.rise.services.MyFirebaseMessagingService
+import com.example.rise.ui.mainActivity.MainActivity
 import kotlinx.android.synthetic.main.activity_sign_in.*
 import org.jetbrains.anko.clearTask
 import org.jetbrains.anko.design.longSnackbar
@@ -32,7 +33,6 @@ class SignInActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_sign_in)
-
 
         account_sign_in.setOnClickListener {
             val intent = AuthUI.getInstance().createSignInIntentBuilder()

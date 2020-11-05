@@ -1,4 +1,4 @@
-package com.example.rise.ui
+package com.example.rise.ui.recyclerview
 
 import android.content.Context
 import android.view.LayoutInflater
@@ -11,22 +11,20 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.android.synthetic.main.recycler_alarm_item.view.*
-import org.jetbrains.anko.toast
 import timber.log.Timber
 
 
-open class MyAlarmRecyclerViewAdapter(
+open class MyFireStoreAlarmRecyclerViewAdapter(
     mQuery: Query,
     context: Context
 
-) : FirestoreAdapterBase<MyAlarmRecyclerViewAdapter.ViewHolder>(mQuery, context) {
+) : FirestoreAdapterBase<MyFireStoreAlarmRecyclerViewAdapter.ViewHolder>(mQuery, context) {
 
     lateinit var alarm: Alarm
     open var otherUsrId: String? = null
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(getSnapshot(position)/*, mListener*/)
-
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -44,16 +42,16 @@ open class MyAlarmRecyclerViewAdapter(
         ) {
             alarm = snapshot.toObject(Alarm::class.java)!!
 
-            if (alarm.timeInMinutes.rem(60) >= 10) {
+            if (alarm.timeInSeconds.rem(60) >= 10) {
 
                 mView.time_remaining.text =
-                    alarm.timeInMinutes.div(60).toString() + " : " + alarm.timeInMinutes.rem(60)
+                    alarm.timeInSeconds.div(60).toString() + " : " + alarm.timeInSeconds.rem(60)
                         .toString()
                 mView.display_name.text = alarm.userName
             } else {
 
                 mView.time_remaining.text =
-                    alarm.timeInMinutes.div(60).toString() + " : " + " 0" + alarm.timeInMinutes.rem(
+                    alarm.timeInSeconds.div(60).toString() + " : " + " 0" + alarm.timeInSeconds.rem(
                         60
                     ).toString()
                 mView.display_name.text = alarm.userName

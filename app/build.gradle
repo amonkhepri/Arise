@@ -32,7 +32,6 @@ android {
     androidExtensions {
         experimental = true
     }
-
 }
 
 dependencies {
@@ -84,5 +83,4 @@ dependencies {
     //groupie
     implementation 'com.xwray:groupie:2.3.0'
     implementation 'com.xwray:groupie-kotlin-android-extensions:2.3.0'
-
 }

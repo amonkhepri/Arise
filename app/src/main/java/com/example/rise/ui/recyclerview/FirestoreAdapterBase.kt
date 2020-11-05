@@ -13,18 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.example.rise.ui
+package com.example.rise.ui.recyclerview
 
 
 import android.content.Context
 import android.util.Log
 import androidx.recyclerview.widget.RecyclerView
-import com.example.rise.extensions.scheduleNextAlarm
-import com.example.rise.models.Alarm
 import com.google.firebase.firestore.*
-import org.jetbrains.anko.toast
-
-import java.util.ArrayList
+import com.google.firebase.firestore.EventListener
+import java.util.*
 
 /**
  * RecyclerView adapter for displaying the results of a Firestore [Query].
@@ -59,7 +56,7 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
         // Dispatch the event
         for (change in documentSnapshots!!.documentChanges) {
             // Snapshot of the changed document
-            //val snapshot = change.document
+            // val snapshot = change.document
 
             when (change.type) {
                 DocumentChange.Type.ADDED -> onDocumentAdded(change)
@@ -67,7 +64,6 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
                 DocumentChange.Type.REMOVED -> onDocumentRemoved(change)
             }
         }
-
         onDataChanged()
     }
 
@@ -88,7 +84,6 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
     }
 
     fun setQuery(query: Query) {
-
         // Stop listening
         stopListening()
 
@@ -117,10 +112,6 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
     open fun onDocumentAdded(change: DocumentChange) {
         mSnapshots.add(change.newIndex, change.document)
         notifyItemInserted(change.newIndex)
-
-        context.scheduleNextAlarm(change.document.toObject(Alarm::class.java), true)
-
-
     }
 
     protected fun onDocumentModified(change: DocumentChange) {
@@ -140,7 +131,6 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
     protected fun onDocumentRemoved(change: DocumentChange) {
         mSnapshots.removeAt(change.oldIndex)
         notifyItemRemoved(change.oldIndex)
-
     }
 
     companion object {

@@ -9,6 +9,7 @@ import com.example.rise.helpers.CHAT_CHANNEL
 import com.example.rise.helpers.MESSAGE_CONTENT
 import com.example.rise.models.TextMessage
 import com.example.rise.models.User
+import com.example.rise.ui.mainActivity.MainActivity
 import com.example.rise.util.FirestoreUtil
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ListenerRegistration
@@ -19,7 +20,6 @@ import com.xwray.groupie.kotlinandroidextensions.ViewHolder
 import kotlinx.android.synthetic.main.activity_chat.*
 import java.util.*
 
-private const val RC_SELECT_IMAGE = 2
 
 class ChatActivity : AppCompatActivity() {
 
@@ -36,9 +36,7 @@ class ChatActivity : AppCompatActivity() {
         setContentView(R.layout.activity_chat)
 
         supportActionBar?.title = intent.getStringExtra(AppConstants.USER_NAME)
-
         otherUserId = intent.getStringExtra(AppConstants.USER_ID)
-
 
         FirestoreUtil.getCurrentUser {
             currentUser = it
@@ -58,6 +56,7 @@ class ChatActivity : AppCompatActivity() {
             }
 
             send_with_delay.setOnClickListener {
+                //Run service and send with delay
 
                 val messageToSend = TextMessage(editText_message.text.toString(), Calendar.getInstance().time,
                     FirebaseAuth.getInstance().currentUser!!.uid, otherUserId, currentUser.name)
@@ -70,12 +69,10 @@ class ChatActivity : AppCompatActivity() {
                     putExtra(MESSAGE_CONTENT, messageToSend)
                     putExtra(CHAT_CHANNEL, channelId)
                 }
-
                 startActivity(intent)
             }
         }
     }
-
 
     private fun updateRecyclerView(messages: List<Item>) {
 

@@ -13,7 +13,6 @@ import com.example.rise.models.Alarm
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
 
-
 class SnoozeService : IntentService("Snooze") {
 
     override fun onHandleIntent(intent: Intent?) {

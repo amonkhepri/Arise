@@ -20,6 +20,7 @@ class RadioGroupDialog(val activity: AppCompatActivity, val items: ArrayList<Rad
 
     init {
         val view = activity.layoutInflater.inflate(R.layout.dialog_radio_group, null)
+
         view.dialog_radio_group.apply {
             for (i in 0 until items.size) {
                 val radioButton = (activity.layoutInflater.inflate(R.layout.radio_button, null) as RadioButton).apply {
@@ -37,8 +38,7 @@ class RadioGroupDialog(val activity: AppCompatActivity, val items: ArrayList<Rad
             }
         }
 
-        val builder = AlertDialog.Builder(activity)
-            .setOnCancelListener { cancelCallback?.invoke() }
+        val builder = AlertDialog.Builder(activity).setOnCancelListener { cancelCallback?.invoke() }
 
         if (selectedItemId != -1 && showOKButton) {
             builder.setPositiveButton(R.string.ok) { dialog, which -> itemSelected(selectedItemId) }

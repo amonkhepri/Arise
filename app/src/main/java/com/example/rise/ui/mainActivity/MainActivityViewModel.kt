@@ -1,4 +1,4 @@
-package com.example.rise.ui.viewModel
+package com.example.rise.ui.mainActivity
 
 import androidx.lifecycle.ViewModel
 

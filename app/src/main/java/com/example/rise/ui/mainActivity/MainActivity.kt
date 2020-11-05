@@ -1,4 +1,4 @@
-package com.example.rise.ui
+package com.example.rise.ui.mainActivity
 
 
 import android.content.Intent
@@ -8,7 +8,6 @@ import androidx.lifecycle.ViewModelProviders
 import com.example.rise.ui.fragments.DashboardFragment
 import com.example.rise.ui.fragments.MyAccountFragment
 import com.example.rise.ui.fragments.PeopleFragment
-import com.example.rise.ui.viewModel.MainActivityViewModel
 import com.firebase.ui.auth.AuthUI
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
@@ -20,10 +19,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mViewModel: MainActivityViewModel
     private val RC_SIGN_IN = 9001
 
-    private val mOnNavigationItemSelectedListener =
-        BottomNavigationView.OnNavigationItemSelectedListener { item -> //bottom navigation
+    private val mOnNavigationItemSelectedListener = BottomNavigationView.OnNavigationItemSelectedListener { item ->
+        //bottom navigation
             when (item.itemId) {
-
                 com.example.rise.R.id.navigation_people -> {
                     replaceFragment(PeopleFragment())
                     return@OnNavigationItemSelectedListener true
@@ -58,12 +56,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(com.example.rise.R.layout.activity_main)
 
         bottomNavigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
-
         // If we are here because of ChatActivity,else proceed to Myaccount
 
         if (intent.extras != null) {
             replaceFragment(DashboardFragment())
-        }else replaceFragment(MyAccountFragment()   )
+        }else replaceFragment(MyAccountFragment())
 
         mViewModel = ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
     }
@@ -108,5 +105,4 @@ class MainActivity : AppCompatActivity() {
     private fun shouldStartSignIn(): Boolean {
         return !mViewModel.mSignIn && FirebaseAuth.getInstance().currentUser == null
     }
-
 }

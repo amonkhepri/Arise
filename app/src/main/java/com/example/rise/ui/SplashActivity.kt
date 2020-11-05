@@ -4,6 +4,7 @@ package com.example.rise.ui
 import android.os.Bundle
 
 import com.example.rise.baseclasses.BaseActivity
+import com.example.rise.ui.mainActivity.MainActivity
 import com.google.firebase.auth.FirebaseAuth
 import org.jetbrains.anko.startActivity
 

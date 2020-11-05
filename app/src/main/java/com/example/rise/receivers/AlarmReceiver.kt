@@ -21,16 +21,16 @@ class AlarmReceiver  : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
 
         val bundle = intent.getBundleExtra(MESSAGE_CONTENT)
-        var alarm  = bundle.getParcelable<Alarm>("alarm") as Alarm
+        var alarm = bundle.getParcelable<Alarm>("alarm") as Alarm
+        val chatChannel = alarm.chatChannel
+        val messageToSend = alarm.messsage
 
-        val chatChannel= alarm.chatChannel
-        val messageToSend=alarm.messsage
+        Toast.makeText(context, "test", Toast.LENGTH_SHORT).show()
 
-        if(messageToSend!=null){
-
-            FirestoreUtil.sendMessage(messageToSend, chatChannel)}else {
+        if(messageToSend!=null) {
+            FirestoreUtil.sendMessage(messageToSend, chatChannel)
+        } else {
             Toast.makeText(context, chatChannel + "is null", Toast.LENGTH_LONG).show()
         }
     }
-
 }

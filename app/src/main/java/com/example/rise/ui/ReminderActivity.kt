@@ -16,7 +16,7 @@ import com.example.rise.helpers.*
 import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.activity_reminder.*
 
-class ReminderActivity : AppCompatActivity (){
+class ReminderActivity : AppCompatActivity () {
 
     private val INCREASE_VOLUME_DELAY = 3000L
 
@@ -37,8 +37,6 @@ class ReminderActivity : AppCompatActivity (){
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_reminder)
         showOverLockscreen()
-
-
 
         //TODO swap Sqlite for Firestore
         val id = intent.getIntExtra(ALARM_ID, -1)
