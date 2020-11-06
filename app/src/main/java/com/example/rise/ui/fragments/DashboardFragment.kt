@@ -91,6 +91,7 @@ class DashboardFragment : Fragment() {
             val millis: Long = cal.timeInMillis/1000-3600*12
             alarm.timeInSeconds = millis.toInt()
 
+            alarm.idTimeStamp = System.currentTimeMillis().toInt()
             if(message!=null) {
                 println("insideFloatingActionButton")
                 println(cal.timeInMillis.toString())
@@ -129,7 +130,6 @@ class DashboardFragment : Fragment() {
             mFirestore.collection("alarms")
             mFirestore.update("id", FieldValue.increment(1))
             //TODO Consider more multiwriteproof id's
-            alarm.idTimeStamp = System.currentTimeMillis().toInt()
             mFirestore.collection("alarms")
                 .document(alarm.idTimeStamp.toString()).set(alarm)
                 .addOnSuccessListener { documentReference ->

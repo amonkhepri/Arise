@@ -31,38 +31,28 @@ open class MyFireStoreAlarmRecyclerViewAdapter(
         val view = LayoutInflater.from(parent.context)
             .inflate(com.example.rise.R.layout.recycler_alarm_item, parent, false)
         itemCount
-
         return ViewHolder(view)
     }
 
     inner class ViewHolder(val mView: View) : RecyclerView.ViewHolder(mView) {
-
         fun bind(
             snapshot: DocumentSnapshot
         ) {
             alarm = snapshot.toObject(Alarm::class.java)!!
 
             if (alarm.timeInSeconds.rem(60) >= 10) {
-
                 mView.time_remaining.text =
-                    alarm.timeInSeconds.div(60).toString() + " : " + alarm.timeInSeconds.rem(60)
-                        .toString()
+                    alarm.timeInSeconds.div(60).toString() + " : " + alarm.timeInSeconds.rem(60).toString()
                 mView.display_name.text = alarm.userName
             } else {
-
-                mView.time_remaining.text =
-                    alarm.timeInSeconds.div(60).toString() + " : " + " 0" + alarm.timeInSeconds.rem(
-                        60
-                    ).toString()
+                mView.time_remaining.text = alarm.timeInSeconds.div(60).toString() + " : " + " 0" + alarm.timeInSeconds.rem(60).toString()
                 mView.display_name.text = alarm.userName
             }
 
             mView.deleteButton.setOnClickListener { v ->
-
                 //if otherUsrID!-= null it means we're accessing dashboard of other user, otherwise we're at our own dashboard
 
                 if (otherUsrId != null) {
-
                     FirebaseFirestore.getInstance().collection("/users")
                         .document("$otherUsrId").collection("/alarms").document(snapshot.id)
                         .delete()

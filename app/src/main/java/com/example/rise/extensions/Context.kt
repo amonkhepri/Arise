@@ -97,7 +97,7 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
     var alarmManage : AlarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     //TODO time isn't exact, using "setAlarmClock() instead might be a suolution to this dilema
-    alarmManage.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+        alarmManage.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
         alarm.timeInSeconds.toLong()*1000 , pendingIntent)
 }
 
