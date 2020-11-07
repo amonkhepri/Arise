@@ -25,12 +25,10 @@ class AlarmReceiver  : BroadcastReceiver() {
         val chatChannel = alarm.chatChannel
         val messageToSend = alarm.messsage
 
-        Toast.makeText(context, "test", Toast.LENGTH_SHORT).show()
-
         if(messageToSend!=null) {
             FirestoreUtil.sendMessage(messageToSend, chatChannel)
         } else {
-            Toast.makeText(context, chatChannel + "is null", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, chatChannel + "empty message", Toast.LENGTH_LONG).show()
         }
     }
 }

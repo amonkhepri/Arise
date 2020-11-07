@@ -37,9 +37,9 @@ class DashboardFragment : Fragment() {
     var userID: String? = null
     lateinit var alarm: Alarm
 
-    private val firestoreInstance : FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val firestoreInstance: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 
-    private var mFirestore : DocumentReference = firestoreInstance.document (
+    private var mFirestore: DocumentReference = firestoreInstance.document(
         "users/${FirebaseAuth.getInstance().currentUser?.uid ?: throw NullPointerException("UID is null.")}"
     )
 
@@ -69,43 +69,36 @@ class DashboardFragment : Fragment() {
             alarm = Alarm()
             firstrun = false
 
-            val userID: String? = activity?.intent?.getStringExtra("UsrID")
             val chatChannel: String? = activity?.intent?.getStringExtra(CHAT_CHANNEL)
             val message = activity?.intent?.getParcelableExtra<TextMessage>(MESSAGE_CONTENT)
 
             alarm = Alarm()
             alarm.chatChannel = chatChannel.toString()
             alarm.messsage = message
-
-            /*arguments?.getString("chat_channel")*/
             alarm.userName = FirebaseAuth.getInstance().currentUser?.displayName.toString()
 
             val datePicker = DatePicker(view.context)
-            val timePicker = simpleTimePicker
             val cal: Calendar = Calendar.getInstance()
+
             cal.set(Calendar.DAY_OF_MONTH, datePicker.dayOfMonth)
             cal.set(Calendar.MONTH, datePicker.month)
             cal.set(Calendar.YEAR, datePicker.year)
-            cal.set(Calendar.HOUR, timePicker.hour)
-            cal.set(Calendar.MINUTE, timePicker.minute)
-            val millis: Long = cal.timeInMillis/1000-3600*12
-            alarm.timeInSeconds = millis.toInt()
+            cal.set(Calendar.HOUR, simpleTimePicker.hour)
+            cal.set(Calendar.MINUTE, simpleTimePicker.minute)
 
+            val millis: Long = cal.timeInMillis / 1000 - 3600 * 12
+
+            alarm.timeInSeconds = millis.toInt()
             alarm.idTimeStamp = System.currentTimeMillis().toInt()
-            if(message!=null) {
-                println("insideFloatingActionButton")
-                println(cal.timeInMillis.toString())
-                println(alarm.timeInSeconds.toString())
-                println(alarm.messsage.toString())
+
+            if (message != null) {
                 context?.scheduleNextAlarm(alarm, true)
             }
-
             mQuery = queryFirestore()
         }
 
         val userID: String? = activity?.intent?.getStringExtra("UsrID")
         val chatChannel: String? = activity?.intent?.getStringExtra("ChannelId")
-
         val message = activity?.intent?.getParcelableExtra<TextMessage>("Message")
 
         if (userID != null && !byBottomNavigation) {
@@ -118,9 +111,7 @@ class DashboardFragment : Fragment() {
         alarm = Alarm()
         alarm.chatChannel = chatChannel.toString()
         alarm.messsage = message
-
         mQuery = queryFirestore()
-
         initRecyclerView(mQuery)
     }
 
@@ -147,11 +138,11 @@ class DashboardFragment : Fragment() {
     private fun initRecyclerView(mQuery: Query) {
 
         myFireStoreAlarmRecyclerViewAdapter = object : MyFireStoreAlarmRecyclerViewAdapter(mQuery, context!!) {
-            override fun onError(e: FirebaseFirestoreException) = Snackbar.make(
+                override fun onError(e: FirebaseFirestoreException) = Snackbar.make(
                     view!!.findViewById<View>(android.R.id.content),
                     "Error: check logs for info.", Snackbar.LENGTH_LONG
                 ).show()
-        }
+            }
 
         myFireStoreAlarmRecyclerViewAdapter.otherUsrId = this.userID
         alarmList.layoutManager = LinearLayoutManager(this.context)
