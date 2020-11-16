@@ -33,9 +33,6 @@ inline fun androidx.fragment.app.Fragment.toast(message: CharSequence): Toast? {
     return activity?.toast(message)
 }
 
-
-
-
 fun AppCompatActivity.hideKeyboard() {
     val inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     inputMethodManager.hideSoftInputFromWindow((currentFocus ?: View(this)).windowToken, 0)
@@ -85,6 +82,7 @@ fun AppCompatActivity.showPickSecondsDialog(curSeconds: Int, isSnoozePicker: Boo
     }
 
 }
+
 fun AppCompatActivity.showKeyboard(et: EditText) {
     et.requestFocus()
     val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -130,10 +128,3 @@ fun AppCompatActivity.setupDialogStuff(view: View, dialog: AlertDialog, titleId:
     }
     callback?.invoke()
 }
-
-
-
-
-
-
-

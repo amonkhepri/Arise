@@ -24,7 +24,6 @@ import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.fragment_dashboard.*
 import java.util.*
 
-
 class DashboardFragment : Fragment() {
 
     var byBottomNavigation: Boolean = false
@@ -69,12 +68,9 @@ class DashboardFragment : Fragment() {
             alarm = Alarm()
             firstrun = false
 
-            val chatChannel: String? = activity?.intent?.getStringExtra(CHAT_CHANNEL)
-            val message = activity?.intent?.getParcelableExtra<TextMessage>(MESSAGE_CONTENT)
-
             alarm = Alarm()
-            alarm.chatChannel = chatChannel.toString()
-            alarm.messsage = message
+            alarm.chatChannel = activity?.intent?.getStringExtra(CHAT_CHANNEL).toString()
+            alarm.messsage = activity?.intent?.getParcelableExtra<TextMessage>(MESSAGE_CONTENT)
             alarm.userName = FirebaseAuth.getInstance().currentUser?.displayName.toString()
 
             val datePicker = DatePicker(view.context)
@@ -83,17 +79,18 @@ class DashboardFragment : Fragment() {
             cal.set(Calendar.DAY_OF_MONTH, datePicker.dayOfMonth)
             cal.set(Calendar.MONTH, datePicker.month)
             cal.set(Calendar.YEAR, datePicker.year)
-            cal.set(Calendar.HOUR, simpleTimePicker.hour)
+            cal.set(Calendar.HOUR_OF_DAY, simpleTimePicker.hour)
             cal.set(Calendar.MINUTE, simpleTimePicker.minute)
 
-            val millis: Long = cal.timeInMillis / 1000 - 3600 * 12
+            val millis: Long = cal.timeInMillis
 
-            alarm.timeInSeconds = millis.toInt()
+            alarm.timeInMiliseconds = millis
             alarm.idTimeStamp = System.currentTimeMillis().toInt()
 
-            if (message != null) {
+            if (alarm.messsage != null) {
                 context?.scheduleNextAlarm(alarm, true)
             }
+
             mQuery = queryFirestore()
         }
 
@@ -130,19 +127,19 @@ class DashboardFragment : Fragment() {
                     Log.w(TAG, "Error adding document", e)
                 }
             return mFirestore.collection("alarms")
-        } else {
+        }    else {
             return mFirestore.collection("alarms")
         }
     }
 
     private fun initRecyclerView(mQuery: Query) {
 
-        myFireStoreAlarmRecyclerViewAdapter = object : MyFireStoreAlarmRecyclerViewAdapter(mQuery, context!!) {
+        myFireStoreAlarmRecyclerViewAdapter = object : MyFireStoreAlarmRecyclerViewAdapter(mQuery, requireContext()) {
                 override fun onError(e: FirebaseFirestoreException) = Snackbar.make(
                     view!!.findViewById<View>(android.R.id.content),
                     "Error: check logs for info.", Snackbar.LENGTH_LONG
                 ).show()
-            }
+        }
 
         myFireStoreAlarmRecyclerViewAdapter.otherUsrId = this.userID
         alarmList.layoutManager = LinearLayoutManager(this.context)

@@ -24,11 +24,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    override fun onNewToken(p0: String?) {
+    override fun onNewToken(p0: String) {
         super.onNewToken(p0)
 
         val newRegistrationToken = FirebaseInstanceId.getInstance().token
-
         if (FirebaseAuth.getInstance().currentUser != null)
             addTokenToFirestore(
                 newRegistrationToken

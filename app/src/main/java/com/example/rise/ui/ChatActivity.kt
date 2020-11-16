@@ -36,7 +36,7 @@ class ChatActivity : AppCompatActivity() {
         setContentView(R.layout.activity_chat)
 
         supportActionBar?.title = intent.getStringExtra(AppConstants.USER_NAME)
-        otherUserId = intent.getStringExtra(AppConstants.USER_ID)
+        otherUserId = intent.getStringExtra(AppConstants.USER_ID).toString()
 
         FirestoreUtil.getCurrentUser {
             currentUser = it

@@ -46,7 +46,6 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
         documentSnapshots: QuerySnapshot?,
         e: FirebaseFirestoreException?
     ) {
-
         // Handle errors
         if (e != null) {
             Log.w(TAG, "onEvent:error", e)
@@ -57,13 +56,13 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
         for (change in documentSnapshots!!.documentChanges) {
             // Snapshot of the changed document
             // val snapshot = change.document
-
             when (change.type) {
                 DocumentChange.Type.ADDED -> onDocumentAdded(change)
                 DocumentChange.Type.MODIFIED -> onDocumentModified(change)
                 DocumentChange.Type.REMOVED -> onDocumentRemoved(change)
             }
         }
+
         onDataChanged()
     }
 

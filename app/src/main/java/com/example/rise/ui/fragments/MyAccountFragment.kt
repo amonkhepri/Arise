@@ -111,5 +111,4 @@ class MyAccountFragment : androidx.fragment.app.Fragment() {
             }
         }
     }
-
 }

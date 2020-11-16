@@ -30,9 +30,7 @@ class PeopleFragment : androidx.fragment.app.Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
 
-        userListenerRegistration =
-                FirestoreUtil.addUsersListener(this.activity!!, this::updateRecyclerView)
-
+        userListenerRegistration = FirestoreUtil.addUsersListener(this.requireActivity(), this::updateRecyclerView)
         return inflater.inflate(R.layout.fragment_people, container, false)
     }
 
@@ -60,12 +58,10 @@ class PeopleFragment : androidx.fragment.app.Fragment() {
 
         if (shouldInitRecyclerView)
             init()
-        else
-            updateItems()
-
+        else updateItems()
     }
 
-    private val onItemClick = OnItemClickListener { item, view ->
+    private val onItemClick = OnItemClickListener { item, _ ->
         if (item is PersonItem) {
             val intent = Intent(this.context, ChatActivity::class.java)
             intent.putExtra(AppConstants.USER_NAME,item.person.name)
@@ -76,5 +72,4 @@ class PeopleFragment : androidx.fragment.app.Fragment() {
             )
         }
     }
-
 }

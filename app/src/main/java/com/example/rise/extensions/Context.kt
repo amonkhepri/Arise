@@ -17,7 +17,6 @@ import android.text.SpannableString
 import android.text.TextUtils
 import android.text.style.RelativeSizeSpan
 import android.view.ViewGroup
-import android.widget.DatePicker
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.AlarmManagerCompat
@@ -95,9 +94,8 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
     )
 
     var alarmManage : AlarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-
-    // TODO time isn't exact, using "setAlarmClock() instead might be a sulution to this dilema
-        alarmManage.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarm.timeInSeconds.toLong()*1000 , pendingIntent)
+    // TODO time isn't exact, using "setAlarmClock() instead might be a solution to this dilema
+        alarmManage.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarm.timeInMiliseconds.toLong(), pendingIntent)
 }
 
 fun Context.formatMinutesToTimeString(totalMinutes: Int) = formatSecondsToTimeString(totalMinutes * 60)
@@ -176,8 +174,7 @@ fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): No
             .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
             .build()
 
-        val notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val importance = NotificationManager.IMPORTANCE_HIGH
         NotificationChannel(channelId, label, importance).apply {
             setBypassDnd(true)

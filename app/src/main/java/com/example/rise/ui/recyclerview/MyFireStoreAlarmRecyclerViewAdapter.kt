@@ -12,7 +12,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.android.synthetic.main.recycler_alarm_item.view.*
 import timber.log.Timber
-
+import java.text.SimpleDateFormat
+import java.util.*
 
 open class MyFireStoreAlarmRecyclerViewAdapter(
     mQuery: Query,
@@ -40,24 +41,22 @@ open class MyFireStoreAlarmRecyclerViewAdapter(
         ) {
             alarm = snapshot.toObject(Alarm::class.java)!!
 
-            if (alarm.timeInSeconds.rem(60) >= 10) {
-                mView.time_remaining.text =
-                    alarm.timeInSeconds.div(60).toString() + " : " + alarm.timeInSeconds.rem(60).toString()
+            if (alarm.timeInMiliseconds.rem(60) >= 10) {
+                mView.set_time.text = getDateTime(alarm.timeInMiliseconds)
                 mView.display_name.text = alarm.userName
             } else {
-                mView.time_remaining.text = alarm.timeInSeconds.div(60).toString() + " : " + " 0" + alarm.timeInSeconds.rem(60).toString()
+                mView.set_time.text = getDateTime(alarm.timeInMiliseconds)
                 mView.display_name.text = alarm.userName
             }
 
-            mView.deleteButton.setOnClickListener { v ->
+            mView.deleteButton.setOnClickListener {
                 //if otherUsrID!-= null it means we're accessing dashboard of other user, otherwise we're at our own dashboard
-
                 if (otherUsrId != null) {
                     FirebaseFirestore.getInstance().collection("/users")
                         .document("$otherUsrId").collection("/alarms").document(snapshot.id)
                         .delete()
                         .addOnSuccessListener { Timber.d("DocumentSnapshot successfully deleted!") }
-                        .addOnFailureListener { e -> Timber.w("Error deleting document") }
+                        .addOnFailureListener { Timber.w("Error deleting document") }
                 } else {
                     FirebaseFirestore.getInstance()
                         .collection("/users")
@@ -66,9 +65,19 @@ open class MyFireStoreAlarmRecyclerViewAdapter(
                         .document(snapshot.id)
                         .delete()
                         .addOnSuccessListener { Timber.d("DocumentSnapshot successfully deleted!") }
-                        .addOnFailureListener { e -> Timber.w("Error deleting document") }
+                        .addOnFailureListener { Timber.w("Error deleting document") }
                 }
             }
+        }
+    }
+
+    private fun getDateTime(s: Long): String? {
+        try {
+            val sdf = SimpleDateFormat("HH:mm")
+            val netDate = Date(s)
+            return sdf.format(netDate)
+        } catch (e: Exception) {
+            return e.toString()
         }
     }
 }

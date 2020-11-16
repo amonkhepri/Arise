@@ -11,7 +11,6 @@ import com.example.rise.item.TextMessageItem
 import com.example.rise.models.*
 import com.xwray.groupie.kotlinandroidextensions.Item
 
-
 object FirestoreUtil {
 
     private val firestoreInstance: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }

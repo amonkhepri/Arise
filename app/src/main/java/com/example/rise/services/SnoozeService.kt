@@ -23,6 +23,7 @@ class SnoozeService : IntentService("Snooze") {
 
         val mFirestore = FirebaseFirestore.getInstance().document("sampleData/user")
 
+        //TODO implement Snooze
         fun queryFirestore(): CollectionReference {
             if (alarms.size != 0) {
                 mFirestore.collection("alarms")

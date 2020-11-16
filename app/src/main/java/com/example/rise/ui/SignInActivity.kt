@@ -64,10 +64,8 @@ class SignInActivity : BaseActivity() {
                 if (response == null) return
 
                 when (response.error?.errorCode) {
-                    ErrorCodes.NO_NETWORK ->
-                            longSnackbar(constraint_layout, "No network")
-                    ErrorCodes.UNKNOWN_ERROR ->
-                        longSnackbar(constraint_layout, "Unknown error")
+                    ErrorCodes.NO_NETWORK -> longSnackbar(constraint_layout, "No network")
+                    ErrorCodes.UNKNOWN_ERROR -> longSnackbar(constraint_layout, "Unknown error")
                 }
             }
         }

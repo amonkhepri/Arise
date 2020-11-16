@@ -42,7 +42,8 @@ class ReminderActivity : AppCompatActivity () {
         val id = intent.getIntExtra(ALARM_ID, -1)
 
         //TODO fix this
-      /*  isAlarmReminder = id != -1
+
+        /*  isAlarmReminder = id != -1
         if (id != -1) {
             alarm = dbHelper.getAlarmWithId(id) ?: return
         }*/
@@ -81,8 +82,8 @@ class ReminderActivity : AppCompatActivity () {
         reminder_stop.beGone()
         reminder_draggable_background.startAnimation(AnimationUtils.loadAnimation(this, R.anim.pulsing_animation))
 
-       // TODO
-      /*  reminder_draggable_background.applyColorFilter(getAdjustedPrimaryColor())
+      /*TODO
+        reminder_draggable_background.applyColorFilter(getAdjustedPrimaryColor())
         reminder_snooze.applyColorFilter(config.textColor)*/
 
         var minDragX = 0f
