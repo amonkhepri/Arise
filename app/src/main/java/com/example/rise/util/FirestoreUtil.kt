@@ -1,15 +1,15 @@
 package com.example.rise.util
 
 import android.content.Context
-import android.util.Log
+import com.example.rise.item.PersonItem
+import com.example.rise.item.TextMessageItem
+import com.example.rise.models.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.example.rise.item.PersonItem
-import com.example.rise.item.TextMessageItem
-import com.example.rise.models.*
 import com.xwray.groupie.kotlinandroidextensions.Item
+import timber.log.Timber
 
 object FirestoreUtil {
 
@@ -56,7 +56,8 @@ object FirestoreUtil {
         return firestoreInstance.collection("users")
                 .addSnapshotListener { querySnapshot, firebaseFirestoreException ->
                     if (firebaseFirestoreException != null) {
-                        Log.e("FIRESTORE", "Users listener error.", firebaseFirestoreException)
+                        Timber.tag("FIRESTORE")
+                            .e(firebaseFirestoreException, "Users listener error.")
                         return@addSnapshotListener
                     }
 
@@ -104,7 +105,7 @@ object FirestoreUtil {
                 .orderBy("time")
                 .addSnapshotListener { querySnapshot, firebaseFirestoreException ->
                     if (firebaseFirestoreException != null) {
-                        Log.e("FIRESTORE", "ChatMessagesListener error.", firebaseFirestoreException)
+                        Timber.e(firebaseFirestoreException, "ChatMessagesListener error.")
                         return@addSnapshotListener
                     }
 

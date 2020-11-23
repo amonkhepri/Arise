@@ -1,30 +1,23 @@
-package com.example.rise.ui.fragments
+package com.example.rise.ui.dashboardNavigation.myAccount
 
 
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import com.example.rise.R
-import com.example.rise.extensions.toast
+import com.example.rise.baseclasses.BaseFragment
+import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
 import com.example.rise.util.FirestoreUtil
 import com.firebase.ui.auth.AuthUI
-
-
-
-
-
-import com.example.rise.ui.SignInActivity
-import com.google.firebase.auth.FirebaseAuth
-
-
 import kotlinx.android.synthetic.main.fragment_my_account.*
 import kotlinx.android.synthetic.main.fragment_my_account.view.*
+import org.koin.android.ext.android.get
 
-class MyAccountFragment : androidx.fragment.app.Fragment() {
+class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
 
     private val RC_SELECT_IMAGE = 2
     private lateinit var selectedImageBytes: ByteArray
@@ -54,8 +47,7 @@ class MyAccountFragment : androidx.fragment.app.Fragment() {
                     FirestoreUtil.updateCurrentUser(editText_name.text.toString(),
                             editText_bio.text.toString(), null)
 
-                toast("saving")
-
+                Toast.makeText(view.context,"saving", Toast.LENGTH_SHORT).show()
             }
 
             btn_sign_out.setOnClickListener {
@@ -65,7 +57,7 @@ class MyAccountFragment : androidx.fragment.app.Fragment() {
 
 
                 AuthUI.getInstance()
-                        .signOut(this@MyAccountFragment.context!!)
+                        .signOut(view.context)
                         .addOnCompleteListener {
 
                             startActivity(intent)
@@ -110,5 +102,9 @@ class MyAccountFragment : androidx.fragment.app.Fragment() {
                             .into(imageView_profile_picture)*/
             }
         }
+    }
+
+    override fun createViewModel() {
+        viewModel = get()
     }
 }

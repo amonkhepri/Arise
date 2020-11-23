@@ -1,5 +1,7 @@
 package com.example.rise.ui.mainActivity
 
-import androidx.lifecycle.ViewModel
+import com.example.rise.baseclasses.BaseViewModel
 
-data class MainActivityViewModel(var mSignIn : Boolean=false) : ViewModel()
+class MainActivityViewModel() : BaseViewModel(){
+    var mSignIn : Boolean = false
+}

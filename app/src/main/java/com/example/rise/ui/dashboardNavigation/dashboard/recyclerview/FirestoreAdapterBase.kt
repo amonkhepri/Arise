@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.example.rise.ui.recyclerview
+package com.example.rise.ui.dashboardNavigation.dashboard.recyclerview
 
 
 import android.content.Context
-import android.util.Log
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.firestore.*
 import com.google.firebase.firestore.EventListener
+import timber.log.Timber
 import java.util.*
 
 /**
@@ -48,7 +48,7 @@ abstract class FirestoreAdapterBase<VH : RecyclerView.ViewHolder> (private var m
     ) {
         // Handle errors
         if (e != null) {
-            Log.w(TAG, "onEvent:error", e)
+            Timber.w(e, "onEvent:error")
             return
         }
 

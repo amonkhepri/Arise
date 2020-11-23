@@ -1,9 +1,11 @@
 package com.example.rise.ui.dialogs
 
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.EditText
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import com.example.rise.R
 import com.example.rise.extensions.beVisibleIf
@@ -16,6 +18,7 @@ import com.example.rise.extensions.*
 import kotlinx.android.synthetic.main.dialog_custom_interval_picker.view.*
 
 
+@RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 class CustomIntervalPickerDialog(val activity: AppCompatActivity, val selectedSeconds: Int = 0, val showSeconds: Boolean = false, val callback: (minutes: Int) -> Unit) {
     var dialog: AlertDialog
     var view = (activity.layoutInflater.inflate(R.layout.dialog_custom_interval_picker, null) as ViewGroup)
@@ -66,6 +69,7 @@ class CustomIntervalPickerDialog(val activity: AppCompatActivity, val selectedSe
 
 
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun confirmReminder() {
         //TODO teporary fix here
         val value = view.dialog_custom_interval_value.transitionName

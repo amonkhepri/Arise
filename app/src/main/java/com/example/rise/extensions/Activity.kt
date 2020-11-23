@@ -11,6 +11,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import com.example.rise.models.RadioItem
 import com.example.rise.R
@@ -19,7 +20,6 @@ import com.example.rise.helpers.MyTextView
 import com.example.rise.ui.dialogs.CustomIntervalPickerDialog
 import com.example.rise.ui.dialogs.RadioGroupDialog
 import kotlinx.android.synthetic.main.dialog_tile_textview.view.*
-import org.jetbrains.anko.toast
 import java.util.*
 
 fun AppCompatActivity.showOverLockscreen() {
@@ -27,10 +27,6 @@ fun AppCompatActivity.showOverLockscreen() {
             WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
             WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
-}
-
-inline fun androidx.fragment.app.Fragment.toast(message: CharSequence): Toast? {
-    return activity?.toast(message)
 }
 
 fun AppCompatActivity.hideKeyboard() {

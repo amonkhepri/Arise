@@ -5,7 +5,7 @@
         android:id="@+id/constraint_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        tools:context="com.example.rise.ui.SignInActivity">
+        tools:context="com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity">
 
     <ImageView
             android:id="@+id/imageView"

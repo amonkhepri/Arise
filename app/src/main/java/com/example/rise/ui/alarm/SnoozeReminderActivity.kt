@@ -1,4 +1,4 @@
-package com.example.rise.ui
+package com.example.rise.ui.alarm
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity

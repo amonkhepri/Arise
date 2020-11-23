@@ -1,30 +1,31 @@
-package com.example.rise.ui.fragments
+package com.example.rise.ui.dashboardNavigation.dashboard
 
 
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.DatePicker
 import androidx.annotation.RequiresApi
-import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.R
+import com.example.rise.baseclasses.BaseFragment
 import com.example.rise.extensions.scheduleNextAlarm
 import com.example.rise.helpers.CHAT_CHANNEL
 import com.example.rise.helpers.MESSAGE_CONTENT
 import com.example.rise.models.Alarm
 import com.example.rise.models.TextMessage
-import com.example.rise.ui.recyclerview.MyFireStoreAlarmRecyclerViewAdapter
+import com.example.rise.ui.dashboardNavigation.dashboard.recyclerview.MyFireStoreAlarmRecyclerViewAdapter
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.*
 import kotlinx.android.synthetic.main.fragment_dashboard.*
+import org.koin.android.ext.android.get
+import timber.log.Timber
 import java.util.*
 
-class DashboardFragment : Fragment() {
+class DashboardFragment : BaseFragment<DashboardViewModel>() {
 
     var byBottomNavigation: Boolean = false
 
@@ -121,10 +122,10 @@ class DashboardFragment : Fragment() {
             mFirestore.collection("alarms")
                 .document(alarm.idTimeStamp.toString()).set(alarm)
                 .addOnSuccessListener { documentReference ->
-                    Log.d(TAG, "DocumentSnapshot add with ID: ")
+                    Timber.d("DocumentSnapshot add with ID: ")
                 }
                 .addOnFailureListener { e ->
-                    Log.w(TAG, "Error adding document", e)
+                    Timber.tag(TAG).w(e, "Error adding document")
                 }
             return mFirestore.collection("alarms")
         }    else {
@@ -145,5 +146,9 @@ class DashboardFragment : Fragment() {
         alarmList.layoutManager = LinearLayoutManager(this.context)
         alarmList.adapter = myFireStoreAlarmRecyclerViewAdapter
         myFireStoreAlarmRecyclerViewAdapter.setQuery(mQuery)
+    }
+
+    override fun createViewModel() {
+        viewModel = get()
     }
 }

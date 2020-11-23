@@ -221,7 +221,11 @@ open class BaseConfig(val context: Context) {
 
     var isSundayFirst: Boolean
         get() {
-            val isSundayFirst = Calendar.getInstance(Locale.getDefault()).firstDayOfWeek == Calendar.SUNDAY
+            val isSundayFirst = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                Calendar.getInstance(Locale.getDefault()).firstDayOfWeek == Calendar.SUNDAY
+            } else {
+                TODO("VERSION.SDK_INT < N")
+            }
             return prefs.getBoolean(SUNDAY_FIRST, isSundayFirst)
         }
         set(sundayFirst) = prefs.edit().putBoolean(SUNDAY_FIRST, sundayFirst).apply()

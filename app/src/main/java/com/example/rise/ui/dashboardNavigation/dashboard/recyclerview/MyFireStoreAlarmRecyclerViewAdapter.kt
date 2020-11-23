@@ -1,4 +1,4 @@
-package com.example.rise.ui.recyclerview
+package com.example.rise.ui.dashboardNavigation.dashboard.recyclerview
 
 import android.content.Context
 import android.view.LayoutInflater

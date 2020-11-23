@@ -12,6 +12,7 @@ import com.example.rise.helpers.MINUTE_SECONDS
 import com.example.rise.models.Alarm
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
+import timber.log.Timber
 
 class SnoozeService : IntentService("Snooze") {
 
@@ -29,10 +30,11 @@ class SnoozeService : IntentService("Snooze") {
                 mFirestore.collection("alarms")
                     .add(alarm)
                     .addOnSuccessListener { documentReference ->
-                        Log.d(TAG, "DocumentSnapshot add with ID: " + documentReference.id)
+                        Timber.tag(TAG)
+                            .d("DocumentSnapshot add with ID: " + documentReference.id)
                     }
                     .addOnFailureListener { e ->
-                        Log.w(TAG, "Error adding document", e)
+                        Timber.tag(TAG).w(e, "Error adding document")
                     }
             }
             return mFirestore.collection("alarms")

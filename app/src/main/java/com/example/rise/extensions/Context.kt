@@ -27,7 +27,7 @@ import com.example.rise.receivers.AlarmReceiver
 import com.example.rise.receivers.HideAlarmReceiver
 import com.example.rise.services.SnoozeService
 import com.example.rise.ui.mainActivity.MainActivity
-import com.example.rise.ui.SnoozeReminderActivity
+import com.example.rise.ui.alarm.SnoozeReminderActivity
 import java.io.File
 import java.util.regex.Pattern
 
@@ -61,6 +61,7 @@ fun Context.getDefaultAlarmTitle(type: Int): String {
 
 fun Context.getLaunchIntent() = packageManager.getLaunchIntentForPackage(baseConfig.appId)
 
+@RequiresApi(Build.VERSION_CODES.M)
 fun Context.showAlarmNotification(alarm: Alarm) {
     val pendingIntent = getOpenAlarmTabIntent()
     val notification = getAlarmNotification(pendingIntent, alarm)

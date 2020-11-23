@@ -6,9 +6,9 @@
     <string name="timer">Timer</string>
     <string name="time_expired">Time expired</string>
 
-    <string name="title_home">Home</string>
+    <string name="title_home">People</string>
 
-    <string name="title_notifications">Notifications</string>
+    <string name="title_notifications">Account</string>
     <string name="lorem_ipsum">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
         ut labore et dolore magna aliqua.
     </string>
@@ -35,6 +35,7 @@
     <string name="year" msgid="4001118221013892076">"year"</string>
     <string name="years" msgid="6881577717993213522">"years"</string>
     <string name="swipe_right_to_dismiss">Swipe right to Dismiss, or left to Snooze.</string>
+    <string name="title_activity_main2">MainActivity</string>
 
 
 </resources>

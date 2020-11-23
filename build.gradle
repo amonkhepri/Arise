@@ -1,5 +1,4 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
-
 buildscript {
     ext.kotlin_version = '1.4.10'
     ext.anko_version = '0.10.8'
@@ -13,7 +12,7 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:4.1.1'
         classpath 'com.google.gms:google-services:4.3.4'
-        classpath 'com.google.firebase:firebase-crashlytics-gradle:2.3.0'
+        classpath 'com.google.firebase:firebase-crashlytics-gradle:2.4.1'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -28,10 +27,4 @@ allprojects {
 
 task clean(type: Delete) {
     delete rootProject.buildDir
-}
-ext {
-    // Stable Koin Version
-    koin_version = "2.1.6"
-// Enable Koin Version
-    koin_version = "2.2.0-rc-3"
 }

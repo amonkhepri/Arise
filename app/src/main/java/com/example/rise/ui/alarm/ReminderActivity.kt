@@ -1,4 +1,4 @@
-package com.example.rise.ui
+package com.example.rise.ui.alarm
 
 import android.content.Intent
 import android.media.AudioManager
@@ -19,7 +19,6 @@ import kotlinx.android.synthetic.main.activity_reminder.*
 class ReminderActivity : AppCompatActivity () {
 
     private val INCREASE_VOLUME_DELAY = 3000L
-
     private val increaseVolumeHandler = Handler()
     private val maxReminderDurationHandler = Handler()
     private val swipeGuideFadeHandler = Handler()
@@ -31,7 +30,6 @@ class ReminderActivity : AppCompatActivity () {
     private var dragDownX = 0f
     val mFirestore = FirebaseFirestore.getInstance().document("sampleData/user")
     private lateinit var mQuery: Query
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

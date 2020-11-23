@@ -1,11 +1,11 @@
 package com.example.rise.services
 
-import android.util.Log
 import com.example.rise.util.FirestoreUtil
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.iid.FirebaseInstanceId
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import timber.log.Timber
 
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
@@ -37,7 +37,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         if (remoteMessage.notification != null) {
             //TODO: Show notification if we're not online
-            Log.d("FCM", remoteMessage.data.toString())
+            Timber.tag("FCM").d(remoteMessage.data.toString())
         }
     }
 }

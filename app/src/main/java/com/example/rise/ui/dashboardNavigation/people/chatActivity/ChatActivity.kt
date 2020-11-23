@@ -1,9 +1,11 @@
-package com.example.rise.ui
+package com.example.rise.ui.dashboardNavigation.people.chatActivity
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.example.rise.R
+import com.example.rise.baseclasses.BaseActivity
+import com.example.rise.baseclasses.BaseViewModel
 import com.example.rise.helpers.AppConstants
 import com.example.rise.helpers.CHAT_CHANNEL
 import com.example.rise.helpers.MESSAGE_CONTENT
@@ -18,15 +20,15 @@ import com.xwray.groupie.Section
 import com.xwray.groupie.kotlinandroidextensions.Item
 import com.xwray.groupie.kotlinandroidextensions.ViewHolder
 import kotlinx.android.synthetic.main.activity_chat.*
+import org.koin.android.ext.android.get
 import java.util.*
 
 
-class ChatActivity : AppCompatActivity() {
+class ChatActivity : BaseActivity<ChatViewModel>() {
 
     private lateinit var currentChannelId: String
     private lateinit var currentUser: User
     private lateinit var otherUserId: String
-
     private lateinit var messagesListenerRegistration: ListenerRegistration
     private var shouldInitRecyclerView = true
     private lateinit var messagesSection: Section
@@ -96,5 +98,9 @@ class ChatActivity : AppCompatActivity() {
             updateItems()
 
         recycler_view_messages.scrollToPosition(recycler_view_messages.adapter!!.itemCount - 1)
+    }
+
+    override fun createViewModel() {
+        viewModel = get()
     }
 }

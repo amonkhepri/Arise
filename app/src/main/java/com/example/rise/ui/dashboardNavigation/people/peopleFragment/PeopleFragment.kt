@@ -1,4 +1,4 @@
-package com.example.rise.ui.fragments
+package com.example.rise.ui.dashboardNavigation.people.peopleFragment
 
 
 import android.content.Intent
@@ -7,9 +7,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.example.rise.R
+import com.example.rise.baseclasses.BaseFragment
 import com.example.rise.helpers.AppConstants
 import com.example.rise.item.PersonItem
-import com.example.rise.ui.ChatActivity
+import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatActivity
 import com.example.rise.util.FirestoreUtil
 import com.google.firebase.firestore.ListenerRegistration
 import com.xwray.groupie.GroupAdapter
@@ -18,13 +19,12 @@ import com.xwray.groupie.Section
 import com.xwray.groupie.kotlinandroidextensions.Item
 import com.xwray.groupie.kotlinandroidextensions.ViewHolder
 import kotlinx.android.synthetic.main.fragment_people.*
+import org.koin.android.ext.android.get
 
-class PeopleFragment : androidx.fragment.app.Fragment() {
+class PeopleFragment : BaseFragment<PeopleViewModel>() {
 
     private lateinit var userListenerRegistration: ListenerRegistration
-
     private var shouldInitRecyclerView = true
-
     private lateinit var peopleSection: Section
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
@@ -71,5 +71,13 @@ class PeopleFragment : androidx.fragment.app.Fragment() {
                 intent
             )
         }
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+    }
+
+    override fun createViewModel() {
+        viewModel = get()
     }
 }
