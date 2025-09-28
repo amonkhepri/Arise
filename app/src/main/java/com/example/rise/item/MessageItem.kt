@@ -11,7 +11,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.xwray.groupie.viewbinding.BindableItem
 import java.text.SimpleDateFormat
 
-abstract class MessageItem(protected val message: Message) : BindableItem<ItemTextMessageBinding>() {
+abstract class MessageItem(open val message: Message) : BindableItem<ItemTextMessageBinding>() {
 
     override fun bind(viewBinding: ItemTextMessageBinding, position: Int) {
         setTimeText(viewBinding)

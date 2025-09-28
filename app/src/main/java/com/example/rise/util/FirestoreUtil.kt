@@ -13,7 +13,6 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.xwray.groupie.Item
-import com.xwray.groupie.GroupieViewHolder
 import timber.log.Timber
 
 object FirestoreUtil {
@@ -62,7 +61,7 @@ object FirestoreUtil {
             }
     }
 
-    fun addUsersListener(context: Context, onListen: (List<Item<GroupieViewHolder>>) -> Unit): ListenerRegistration {
+    fun addUsersListener(context: Context, onListen: (List<Item<*>>) -> Unit): ListenerRegistration {
         return firestoreInstance.collection("users")
             .addSnapshotListener { querySnapshot, firebaseFirestoreException ->
                 if (firebaseFirestoreException != null) {
@@ -71,7 +70,7 @@ object FirestoreUtil {
                     return@addSnapshotListener
                 }
 
-                val items = mutableListOf<Item<GroupieViewHolder>>()
+                val items = mutableListOf<Item<*>>()
                 querySnapshot!!.documents.forEach {
                     if (it.id != FirebaseAuth.getInstance().currentUser?.uid) {
                         items.add(PersonItem(it.toObject(User::class.java)!!, it.id, context))
@@ -113,7 +112,7 @@ object FirestoreUtil {
     fun addChatMessagesListener(
         channelId: String,
         context: Context,
-        onListen: (List<Item<GroupieViewHolder>>) -> Unit
+        onListen: (List<Item<*>>) -> Unit
     ): ListenerRegistration {
         return chatChannelsCollectionRef.document(channelId).collection("messages")
             .orderBy("time")
@@ -123,10 +122,10 @@ object FirestoreUtil {
                     return@addSnapshotListener
                 }
 
-                val items = mutableListOf<Item<GroupieViewHolder>>()
+                val items = mutableListOf<Item<*>>()
                 querySnapshot!!.documents.forEach {
                     if (it["type"] == MessageType.TEXT) {
-                        items.add(TextMessageItem(it.toObject(TextMessage::class.java)!!, context))
+                        items.add(TextMessageItem(it.toObject(TextMessage::class.java)!!))
                     } else {
                         // items.add(ImageMessageItem(it.toObject(ImageMessage::class.java)!!, context))
                     }

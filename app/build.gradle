@@ -44,10 +44,6 @@ kotlin {
     jvmToolchain(17)
 }
 
-ext {
-    koin_version = "2.2.3"
-}
-
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
@@ -83,10 +79,8 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.2"
     implementation "androidx.lifecycle:lifecycle-common-java8:2.6.2"
 
-    implementation 'com.xwray:groupie:2.10.1'
-    implementation 'com.xwray:groupie-viewbinding:2.10.1'
+    implementation 'com.github.lisawray.groupie:groupie:2.10.1'
+    implementation 'com.github.lisawray.groupie:groupie-viewbinding:2.10.1'
 
-    implementation "org.koin:koin-android:$koin_version"
-    implementation "org.koin:koin-android-scope:$koin_version"
-    implementation "org.koin:koin-android-viewmodel:$koin_version"
+    implementation "io.insert-koin:koin-android:3.5.6"
 }

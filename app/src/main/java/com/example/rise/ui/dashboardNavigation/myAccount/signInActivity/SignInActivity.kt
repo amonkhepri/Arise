@@ -19,7 +19,7 @@ import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.ErrorCodes
 import com.firebase.ui.auth.IdpResponse
 import com.google.android.material.snackbar.Snackbar
-import com.google.firebase.iid.FirebaseInstanceId
+import com.google.firebase.messaging.FirebaseMessaging
 import org.koin.android.ext.android.get
 
 class SignInActivity : BaseActivity<SignInViewModel>() {
@@ -64,9 +64,12 @@ class SignInActivity : BaseActivity<SignInViewModel>() {
                     )
                     startActivity(intent)
 
-                    val registrationToken = FirebaseInstanceId.getInstance().token
-                    MyFirebaseMessagingService.addTokenToFirestore(registrationToken)
-                    progressBar.visibility = View.GONE
+                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            MyFirebaseMessagingService.addTokenToFirestore(task.result)
+                        }
+                        progressBar.visibility = View.GONE
+                    }
                 }
             } else if (resultCode == Activity.RESULT_CANCELED) {
                 if (response == null) return

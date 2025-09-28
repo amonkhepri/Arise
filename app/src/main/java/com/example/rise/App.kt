@@ -10,7 +10,6 @@ import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewM
 import com.example.rise.ui.mainActivity.MainActivityViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
-import org.koin.android.viewmodel.dsl.viewModel
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import timber.log.Timber
@@ -18,12 +17,12 @@ import timber.log.Timber
 class App: Application() {
 
     val appModule = module {
-        viewModel { SplashActivityViewModel() }
-        viewModel { MyAccountBaseViewModel() }
-        viewModel { DashboardViewModel()}
-        viewModel { ChatViewModel() }
-        viewModel { PeopleViewModel() }
-        viewModel { MainActivityViewModel() }
+        factory { SplashActivityViewModel() }
+        factory { MyAccountBaseViewModel() }
+        factory { DashboardViewModel() }
+        factory { ChatViewModel() }
+        factory { PeopleViewModel() }
+        factory { MainActivityViewModel() }
     }
 
     override fun onCreate() {

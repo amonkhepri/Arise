@@ -2,7 +2,6 @@ package com.example.rise.services
 
 import com.example.rise.util.FirestoreUtil
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.iid.FirebaseInstanceId
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import timber.log.Timber
@@ -24,14 +23,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    override fun onNewToken(p0: String) {
-        super.onNewToken(p0)
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
 
-        val newRegistrationToken = FirebaseInstanceId.getInstance().token
-        if (FirebaseAuth.getInstance().currentUser != null)
-            addTokenToFirestore(
-                newRegistrationToken
-            )
+        if (FirebaseAuth.getInstance().currentUser != null) {
+            addTokenToFirestore(token)
+        }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {

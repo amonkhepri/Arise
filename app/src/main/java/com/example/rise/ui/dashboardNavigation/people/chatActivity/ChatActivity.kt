@@ -17,8 +17,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ListenerRegistration
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
-import com.xwray.groupie.Section
 import com.xwray.groupie.Item
+import com.xwray.groupie.Section
 import org.koin.android.ext.android.get
 import java.util.Calendar
 
@@ -80,7 +80,7 @@ class ChatActivity : BaseActivity<ChatViewModel>() {
         }
     }
 
-    private fun updateRecyclerView(messages: List<Item<GroupieViewHolder>>) {
+    private fun updateRecyclerView(messages: List<Item<*>>) {
 
         fun init() {
             binding.recyclerViewMessages.apply {

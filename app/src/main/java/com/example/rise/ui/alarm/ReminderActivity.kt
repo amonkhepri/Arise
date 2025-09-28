@@ -14,6 +14,7 @@ import com.example.rise.databinding.ActivityReminderBinding
 import com.example.rise.extensions.beGone
 import com.example.rise.extensions.config
 import com.example.rise.extensions.getAdjustedPrimaryColor
+import com.example.rise.extensions.getFormattedTime
 import com.example.rise.extensions.performHapticFeedback
 import com.example.rise.extensions.scheduleNextAlarm
 import com.example.rise.extensions.showErrorToast
@@ -22,7 +23,6 @@ import com.example.rise.extensions.showPickSecondsDialog
 import com.example.rise.extensions.setupAlarmClock
 import com.example.rise.helpers.ALARM_ID
 import com.example.rise.helpers.MINUTE_SECONDS
-import com.example.rise.helpers.getFormattedTime
 import com.example.rise.helpers.getPassedSeconds
 import com.example.rise.helpers.getColoredDrawableWithColor
 import com.example.rise.models.Alarm
@@ -62,7 +62,7 @@ class ReminderActivity : AppCompatActivity() {
 
         binding.reminderTitle.text = label
         binding.reminderText.text = if (isAlarmReminder) {
-            getFormattedTime(getPassedSeconds(), false, false)
+            applicationContext.getFormattedTime(getPassedSeconds(), false, false)
         } else {
             getString(R.string.time_expired)
         }

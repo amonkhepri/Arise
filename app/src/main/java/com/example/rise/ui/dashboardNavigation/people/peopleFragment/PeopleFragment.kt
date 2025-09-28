@@ -15,9 +15,9 @@ import com.example.rise.util.FirestoreUtil
 import com.google.firebase.firestore.ListenerRegistration
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
+import com.xwray.groupie.Item
 import com.xwray.groupie.OnItemClickListener
 import com.xwray.groupie.Section
-import com.xwray.groupie.Item
 import org.koin.android.ext.android.get
 
 class PeopleFragment : BaseFragment<PeopleViewModel>() {
@@ -45,7 +45,7 @@ class PeopleFragment : BaseFragment<PeopleViewModel>() {
         _binding = null
     }
 
-    private fun updateRecyclerView(items: List<Item<GroupieViewHolder>>) {
+    private fun updateRecyclerView(items: List<Item<*>>) {
 
         fun init() {
             binding.recyclerViewPeople.apply {
