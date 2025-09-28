@@ -1,6 +1,5 @@
 package com.example.rise.extensions
 
-import androidx.appcompat.app.AppCompatActivity
 import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import android.view.View
@@ -10,23 +9,24 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
-import android.widget.Toast
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
-import com.example.rise.models.RadioItem
+import androidx.appcompat.app.AppCompatActivity
 import com.example.rise.R
+import com.example.rise.databinding.DialogTileTextviewBinding
 import com.example.rise.helpers.MINUTE_SECONDS
 import com.example.rise.helpers.MyTextView
+import com.example.rise.models.RadioItem
 import com.example.rise.ui.dialogs.CustomIntervalPickerDialog
 import com.example.rise.ui.dialogs.RadioGroupDialog
-import kotlinx.android.synthetic.main.dialog_tile_textview.view.*
-import java.util.*
+import java.util.TreeSet
 
 fun AppCompatActivity.showOverLockscreen() {
-    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+    window.addFlags(
+        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
             WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+    )
 }
 
 fun AppCompatActivity.hideKeyboard() {
@@ -36,8 +36,13 @@ fun AppCompatActivity.hideKeyboard() {
     currentFocus?.clearFocus()
 }
 
-fun AppCompatActivity.showPickSecondsDialog(curSeconds: Int, isSnoozePicker: Boolean = false, showSecondsAtCustomDialog: Boolean = false,
-                                                                   cancelCallback: (() -> Unit)? = null, callback: (seconds: Int) -> Unit) {
+fun AppCompatActivity.showPickSecondsDialog(
+    curSeconds: Int,
+    isSnoozePicker: Boolean = false,
+    showSecondsAtCustomDialog: Boolean = false,
+    cancelCallback: (() -> Unit)? = null,
+    callback: (seconds: Int) -> Unit
+) {
     hideKeyboard()
     val seconds = TreeSet<Int>()
     seconds.apply {
@@ -67,16 +72,21 @@ fun AppCompatActivity.showPickSecondsDialog(curSeconds: Int, isSnoozePicker: Boo
 
     items.add(RadioItem(-2, getString(R.string.custom)))
 
-    RadioGroupDialog(this, items, selectedIndex, showOKButton = isSnoozePicker, cancelCallback = cancelCallback) {
+    RadioGroupDialog(
+        this,
+        items,
+        selectedIndex,
+        showOKButton = isSnoozePicker,
+        cancelCallback = cancelCallback
+    ) {
         if (it == -2) {
-            CustomIntervalPickerDialog(this, showSeconds = showSecondsAtCustomDialog) {
-                callback(it)
+            CustomIntervalPickerDialog(this, showSeconds = showSecondsAtCustomDialog) { secondsSelected ->
+                callback(secondsSelected)
             }
         } else {
             callback(it as Int)
         }
     }
-
 }
 
 fun AppCompatActivity.showKeyboard(et: EditText) {
@@ -85,23 +95,26 @@ fun AppCompatActivity.showKeyboard(et: EditText) {
     imm.showSoftInput(et, InputMethodManager.SHOW_IMPLICIT)
 }
 
-fun AppCompatActivity.setupDialogStuff(view: View, dialog: AlertDialog, titleId: Int = 0, titleText: String = "", callback: (() -> Unit)? = null) {
+fun AppCompatActivity.setupDialogStuff(
+    view: View,
+    dialog: AlertDialog,
+    titleId: Int = 0,
+    titleText: String = "",
+    callback: (() -> Unit)? = null
+) {
     if (isDestroyed || isFinishing) {
         return
     }
 
-    if (view is ViewGroup)
+    if (view is ViewGroup) {
         updateTextColors(view)
-    else if (view is MyTextView) {
+    } else if (view is MyTextView) {
         view.setColors(baseConfig.textColor, getAdjustedPrimaryColor(), baseConfig.backgroundColor)
     }
 
-    var title: TextView? = null
-
-
     if (titleId != 0 || titleText.isNotEmpty()) {
-        title = layoutInflater.inflate(R.layout.dialog_title, null) as TextView
-        title.dialog_title_textview.apply {
+        val titleBinding = DialogTileTextviewBinding.inflate(layoutInflater)
+        titleBinding.dialogTitleTextview.apply {
             if (titleText.isNotEmpty()) {
                 text = titleText
             } else {
@@ -109,12 +122,12 @@ fun AppCompatActivity.setupDialogStuff(view: View, dialog: AlertDialog, titleId:
             }
             setTextColor(baseConfig.textColor)
         }
+        dialog.setCustomTitle(titleBinding.root)
     }
 
     dialog.apply {
         setView(view)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
-        setCustomTitle(title)
         setCanceledOnTouchOutside(true)
         show()
         getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(baseConfig.textColor)

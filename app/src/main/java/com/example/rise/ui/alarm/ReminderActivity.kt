@@ -10,15 +10,26 @@ import android.view.MotionEvent
 import android.view.animation.AnimationUtils
 import androidx.appcompat.app.AppCompatActivity
 import com.example.rise.R
+import com.example.rise.databinding.ActivityReminderBinding
+import com.example.rise.extensions.beGone
+import com.example.rise.extensions.config
+import com.example.rise.extensions.getAdjustedPrimaryColor
+import com.example.rise.extensions.getFormattedTime
+import com.example.rise.extensions.performHapticFeedback
+import com.example.rise.extensions.scheduleNextAlarm
+import com.example.rise.extensions.showErrorToast
+import com.example.rise.extensions.showOverLockscreen
+import com.example.rise.extensions.showPickSecondsDialog
+import com.example.rise.extensions.setupAlarmClock
+import com.example.rise.helpers.ALARM_ID
+import com.example.rise.helpers.MINUTE_SECONDS
+import com.example.rise.helpers.getPassedSeconds
+import com.example.rise.helpers.getColoredDrawableWithColor
 import com.example.rise.models.Alarm
-import com.example.rise.extensions.*
-import com.example.rise.helpers.*
-import com.google.firebase.firestore.*
-import kotlinx.android.synthetic.main.activity_reminder.*
 
-class ReminderActivity : AppCompatActivity () {
+class ReminderActivity : AppCompatActivity() {
 
-    private val INCREASE_VOLUME_DELAY = 3000L
+    private val increaseVolumeDelay = 3000L
     private val increaseVolumeHandler = Handler()
     private val maxReminderDurationHandler = Handler()
     private val swipeGuideFadeHandler = Handler()
@@ -28,25 +39,18 @@ class ReminderActivity : AppCompatActivity () {
     private var mediaPlayer: MediaPlayer? = null
     private var lastVolumeValue = 0.1f
     private var dragDownX = 0f
-    val mFirestore = FirebaseFirestore.getInstance().document("sampleData/user")
-    private lateinit var mQuery: Query
+    private lateinit var binding: ActivityReminderBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_reminder)
+        binding = ActivityReminderBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         showOverLockscreen()
 
-        //TODO swap Sqlite for Firestore
         val id = intent.getIntExtra(ALARM_ID, -1)
+        isAlarmReminder = id != -1 && alarm != null
 
-        //TODO fix this
-
-        /*  isAlarmReminder = id != -1
-        if (id != -1) {
-            alarm = dbHelper.getAlarmWithId(id) ?: return
-        }*/
-
-        val label = if (isAlarmReminder) {
+        val label = if (isAlarmReminder && alarm != null) {
             if (alarm!!.label.isEmpty()) {
                 getString(R.string.alarm)
             } else {
@@ -56,10 +60,18 @@ class ReminderActivity : AppCompatActivity () {
             getString(R.string.timer)
         }
 
-        reminder_title.text = label
-        reminder_text.text = if (isAlarmReminder) getFormattedTime(getPassedSeconds(), false, false) else getString(R.string.time_expired)
+        binding.reminderTitle.text = label
+        binding.reminderText.text = if (isAlarmReminder) {
+            applicationContext.getFormattedTime(getPassedSeconds(), false, false)
+        } else {
+            getString(R.string.time_expired)
+        }
 
-        val maxDuration = if (isAlarmReminder) config.alarmMaxReminderSecs else config.timerMaxReminderSecs
+        val maxDuration = if (isAlarmReminder) {
+            config.alarmMaxReminderSecs
+        } else {
+            config.timerMaxReminderSecs
+        }
         maxReminderDurationHandler.postDelayed({
             finishActivity()
         }, maxDuration * 1000L)
@@ -77,56 +89,61 @@ class ReminderActivity : AppCompatActivity () {
     }
 
     private fun setupAlarmButtons() {
-        reminder_stop.beGone()
-        reminder_draggable_background.startAnimation(AnimationUtils.loadAnimation(this, R.anim.pulsing_animation))
-
-      /*TODO
-        reminder_draggable_background.applyColorFilter(getAdjustedPrimaryColor())
-        reminder_snooze.applyColorFilter(config.textColor)*/
+        binding.reminderStop.beGone()
+        binding.reminderDraggableBackground.startAnimation(
+            AnimationUtils.loadAnimation(this, R.anim.pulsing_animation)
+        )
 
         var minDragX = 0f
         var maxDragX = 0f
         var initialDraggableX = 0f
 
-        reminder_dismiss.onGlobalLayout {
-            minDragX = reminder_snooze.left.toFloat()
-            maxDragX = reminder_dismiss.left.toFloat()
-            initialDraggableX = reminder_draggable.left.toFloat()
+        binding.reminderDismiss.post {
+            minDragX = binding.reminderSnooze.left.toFloat()
+            maxDragX = binding.reminderDismiss.left.toFloat()
+            initialDraggableX = binding.reminderDraggable.left.toFloat()
         }
 
-        reminder_draggable.setOnTouchListener { v, event ->
+        binding.reminderDraggable.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     dragDownX = event.x
-                    reminder_draggable_background.animate().alpha(0f)
+                    binding.reminderDraggableBackground.animate().alpha(0f)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     dragDownX = 0f
                     if (!didVibrate) {
-                        reminder_draggable.animate().x(initialDraggableX).withEndAction {
-                            reminder_draggable_background.animate().alpha(0.2f)
+                        binding.reminderDraggable.animate().x(initialDraggableX).withEndAction {
+                            binding.reminderDraggableBackground.animate().alpha(0.2f)
                         }
 
-                        reminder_guide.animate().alpha(1f).start()
+                        binding.reminderGuide.animate().alpha(1f).start()
                         swipeGuideFadeHandler.removeCallbacksAndMessages(null)
                         swipeGuideFadeHandler.postDelayed({
-                            reminder_guide.animate().alpha(0f).start()
+                            binding.reminderGuide.animate().alpha(0f).start()
                         }, 2000L)
                     }
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    reminder_draggable.x = Math.min(maxDragX, Math.max(minDragX, event.rawX - dragDownX))
-                    if (reminder_draggable.x >= maxDragX - 50f) {
-                        if (!didVibrate) {
-                            reminder_draggable.performHapticFeedback()
-                            didVibrate = true
-                            finishActivity()
+                    val newX = event.rawX - dragDownX
+                    binding.reminderDraggable.x = minOf(maxDragX, maxOf(minDragX, newX))
+                    when {
+                        binding.reminderDraggable.x >= maxDragX - 50f -> {
+                            if (!didVibrate) {
+                                binding.reminderDraggable.performHapticFeedback()
+                                didVibrate = true
+                                finishActivity()
+                            }
                         }
-                    } else if (reminder_draggable.x <= minDragX + 50f) {
-                        if (!didVibrate) {
-                            reminder_draggable.performHapticFeedback()
-                            didVibrate = true
-                            snoozeAlarm()
+                        binding.reminderDraggable.x <= minDragX + 50f -> {
+                            if (!didVibrate) {
+                                binding.reminderDraggable.performHapticFeedback()
+                                didVibrate = true
+                                snoozeAlarm()
+                            }
+                        }
+                        else -> {
+                            didVibrate = false
                         }
                     }
                 }
@@ -136,12 +153,18 @@ class ReminderActivity : AppCompatActivity () {
     }
 
     private fun setupTimerButtons() {
-        reminder_stop.background = resources.getColoredDrawableWithColor(R.drawable.circle_background_filled, getAdjustedPrimaryColor())
-        arrayOf(reminder_snooze, reminder_draggable_background, reminder_draggable, reminder_dismiss).forEach {
-            it.beGone()
-        }
+        binding.reminderStop.background = resources.getColoredDrawableWithColor(
+            R.drawable.circle_background_filled,
+            getAdjustedPrimaryColor()
+        )
+        arrayOf(
+            binding.reminderSnooze,
+            binding.reminderDraggableBackground,
+            binding.reminderDraggable,
+            binding.reminderDismiss
+        ).forEach { it.beGone() }
 
-        reminder_stop.setOnClickListener {
+        binding.reminderStop.setOnClickListener {
             finishActivity()
         }
     }
@@ -151,7 +174,7 @@ class ReminderActivity : AppCompatActivity () {
             lastVolumeValue = 1f
         }
 
-        val soundUri = Uri.parse(if (alarm != null) alarm!!.soundUri else config.timerSoundUri)
+        val soundUri = Uri.parse(alarm?.soundUri ?: config.timerSoundUri)
         try {
             mediaPlayer = MediaPlayer().apply {
                 setAudioStreamType(AudioManager.STREAM_ALARM)
@@ -172,10 +195,10 @@ class ReminderActivity : AppCompatActivity () {
 
     private fun scheduleVolumeIncrease() {
         increaseVolumeHandler.postDelayed({
-            lastVolumeValue = Math.min(lastVolumeValue + 0.1f, 1f)
+            lastVolumeValue = minOf(lastVolumeValue + 0.1f, 1f)
             mediaPlayer?.setVolume(lastVolumeValue, lastVolumeValue)
             scheduleVolumeIncrease()
-        }, INCREASE_VOLUME_DELAY)
+        }, increaseVolumeDelay)
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -199,13 +222,18 @@ class ReminderActivity : AppCompatActivity () {
 
     private fun snoozeAlarm() {
         destroyPlayer()
+        val currentAlarm = alarm ?: return
         if (config.useSameSnooze) {
-            setupAlarmClock(alarm!!, config.snoozeTime * MINUTE_SECONDS)
+            setupAlarmClock(currentAlarm, config.snoozeTime * MINUTE_SECONDS)
             finishActivity()
         } else {
-            showPickSecondsDialog(config.snoozeTime * MINUTE_SECONDS, true, cancelCallback = { finishActivity() }) {
-                config.snoozeTime = it / MINUTE_SECONDS
-                setupAlarmClock(alarm!!, it)
+            showPickSecondsDialog(
+                config.snoozeTime * MINUTE_SECONDS,
+                isSnoozePicker = true,
+                cancelCallback = { finishActivity() }
+            ) { seconds ->
+                config.snoozeTime = seconds / MINUTE_SECONDS
+                setupAlarmClock(currentAlarm, seconds)
                 finishActivity()
             }
         }

@@ -1,40 +1,21 @@
 package com.example.rise.item
 
-import android.content.Context
-import com.example.rise.R
+import com.example.rise.databinding.ItemTextMessageBinding
 import com.example.rise.models.TextMessage
+import com.xwray.groupie.Item
 
-import com.xwray.groupie.kotlinandroidextensions.ViewHolder
-import kotlinx.android.synthetic.main.item_text_message.*
-import kotlinx.android.synthetic.main.item_text_message.view.*
+class TextMessageItem(
+    override val message: TextMessage
+) : MessageItem(message) {
 
-
-class TextMessageItem(val message: TextMessage,
-                      val context: Context)
-    : MessageItem(message) {
-    override fun bind(viewHolder: ViewHolder, position: Int) {
-        viewHolder.root.textView_message_text.text = message.text
-        super.bind(viewHolder, position)
+    override fun bind(viewBinding: ItemTextMessageBinding, position: Int) {
+        viewBinding.textViewMessageText.text = message.text
+        super.bind(viewBinding, position)
     }
 
-    override fun getLayout() = R.layout.item_text_message
+    override fun isSameAs(other: Item<*>): Boolean = other is TextMessageItem && message == other.message
 
-    override fun isSameAs(other: com.xwray.groupie.Item<*>?): Boolean {
-        if (other !is TextMessageItem)
-            return false
-        if (this.message != other.message)
-            return false
-        return true
-    }
+    override fun equals(other: Any?): Boolean = other is TextMessageItem && message == other.message
 
-    override fun equals(other: Any?): Boolean {
-       return isSameAs(other as? TextMessageItem)
-    }
-
-    override fun hashCode(): Int {
-        var result = message.hashCode()
-        result = 31 * result + context.hashCode()
-        return result
-    }
-
+    override fun hashCode(): Int = message.hashCode()
 }

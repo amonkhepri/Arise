@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.rise" >
+    package="com.example.rise">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
@@ -18,24 +18,34 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
-        tools:replace="android:appComponentFactory" >
+        tools:replace="android:appComponentFactory">
         <activity
             android:name=".ui.mainActivity.MainActivity"
-            android:label="@string/app_name" >
-        </activity>
-        <activity android:name=".ui.alarm.ReminderActivity" />
-        <activity android:name=".ui.alarm.SnoozeReminderActivity" />
-        <activity android:name=".ui.dashboardNavigation.myAccount.signInActivity.SignInActivity" />
-        <activity android:name=".ui.SplashActivity" >
+            android:label="@string/app_name"
+            android:exported="false" />
+        <activity
+            android:name=".ui.alarm.ReminderActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.alarm.SnoozeReminderActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.dashboardNavigation.myAccount.signInActivity.SignInActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.SplashActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".ui.dashboardNavigation.people.chatActivity.ChatActivity" >
+        <activity
+            android:name=".ui.dashboardNavigation.people.chatActivity.ChatActivity"
+            android:exported="false">
             <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
+                android:name="androidx.core.app.NavUtils.PARENT_ACTIVITY"
                 android:value=".ui.mainActivity.MainActivity" />
 
             <intent-filter>
@@ -45,14 +55,20 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".services.SnoozeService" />
-        <service android:name=".services.MyFirebaseMessagingService" >
+        <service
+            android:name=".services.SnoozeService"
+            android:exported="false" />
+        <service
+            android:name=".services.MyFirebaseMessagingService"
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
 
-        <receiver android:name=".receivers.AlarmReceiver" />
+        <receiver
+            android:name=".receivers.AlarmReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

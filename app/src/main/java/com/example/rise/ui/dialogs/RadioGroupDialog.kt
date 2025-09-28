@@ -1,27 +1,33 @@
 package com.example.rise.ui.dialogs
 
-import androidx.appcompat.app.AppCompatActivity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import androidx.appcompat.app.AlertDialog
-import com.example.rise.models.RadioItem
+import androidx.appcompat.app.AppCompatActivity
 import com.example.rise.R
+import com.example.rise.databinding.DialogRadioGroupBinding
 import com.example.rise.extensions.onGlobalLayout
 import com.example.rise.extensions.setupDialogStuff
-import kotlinx.android.synthetic.main.dialog_radio_group.view.*
+import com.example.rise.models.RadioItem
 
-class RadioGroupDialog(val activity: AppCompatActivity, val items: ArrayList<RadioItem>, val checkedItemId: Int = -1, val titleId: Int = 0,
-                       showOKButton: Boolean = false, val cancelCallback: (() -> Unit)? = null, val callback: (newValue: Any) -> Unit) {
+class RadioGroupDialog(
+    private val activity: AppCompatActivity,
+    private val items: ArrayList<RadioItem>,
+    private val checkedItemId: Int = -1,
+    private val titleId: Int = 0,
+    showOKButton: Boolean = false,
+    private val cancelCallback: (() -> Unit)? = null,
+    private val callback: (newValue: Any) -> Unit
+) {
+    private val binding = DialogRadioGroupBinding.inflate(activity.layoutInflater)
     private val dialog: AlertDialog
     private var wasInit = false
     private var selectedItemId = -1
 
     init {
-        val view = activity.layoutInflater.inflate(R.layout.dialog_radio_group, null)
-
-        view.dialog_radio_group.apply {
+        binding.dialogRadioGroup.apply {
             for (i in 0 until items.size) {
                 val radioButton = (activity.layoutInflater.inflate(R.layout.radio_button, null) as RadioButton).apply {
                     text = items[i].title
@@ -41,17 +47,17 @@ class RadioGroupDialog(val activity: AppCompatActivity, val items: ArrayList<Rad
         val builder = AlertDialog.Builder(activity).setOnCancelListener { cancelCallback?.invoke() }
 
         if (selectedItemId != -1 && showOKButton) {
-            builder.setPositiveButton(R.string.ok) { dialog, which -> itemSelected(selectedItemId) }
+            builder.setPositiveButton(R.string.ok) { _, _ -> itemSelected(selectedItemId) }
         }
 
         dialog = builder.create().apply {
-            activity.setupDialogStuff(view, this, titleId)
+            activity.setupDialogStuff(binding.root, this, titleId)
         }
 
         if (selectedItemId != -1) {
-            view.dialog_radio_holder.apply {
-                onGlobalLayout {
-                    scrollY = view.dialog_radio_group.findViewById<View>(selectedItemId).bottom - height
+            binding.dialogRadioHolder.onGlobalLayout {
+                binding.dialogRadioGroup.findViewById<View>(selectedItemId)?.let { selectedView ->
+                    binding.dialogRadioHolder.scrollTo(0, selectedView.bottom - binding.dialogRadioHolder.height)
                 }
             }
         }

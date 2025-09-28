@@ -1,63 +1,66 @@
 package com.example.rise.ui.dialogs
 
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
-import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.EditText
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import com.example.rise.R
+import com.example.rise.databinding.DialogCustomIntervalPickerBinding
 import com.example.rise.extensions.beVisibleIf
 import com.example.rise.extensions.hideKeyboard
+import com.example.rise.extensions.onGlobalLayout
+import com.example.rise.extensions.setupDialogStuff
 import com.example.rise.helpers.DAY_SECONDS
 import com.example.rise.helpers.HOUR_SECONDS
 import com.example.rise.helpers.MINUTE_SECONDS
-import com.example.rise.extensions.*
-
-import kotlinx.android.synthetic.main.dialog_custom_interval_picker.view.*
-
 
 @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
-class CustomIntervalPickerDialog(val activity: AppCompatActivity, val selectedSeconds: Int = 0, val showSeconds: Boolean = false, val callback: (minutes: Int) -> Unit) {
-    var dialog: AlertDialog
-    var view = (activity.layoutInflater.inflate(R.layout.dialog_custom_interval_picker, null) as ViewGroup)
+class CustomIntervalPickerDialog(
+    private val activity: AppCompatActivity,
+    private val selectedSeconds: Int = 0,
+    private val showSeconds: Boolean = false,
+    private val callback: (minutes: Int) -> Unit
+) {
+    private val binding = DialogCustomIntervalPickerBinding.inflate(activity.layoutInflater)
+    private val dialog: AlertDialog
 
     init {
-        view.apply {
-            dialog_radio_seconds.beVisibleIf(showSeconds)
+        binding.apply {
+            dialogRadioSeconds.beVisibleIf(showSeconds)
             when {
-                selectedSeconds == 0 -> dialog_radio_view.check(R.id.dialog_radio_minutes)
+                selectedSeconds == 0 -> dialogRadioView.check(R.id.dialog_radio_minutes)
                 selectedSeconds % DAY_SECONDS == 0 -> {
-                    dialog_radio_view.check(R.id.dialog_radio_days)
-                    dialog_custom_interval_value.setText((selectedSeconds / DAY_SECONDS).toString())
+                    dialogRadioView.check(R.id.dialog_radio_days)
+                    dialogCustomIntervalValue.setText((selectedSeconds / DAY_SECONDS).toString())
                 }
                 selectedSeconds % HOUR_SECONDS == 0 -> {
-                    dialog_radio_view.check(R.id.dialog_radio_hours)
-                    dialog_custom_interval_value.setText((selectedSeconds / HOUR_SECONDS).toString())
+                    dialogRadioView.check(R.id.dialog_radio_hours)
+                    dialogCustomIntervalValue.setText((selectedSeconds / HOUR_SECONDS).toString())
                 }
                 selectedSeconds % MINUTE_SECONDS == 0 -> {
-                    dialog_radio_view.check(R.id.dialog_radio_minutes)
-                    dialog_custom_interval_value.setText((selectedSeconds / MINUTE_SECONDS).toString())
+                    dialogRadioView.check(R.id.dialog_radio_minutes)
+                    dialogCustomIntervalValue.setText((selectedSeconds / MINUTE_SECONDS).toString())
                 }
                 else -> {
-                    dialog_radio_view.check(R.id.dialog_radio_seconds)
-                    dialog_custom_interval_value.setText(selectedSeconds.toString())
+                    dialogRadioView.check(R.id.dialog_radio_seconds)
+                    dialogCustomIntervalValue.setText(selectedSeconds.toString())
                 }
             }
         }
 
         dialog = AlertDialog.Builder(activity)
-            .setPositiveButton(R.string.ok) { dialogInterface, i -> confirmReminder() }
+            .setPositiveButton(R.string.ok) { _, _ -> confirmReminder() }
             .setNegativeButton(R.string.cancel, null)
             .create().apply {
-                activity.setupDialogStuff(view, this) {
-                    showKeyboard(view.dialog_custom_interval_value)
+                activity.setupDialogStuff(binding.root, this) {
+                    showKeyboard(binding.dialogCustomIntervalValue)
                 }
             }
     }
 
-    fun AlertDialog.showKeyboard(editText: EditText) {
+    private fun AlertDialog.showKeyboard(editText: EditText) {
         window!!.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
         editText.apply {
             requestFocus()
@@ -67,14 +70,11 @@ class CustomIntervalPickerDialog(val activity: AppCompatActivity, val selectedSe
         }
     }
 
-
-
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun confirmReminder() {
-        //TODO teporary fix here
-        val value = view.dialog_custom_interval_value.transitionName
-        val multiplier = getMultiplier(view.dialog_radio_view.checkedRadioButtonId)
-        val minutes = Integer.valueOf(if (value.isEmpty()) "0" else value)
+        val valueText = binding.dialogCustomIntervalValue.text?.toString()?.trim().orEmpty()
+        val multiplier = getMultiplier(binding.dialogRadioView.checkedRadioButtonId)
+        val minutes = valueText.toIntOrNull() ?: 0
         callback(minutes * multiplier)
         activity.hideKeyboard()
         dialog.dismiss()

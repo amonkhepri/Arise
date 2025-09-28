@@ -1,6 +1,5 @@
 package com.example.rise.ui.dashboardNavigation.myAccount
 
-
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -8,13 +7,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import com.example.rise.R
 import com.example.rise.baseclasses.BaseFragment
+import com.example.rise.databinding.FragmentMyAccountBinding
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
 import com.example.rise.util.FirestoreUtil
 import com.firebase.ui.auth.AuthUI
-import kotlinx.android.synthetic.main.fragment_my_account.*
-import kotlinx.android.synthetic.main.fragment_my_account.view.*
 import org.koin.android.ext.android.get
 
 class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
@@ -22,69 +19,59 @@ class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
     private val RC_SELECT_IMAGE = 2
     private lateinit var selectedImageBytes: ByteArray
     private var pictureJustChanged = false
+    private var _binding: FragmentMyAccountBinding? = null
+    private val binding get() = _binding!!
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
-                              savedInstanceState: Bundle?): View? {
-        val view = inflater.inflate(R.layout.fragment_my_account, container, false)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentMyAccountBinding.inflate(inflater, container, false)
 
-        view.apply {
-            imageView_profile_picture.setOnClickListener {
-                val intent = Intent().apply {
-                    type = "image/*"
-                    action = Intent.ACTION_GET_CONTENT
-                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/jpeg", "image/png"))
-                }
-                startActivityForResult(Intent.createChooser(intent, "Select Image"), RC_SELECT_IMAGE)
+        binding.imageViewProfilePicture.setOnClickListener {
+            val intent = Intent().apply {
+                type = "image/*"
+                action = Intent.ACTION_GET_CONTENT
+                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/jpeg", "image/png"))
             }
-
-            btn_save.setOnClickListener {
-                if (::selectedImageBytes.isInitialized)
-                    /*StorageUtil.uploadProfilePhoto(selectedImageBytes) { imagePath ->
-                        FirestoreUtil.updateCurrentUser(editText_name.text.toString(),
-                                editText_bio.text.toString(), imagePath)
-                    }*/
-                else
-                    FirestoreUtil.updateCurrentUser(editText_name.text.toString(),
-                            editText_bio.text.toString(), null)
-
-                Toast.makeText(view.context,"saving", Toast.LENGTH_SHORT).show()
-            }
-
-            btn_sign_out.setOnClickListener {
-                val intent = Intent(this.context, SignInActivity::class.java)
-
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-
-
-                AuthUI.getInstance()
-                        .signOut(view.context)
-                        .addOnCompleteListener {
-
-                            startActivity(intent)
-                        }
-            }
+            startActivityForResult(Intent.createChooser(intent, "Select Image"), RC_SELECT_IMAGE)
         }
 
-        return view
+        binding.btnSave.setOnClickListener {
+            if (::selectedImageBytes.isInitialized) {
+                // StorageUtil.uploadProfilePhoto(selectedImageBytes) { imagePath ->
+                //     FirestoreUtil.updateCurrentUser(binding.editTextName.text.toString(),
+                //         binding.editTextBio.text.toString(), imagePath)
+                // }
+            } else {
+                FirestoreUtil.updateCurrentUser(
+                    binding.editTextName.text.toString(),
+                    binding.editTextBio.text.toString(),
+                    null
+                )
+            }
+            Toast.makeText(requireContext(), "saving", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnSignOut.setOnClickListener {
+            val intent = Intent(context, SignInActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+
+            AuthUI.getInstance()
+                .signOut(requireContext())
+                .addOnCompleteListener {
+                    startActivity(intent)
+                }
+        }
+
+        return binding.root
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == RC_SELECT_IMAGE && resultCode == Activity.RESULT_OK &&
-                data != null && data.data != null) {
-
-      /*      val selectedImagePath = data.data
-            val selectedImageBmp = MediaStore.Images.Media
-                    .getBitmap(activity?.contentResolver, selectedImagePath)
-
-            val outputStream = ByteArrayOutputStream()
-            selectedImageBmp.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
-            selectedImageBytes = outputStream.toByteArray()
-
-            GlideApp.with(this)
-                    .load(selectedImageBytes)
-                    .into(imageView_profile_picture)
-
-            pictureJustChanged = true*/
+        if (requestCode == RC_SELECT_IMAGE && resultCode == Activity.RESULT_OK && data != null && data.data != null) {
+            // Image selection handling can be re-enabled when storage integration is restored.
         }
     }
 
@@ -92,16 +79,21 @@ class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
         super.onStart()
 
         FirestoreUtil.getCurrentUser { user ->
-            if (this@MyAccountFragment.isVisible) {
-                editText_name.setText(user.name)
-                editText_bio.setText(user.bio)
-              /*  if (!pictureJustChanged && user.profilePicturePath != null)
-                    GlideApp.with(this)
-                            .load(StorageUtil.pathToReference(user.profilePicturePath))
-                            .placeholder(R.drawable.ic_account_circle_black_24dp)
-                            .into(imageView_profile_picture)*/
+            if (isVisible) {
+                binding.editTextName.setText(user.name)
+                binding.editTextBio.setText(user.bio)
+                // if (!pictureJustChanged && user.profilePicturePath != null)
+                //     GlideApp.with(this)
+                //         .load(StorageUtil.pathToReference(user.profilePicturePath))
+                //         .placeholder(R.drawable.ic_account_circle_black_24dp)
+                //         .into(binding.imageViewProfilePicture)
             }
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     override fun createViewModel() {
