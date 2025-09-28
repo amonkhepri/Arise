@@ -11,3 +11,9 @@
 /build
 /captures
 .externalNativeBuild
+/.idea/AndroidProjectSystem.xml
+/.idea/appInsightsSettings.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/migrations.xml
+/.idea/studiobot.xml
+/.idea/runConfigurations.xml
