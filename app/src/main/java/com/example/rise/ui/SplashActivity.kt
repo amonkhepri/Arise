@@ -8,6 +8,7 @@ import com.example.rise.ui.mainActivity.MainActivity
 import com.google.firebase.FirebaseApp
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
 
+//TODO Investigate SplashScreen
 class SplashActivity : BaseActivity<SplashActivityViewModel>() {
 
     override val viewModelClass = SplashActivityViewModel::class

@@ -1,9 +1,9 @@
 package com.example.rise.baseclasses
 
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModelLazy
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
+import kotlin.LazyThreadSafetyMode
 import kotlin.reflect.KClass
 import org.koin.android.ext.android.getKoinScope
 import org.koin.androidx.viewmodel.factory.KoinViewModelFactory
@@ -28,10 +28,10 @@ abstract class BaseActivity<VM : BaseViewModel> : AppCompatActivity() {
         )
     }
 
-    protected val viewModel: VM by ViewModelLazy(
-        viewModelClass,
-        { viewModelStore },
-        { provideViewModelFactory() },
-        { defaultViewModelExtras() }
-    )
+    protected val viewModel: VM by lazy(LazyThreadSafetyMode.NONE) {
+        ViewModelProvider(
+            viewModelStore,
+            provideViewModelFactory()
+        )[viewModelClass.java]
+    }
 }

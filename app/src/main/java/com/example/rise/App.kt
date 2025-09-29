@@ -9,12 +9,17 @@ import com.example.rise.auth.FirebaseUserSessionProvider
 import com.example.rise.auth.SignInIntentProvider
 import com.example.rise.auth.UserSessionProvider
 import com.example.rise.ui.SplashActivityViewModel
+import com.example.rise.ui.dashboardNavigation.dashboard.DashboardRepository
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
+import com.example.rise.ui.dashboardNavigation.dashboard.FirestoreDashboardRepository
 import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountBaseViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
 import com.example.rise.ui.mainActivity.MainActivityViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInViewModel
+import com.example.rise.ui.dashboardNavigation.people.chatActivity.FirestoreChatRepository
+import com.example.rise.ui.dashboardNavigation.people.peopleFragment.FirestorePeopleRepository
+import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleRepository
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.firestore.FirebaseFirestore
 import org.koin.android.ext.koin.androidContext
@@ -33,15 +38,9 @@ class App : Application() {
         factory<AuthStateProvider> { FirebaseAuthStateProvider(get()) }
         factory<SignInIntentProvider> { FirebaseAuthUiSignInIntentProvider(get()) }
         single<UserSessionProvider> { FirebaseUserSessionProvider(get()) }
-        single<com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatRepository> {
-            com.example.rise.ui.dashboardNavigation.people.chatActivity.FirestoreChatRepository(get())
-        }
-        single<com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleRepository> {
-            com.example.rise.ui.dashboardNavigation.people.peopleFragment.FirestorePeopleRepository(get())
-        }
-        single<com.example.rise.ui.dashboardNavigation.dashboard.DashboardRepository> {
-            com.example.rise.ui.dashboardNavigation.dashboard.FirestoreDashboardRepository(get(), get())
-        }
+        single<com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatRepository> { FirestoreChatRepository(get()) }
+        single<PeopleRepository> { FirestorePeopleRepository(get()) }
+        single<DashboardRepository> { FirestoreDashboardRepository(get(), get()) }
         viewModel { SplashActivityViewModel(get()) }
         viewModel { MyAccountBaseViewModel() }
         viewModel { DashboardViewModel(get(), get()) }
@@ -54,7 +53,6 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
-
         startKoin {
             //Koin android logger
             androidLogger()
