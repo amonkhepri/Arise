@@ -28,10 +28,12 @@ abstract class BaseFragment<VM : BaseViewModel> : Fragment() {
         )
     }
 
-    protected val viewModel: VM by ViewModelLazy(
-        viewModelClass,
-        { viewModelStore },
-        { provideViewModelFactory() },
-        { defaultViewModelExtras() }
-    )
+    protected val viewModel: VM by lazy {
+        ViewModelLazy(
+            viewModelClass,
+            { viewModelStore },
+            { provideViewModelFactory() },
+            { defaultViewModelExtras() }
+        ).value
+    }
 }
