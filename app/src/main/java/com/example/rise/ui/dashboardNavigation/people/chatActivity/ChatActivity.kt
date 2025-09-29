@@ -3,34 +3,24 @@ package com.example.rise.ui.dashboardNavigation.people.chatActivity
 import android.content.Intent
 import android.os.Bundle
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.databinding.ActivityChatBinding
 import com.example.rise.helpers.AppConstants
 import com.example.rise.helpers.CHAT_CHANNEL
 import com.example.rise.helpers.MESSAGE_CONTENT
+import com.example.rise.item.TextMessageItem
 import com.example.rise.models.TextMessage
-import com.example.rise.models.User
 import com.example.rise.ui.mainActivity.MainActivity
-import com.example.rise.util.FirestoreUtil
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.ListenerRegistration
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
-import com.xwray.groupie.Item
 import com.xwray.groupie.Section
-import org.koin.android.ext.android.get
-import java.util.Calendar
 
 class ChatActivity : BaseActivity<ChatViewModel>() {
 
-    private lateinit var currentChannelId: String
-    private lateinit var currentUser: User
-    private lateinit var otherUserId: String
-    private lateinit var messagesListenerRegistration: ListenerRegistration
-    private var shouldInitRecyclerView = true
-    private lateinit var messagesSection: Section
     private lateinit var binding: ActivityChatBinding
+    private var messagesSection: Section? = null
+
+    override val viewModelClass = ChatViewModel::class
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,80 +28,66 @@ class ChatActivity : BaseActivity<ChatViewModel>() {
         setContentView(binding.root)
 
         supportActionBar?.title = intent.getStringExtra(AppConstants.USER_NAME)
-        otherUserId = intent.getStringExtra(AppConstants.USER_ID).toString()
+        val otherUserId = intent.getStringExtra(AppConstants.USER_ID).orEmpty()
 
-        FirestoreUtil.getCurrentUser {
-            currentUser = it
+        setupListeners()
+        observeViewModel()
+
+        viewModel.loadConversation(otherUserId)
+    }
+
+    private fun setupListeners() {
+        binding.sendMessageButton.setOnClickListener {
+            viewModel.sendMessage(binding.editTextMessage.text.toString())
         }
 
-        FirestoreUtil.getOrCreateChatChannel(otherUserId) { channelId ->
-            currentChannelId = channelId
-            messagesListenerRegistration = FirestoreUtil.addChatMessagesListener(channelId, this, this::updateRecyclerView)
+        binding.sendWithDelay.setOnClickListener {
+            viewModel.scheduleMessage(binding.editTextMessage.text.toString())
+        }
+    }
 
-            binding.sendMessageButton.setOnClickListener {
-                val messageToSend = TextMessage(
-                    binding.editTextMessage.text.toString(),
-                    Calendar.getInstance().time,
-                    FirebaseAuth.getInstance().currentUser!!.uid,
-                    otherUserId,
-                    currentUser.name
-                )
-                binding.editTextMessage.setText("")
-                FirestoreUtil.sendMessage(messageToSend, channelId)
-            }
+    private fun observeViewModel() {
+        viewModel.uiState.observe(this) { state ->
+            updateRecyclerView(state.messages, state.shouldInitRecycler)
+        }
 
-            binding.sendWithDelay.setOnClickListener {
-                val messageToSend = TextMessage(
-                    binding.editTextMessage.text.toString(),
-                    Calendar.getInstance().time,
-                    FirebaseAuth.getInstance().currentUser!!.uid,
-                    otherUserId,
-                    currentUser.name
-                )
-                binding.editTextMessage.setText("")
-
-                val intent = Intent(this, MainActivity::class.java).apply {
-                    putExtra("UsrID", otherUserId)
-                    putExtra(MESSAGE_CONTENT, messageToSend)
-                    putExtra(CHAT_CHANNEL, channelId)
-                }
-                startActivity(intent)
+        viewModel.events.observe(this) { event ->
+            when (val content = event.getContentIfNotHandled()) {
+                ChatViewModel.ChatEvent.ClearMessageInput -> binding.editTextMessage.setText("")
+                is ChatViewModel.ChatEvent.LaunchDelayedMessage -> launchDelayedMessage(content)
+                null -> Unit
             }
         }
     }
 
-    private fun updateRecyclerView(messages: List<Item<*>>) {
-
-        fun init() {
-            binding.recyclerViewMessages.apply {
-                layoutManager = LinearLayoutManager(this@ChatActivity)
-                adapter = GroupAdapter<GroupieViewHolder>().apply {
-                    messagesSection = Section(messages)
-                    add(messagesSection)
-                }
-            }
-            shouldInitRecyclerView = false
-        }
-
-        fun updateItems() = messagesSection.update(messages)
-
-        if (shouldInitRecyclerView) {
-            init()
+    private fun updateRecyclerView(messages: List<TextMessage>, shouldInit: Boolean) {
+        if (shouldInit || messagesSection == null) {
+            initRecyclerView(messages)
         } else {
-            updateItems()
+            messagesSection?.update(messages.map(::TextMessageItem))
         }
-
-        binding.recyclerViewMessages.scrollToPosition(binding.recyclerViewMessages.adapter!!.itemCount - 1)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        if (::messagesListenerRegistration.isInitialized) {
-            messagesListenerRegistration.remove()
+        val lastIndex = (binding.recyclerViewMessages.adapter?.itemCount ?: 0) - 1
+        if (lastIndex >= 0) {
+            binding.recyclerViewMessages.scrollToPosition(lastIndex)
         }
     }
 
-    override fun createViewModel() {
-        viewModel = get()
+    private fun initRecyclerView(messages: List<TextMessage>) {
+        val adapter = GroupAdapter<GroupieViewHolder>()
+        messagesSection = Section(messages.map(::TextMessageItem)).also(adapter::add)
+        binding.recyclerViewMessages.apply {
+            layoutManager = LinearLayoutManager(this@ChatActivity)
+            this.adapter = adapter
+        }
+    }
+
+    private fun launchDelayedMessage(event: ChatViewModel.ChatEvent.LaunchDelayedMessage) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("UsrID", event.otherUserId)
+            putExtra(MESSAGE_CONTENT, event.message)
+            putExtra(CHAT_CHANNEL, event.channelId)
+        }
+        binding.editTextMessage.setText("")
+        startActivity(intent)
     }
 }
