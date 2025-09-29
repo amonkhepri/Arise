@@ -12,7 +12,6 @@ import com.example.rise.databinding.FragmentMyAccountBinding
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
 import com.example.rise.util.FirestoreUtil
 import com.firebase.ui.auth.AuthUI
-import org.koin.android.ext.android.get
 
 class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
 
@@ -21,6 +20,8 @@ class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
     private var pictureJustChanged = false
     private var _binding: FragmentMyAccountBinding? = null
     private val binding get() = _binding!!
+
+    override val viewModelClass = MyAccountBaseViewModel::class
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -96,7 +97,4 @@ class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
         _binding = null
     }
 
-    override fun createViewModel() {
-        viewModel = get()
-    }
 }

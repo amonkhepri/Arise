@@ -1,16 +1,37 @@
 package com.example.rise.baseclasses
 
-import android.os.Bundle
-import android.os.PersistableBundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelLazy
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.CreationExtras
+import kotlin.reflect.KClass
+import org.koin.android.ext.android.getKoinScope
+import org.koin.androidx.viewmodel.factory.KoinViewModelFactory
+import org.koin.core.annotation.KoinInternalApi
+import org.koin.core.parameter.ParametersDefinition
+import org.koin.core.qualifier.Qualifier
 
+@OptIn(KoinInternalApi::class)
+abstract class BaseActivity<VM : BaseViewModel> : AppCompatActivity() {
 
-abstract class BaseActivity<viewModel: BaseViewModel>: AppCompatActivity() {
-    lateinit var  viewModel: viewModel
-    abstract fun createViewModel()
+    protected abstract val viewModelClass: KClass<VM>
+    protected open val viewModelQualifier: Qualifier? = null
+    protected open val viewModelParameters: ParametersDefinition? = null
+    protected open fun defaultViewModelExtras(): CreationExtras = defaultViewModelCreationExtras
 
-    override fun onCreate(savedInstanceState: Bundle?, persistentState: PersistableBundle?) {
-        super.onCreate(savedInstanceState, persistentState)
-        createViewModel()
+    protected open fun provideViewModelFactory(): ViewModelProvider.Factory {
+        return KoinViewModelFactory(
+            viewModelClass,
+            getKoinScope(),
+            viewModelQualifier,
+            viewModelParameters
+        )
     }
+
+    protected val viewModel: VM by ViewModelLazy(
+        viewModelClass,
+        { viewModelStore },
+        { provideViewModelFactory() },
+        { defaultViewModelExtras() }
+    )
 }

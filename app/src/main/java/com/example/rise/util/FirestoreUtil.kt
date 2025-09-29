@@ -1,8 +1,5 @@
 package com.example.rise.util
 
-import android.content.Context
-import com.example.rise.item.PersonItem
-import com.example.rise.item.TextMessageItem
 import com.example.rise.models.ChatChannel
 import com.example.rise.models.Message
 import com.example.rise.models.MessageType
@@ -12,7 +9,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.xwray.groupie.Item
 import timber.log.Timber
 
 object FirestoreUtil {
@@ -61,7 +57,7 @@ object FirestoreUtil {
             }
     }
 
-    fun addUsersListener(context: Context, onListen: (List<Item<*>>) -> Unit): ListenerRegistration {
+    fun addUsersListener(onListen: (Map<String, User>) -> Unit): ListenerRegistration {
         return firestoreInstance.collection("users")
             .addSnapshotListener { querySnapshot, firebaseFirestoreException ->
                 if (firebaseFirestoreException != null) {
@@ -70,13 +66,13 @@ object FirestoreUtil {
                     return@addSnapshotListener
                 }
 
-                val items = mutableListOf<Item<*>>()
+                val users = mutableMapOf<String, User>()
                 querySnapshot!!.documents.forEach {
                     if (it.id != FirebaseAuth.getInstance().currentUser?.uid) {
-                        items.add(PersonItem(it.toObject(User::class.java)!!, it.id, context))
+                        users[it.id] = it.toObject(User::class.java)!!
                     }
                 }
-                onListen(items)
+                onListen(users)
             }
     }
 
@@ -111,8 +107,7 @@ object FirestoreUtil {
 
     fun addChatMessagesListener(
         channelId: String,
-        context: Context,
-        onListen: (List<Item<*>>) -> Unit
+        onListen: (List<TextMessage>) -> Unit
     ): ListenerRegistration {
         return chatChannelsCollectionRef.document(channelId).collection("messages")
             .orderBy("time")
@@ -122,10 +117,10 @@ object FirestoreUtil {
                     return@addSnapshotListener
                 }
 
-                val items = mutableListOf<Item<*>>()
+                val items = mutableListOf<TextMessage>()
                 querySnapshot!!.documents.forEach {
                     if (it["type"] == MessageType.TEXT) {
-                        items.add(TextMessageItem(it.toObject(TextMessage::class.java)!!))
+                        items.add(it.toObject(TextMessage::class.java)!!)
                     } else {
                         // items.add(ImageMessageItem(it.toObject(ImageMessage::class.java)!!, context))
                     }
