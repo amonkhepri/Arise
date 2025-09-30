@@ -14,6 +14,7 @@ import com.example.rise.data.people.PeopleRepository
 import com.example.rise.ui.SplashActivityViewModel
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountBaseViewModel
+import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
 import com.example.rise.ui.mainActivity.MainActivityViewModel
@@ -48,6 +49,7 @@ class App: Application() {
         viewModel { ChatViewModel(get()) }
         viewModel { PeopleViewModel(get()) }
         viewModel { MainActivityViewModel(get(), get()) }
+        viewModel { SignInViewModel() }
     }
 
     override fun onCreate() {
