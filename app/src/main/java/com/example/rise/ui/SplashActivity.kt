@@ -11,7 +11,6 @@ import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.ui.SplashActivityViewModel.NavigationEvent
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
 import com.example.rise.ui.mainActivity.MainActivity
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 class SplashActivity : BaseActivity() {
