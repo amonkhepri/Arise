@@ -20,9 +20,10 @@ import com.firebase.ui.auth.ErrorCodes
 import com.firebase.ui.auth.IdpResponse
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.messaging.FirebaseMessaging
-import org.koin.android.ext.android.get
 
 class SignInActivity : BaseActivity<SignInViewModel>() {
+
+    override val viewModelClass = SignInViewModel::class
 
     private val RC_SIGN_IN = 1
     private val signInProviders = listOf(
@@ -91,7 +92,4 @@ class SignInActivity : BaseActivity<SignInViewModel>() {
         }
     }
 
-    override fun createViewModel() {
-        viewModel = get()
-    }
 }

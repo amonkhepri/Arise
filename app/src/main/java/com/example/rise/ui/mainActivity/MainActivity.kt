@@ -1,34 +1,36 @@
 package com.example.rise.ui.mainActivity
 
-import android.content.Intent
 import android.os.Bundle
-import androidx.lifecycle.ViewModelProvider
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
-import com.firebase.ui.auth.AuthUI
+import com.example.rise.ui.mainActivity.MainActivityViewModel.MainActivityEvent
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.firebase.auth.FirebaseAuth
-import org.koin.android.ext.android.get
+import kotlinx.coroutines.flow.collect
 
 class MainActivity : BaseActivity<MainActivityViewModel>() {
-    private val RC_SIGN_IN = 9001
+
+    override val viewModelClass = MainActivityViewModel::class
+
+    private val signInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.onSignInResult(result.resultCode)
+    }
 
     public override fun onStart() {
         super.onStart()
-        if (shouldStartSignIn()) {
-            startSignIn()
-            return
-        }
+        viewModel.onStart()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        viewModel = ViewModelProvider(this)[MainActivityViewModel::class.java]
 
         val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
         val navController = findNavController(R.id.nav_host_fragment)
@@ -38,44 +40,13 @@ class MainActivity : BaseActivity<MainActivityViewModel>() {
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
-    }
 
-    override fun onActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        data: Intent?
-    ) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == RC_SIGN_IN) {
-            viewModel.mSignIn = false
-
-            if (resultCode != RESULT_OK && shouldStartSignIn()) {
-                startSignIn()
+        lifecycleScope.launchWhenStarted {
+            viewModel.events.collect { event ->
+                when (event) {
+                    is MainActivityEvent.LaunchSignIn -> signInLauncher.launch(event.intent)
+                }
             }
         }
-    }
-
-    private fun startSignIn() {
-        val intent = AuthUI.getInstance().createSignInIntentBuilder()
-            .setAvailableProviders(
-                listOf(
-                    AuthUI.IdpConfig.EmailBuilder().build()
-                )
-            )
-            .setIsSmartLockEnabled(false)
-            .build()
-
-        startActivityForResult(intent, RC_SIGN_IN)
-        viewModel.mSignIn = true
-    }
-
-    private fun shouldStartSignIn(): Boolean {
-        return !viewModel.mSignIn && FirebaseAuth.getInstance().currentUser == null
-    }
-
-    override fun createViewModel() {
-        viewModel = get()
-        viewModel.mSignIn = true
     }
 }

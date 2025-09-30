@@ -17,3 +17,5 @@
 /.idea/migrations.xml
 /.idea/studiobot.xml
 /.idea/runConfigurations.xml
+gradle/wrapper/gradle-wrapper.jar
+android-commandlinetools.zip

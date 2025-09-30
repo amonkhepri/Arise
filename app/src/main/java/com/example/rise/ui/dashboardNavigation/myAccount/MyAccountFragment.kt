@@ -12,9 +12,10 @@ import com.example.rise.databinding.FragmentMyAccountBinding
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
 import com.example.rise.util.FirestoreUtil
 import com.firebase.ui.auth.AuthUI
-import org.koin.android.ext.android.get
 
 class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
+
+    override val viewModelClass = MyAccountBaseViewModel::class
 
     private val RC_SELECT_IMAGE = 2
     private lateinit var selectedImageBytes: ByteArray
@@ -96,7 +97,4 @@ class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
         _binding = null
     }
 
-    override fun createViewModel() {
-        viewModel = get()
-    }
 }
