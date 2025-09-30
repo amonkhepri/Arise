@@ -3,8 +3,10 @@ package com.example.rise
 import android.app.Application
 import com.example.rise.data.auth.AuthStateProvider
 import com.example.rise.data.auth.FirebaseAuthStateProvider
+import com.example.rise.data.auth.FirebaseSignInRepository
 import com.example.rise.data.auth.FirebaseUiSignInIntentProvider
 import com.example.rise.data.auth.SignInIntentProvider
+import com.example.rise.data.auth.SignInRepository
 import com.example.rise.data.chat.ChatRepository
 import com.example.rise.data.chat.FirestoreChatRepository
 import com.example.rise.data.dashboard.AlarmRepository
@@ -24,6 +26,7 @@ import com.firebase.ui.auth.AuthUI
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -37,9 +40,11 @@ class App: Application() {
         single { FirebaseAuth.getInstance() }
         single { FirebaseFirestore.getInstance() }
         single { AuthUI.getInstance() }
+        single { FirebaseMessaging.getInstance() }
 
         single<AuthStateProvider> { FirebaseAuthStateProvider(get()) }
         single<SignInIntentProvider> { FirebaseUiSignInIntentProvider(get()) }
+        single<SignInRepository> { FirebaseSignInRepository(get()) }
 
         single<ChatRepository> { FirestoreChatRepository(get(), get()) }
         single<PeopleRepository> { FirestorePeopleRepository(get(), get()) }
@@ -52,7 +57,7 @@ class App: Application() {
         viewModel { ChatViewModel(get()) }
         viewModel { PeopleViewModel(get()) }
         viewModel { MainActivityViewModel(get(), get()) }
-        viewModel { SignInViewModel() }
+        viewModel { SignInViewModel(get(), get()) }
     }
 
     override fun onCreate() {

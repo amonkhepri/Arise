@@ -6,22 +6,21 @@ import android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.os.Build
 import android.os.Bundle
-import android.view.View
-import android.widget.ProgressBar
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
+import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.ActivitySignInBinding
-import com.example.rise.services.MyFirebaseMessagingService
 import com.example.rise.ui.mainActivity.MainActivity
-import com.example.rise.util.FirestoreUtil
-import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.ErrorCodes
 import com.firebase.ui.auth.IdpResponse
 import com.google.android.material.snackbar.Snackbar
-import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.launch
 
 class SignInActivity : BaseActivity() {
 
@@ -30,12 +29,6 @@ class SignInActivity : BaseActivity() {
     }
 
     private val RC_SIGN_IN = 1
-    private val signInProviders = listOf(
-        AuthUI.IdpConfig.EmailBuilder()
-            .setAllowNewAccounts(true)
-            .setRequireName(true)
-            .build()
-    )
     private lateinit var binding: ActivitySignInBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,12 +37,14 @@ class SignInActivity : BaseActivity() {
         setContentView(binding.root)
 
         binding.accountSignIn.setOnClickListener {
-            val intent = AuthUI.getInstance().createSignInIntentBuilder()
-                .setAvailableProviders(signInProviders)
-                .setLogo(R.drawable.ic_fire_emoji)
-                .build()
+            viewModel.onSignInClicked()
+        }
 
-            startActivityForResult(intent, RC_SIGN_IN)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { collectState() }
+                launch { collectEvents() }
+            }
         }
     }
 
@@ -61,36 +56,41 @@ class SignInActivity : BaseActivity() {
             val response = IdpResponse.fromResultIntent(data)
 
             if (resultCode == RESULT_OK) {
-                val progressBar = ProgressBar(applicationContext, null, android.R.attr.progressBarStyleSmall)
-                progressBar.stateDescription = "Setting up your account"
-                FirestoreUtil.initCurrentUserIfFirstTime {
+                viewModel.onSignInSuccess()
+            } else {
+                val failure = when {
+                    response == null -> SignInViewModel.SignInFailure.Cancelled
+                    response.error?.errorCode == ErrorCodes.NO_NETWORK -> SignInViewModel.SignInFailure.NoNetwork
+                    response.error != null -> SignInViewModel.SignInFailure.Unknown(response.error?.localizedMessage)
+                    else -> SignInViewModel.SignInFailure.Unknown(null)
+                }
+                viewModel.onSignInFailure(failure)
+            }
+        }
+    }
+
+    private suspend fun collectState() {
+        viewModel.uiState.collect { state ->
+            binding.progressBar.isVisible = state.isLoading
+            binding.accountSignIn.isEnabled = !state.isLoading
+        }
+    }
+
+    private suspend fun collectEvents() {
+        viewModel.events.collect { event ->
+            when (event) {
+                is SignInViewModel.Event.LaunchSignIn -> startActivityForResult(event.intent, RC_SIGN_IN)
+                is SignInViewModel.Event.ShowMessage -> Snackbar.make(
+                    binding.constraintLayout,
+                    event.message,
+                    Snackbar.LENGTH_LONG
+                ).show()
+
+                SignInViewModel.Event.NavigateToMain -> {
                     val intent = Intent(this, MainActivity::class.java).addFlags(
                         FLAG_ACTIVITY_CLEAR_TASK or FLAG_ACTIVITY_NEW_TASK
                     )
                     startActivity(intent)
-
-                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            MyFirebaseMessagingService.addTokenToFirestore(task.result)
-                        }
-                        progressBar.visibility = View.GONE
-                    }
-                }
-            } else if (resultCode == Activity.RESULT_CANCELED) {
-                if (response == null) return
-
-                when (response.error?.errorCode) {
-                    ErrorCodes.NO_NETWORK -> Snackbar.make(
-                        binding.constraintLayout,
-                        "No network",
-                        Snackbar.LENGTH_LONG
-                    ).show()
-
-                    ErrorCodes.UNKNOWN_ERROR -> Snackbar.make(
-                        binding.constraintLayout,
-                        "Unknown error",
-                        Snackbar.LENGTH_LONG
-                    ).show()
                 }
             }
         }
