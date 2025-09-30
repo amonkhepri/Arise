@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.findNavController
+import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
@@ -37,7 +37,15 @@ class MainActivity : BaseActivity() {
         setContentView(R.layout.activity_main)
 
         val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
-        val navController = findNavController(R.id.nav_host_fragment)
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment)
+            as? NavHostFragment ?: NavHostFragment.create(R.navigation.mobile_navigation).also { host ->
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.nav_host_fragment, host)
+                .setPrimaryNavigationFragment(host)
+                .commitNow()
+        }
+
+        val navController = navHostFragment.navController
 
         val appBarConfiguration = AppBarConfiguration(
             setOf(R.id.navigation_account, R.id.navigation_dashboard, R.id.navigation_people)
