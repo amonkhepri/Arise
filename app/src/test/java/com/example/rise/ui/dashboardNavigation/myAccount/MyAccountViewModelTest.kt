@@ -13,7 +13,7 @@ import org.junit.Rule
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class MyAccountBaseViewModelTest {
+class MyAccountViewModelTest {
 
     @get:Rule
     val dispatcherRule = MainDispatcherRule()
@@ -21,7 +21,7 @@ class MyAccountBaseViewModelTest {
     @Test
     fun `loadProfile populates ui state`() = runTest {
         val repository = FakeMyAccountRepository()
-        val viewModel = MyAccountBaseViewModel(repository)
+        val viewModel = MyAccountViewModel(repository)
 
         viewModel.loadProfile()
         advanceUntilIdle()
@@ -35,7 +35,7 @@ class MyAccountBaseViewModelTest {
     @Test
     fun `updateProfile updates repository and emits toast`() = runTest {
         val repository = FakeMyAccountRepository()
-        val viewModel = MyAccountBaseViewModel(repository)
+        val viewModel = MyAccountViewModel(repository)
 
         viewModel.events.test {
             viewModel.updateProfile("New Name", "New Bio")
@@ -47,8 +47,8 @@ class MyAccountBaseViewModelTest {
             assertEquals(listOf("New Name" to "New Bio"), repository.updateCalls)
 
             val event = awaitItem()
-            assertTrue(event is MyAccountBaseViewModel.Event.ShowMessage)
-            val messageEvent = event as MyAccountBaseViewModel.Event.ShowMessage
+            assertTrue(event is MyAccountViewModel.Event.ShowMessage)
+            val messageEvent = event as MyAccountViewModel.Event.ShowMessage
             assertEquals("saving", messageEvent.message)
             cancelAndIgnoreRemainingEvents()
         }
@@ -57,14 +57,14 @@ class MyAccountBaseViewModelTest {
     @Test
     fun `signOut emits navigation event`() = runTest {
         val repository = FakeMyAccountRepository()
-        val viewModel = MyAccountBaseViewModel(repository)
+        val viewModel = MyAccountViewModel(repository)
 
         viewModel.events.test {
             viewModel.signOut()
             advanceUntilIdle()
 
             val event = awaitItem()
-            assertTrue(event is MyAccountBaseViewModel.Event.NavigateToSignIn)
+            assertTrue(event is MyAccountViewModel.Event.NavigateToSignIn)
             assertEquals(1, repository.signOutCalls)
             cancelAndIgnoreRemainingEvents()
         }

@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class MyAccountBaseViewModel(
+class MyAccountViewModel(
     private val repository: MyAccountRepository,
 ) : ViewModel() {
 

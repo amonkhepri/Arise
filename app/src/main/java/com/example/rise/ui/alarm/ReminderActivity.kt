@@ -4,42 +4,49 @@ import android.content.Intent
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
+import android.os.Parcelable
 import android.view.MotionEvent
 import android.view.animation.AnimationUtils
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.rise.R
+import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.ActivityReminderBinding
 import com.example.rise.extensions.beGone
-import com.example.rise.extensions.config
 import com.example.rise.extensions.getAdjustedPrimaryColor
 import com.example.rise.extensions.getFormattedTime
 import com.example.rise.extensions.performHapticFeedback
-import com.example.rise.extensions.scheduleNextAlarm
 import com.example.rise.extensions.showErrorToast
 import com.example.rise.extensions.showOverLockscreen
 import com.example.rise.extensions.showPickSecondsDialog
 import com.example.rise.extensions.setupAlarmClock
 import com.example.rise.helpers.ALARM_ID
-import com.example.rise.helpers.MINUTE_SECONDS
+import com.example.rise.helpers.MESSAGE_CONTENT
 import com.example.rise.helpers.getPassedSeconds
 import com.example.rise.helpers.getColoredDrawableWithColor
 import com.example.rise.models.Alarm
+import kotlinx.coroutines.launch
 
 class ReminderActivity : AppCompatActivity() {
 
-    private val increaseVolumeDelay = 3000L
-    private val increaseVolumeHandler = Handler()
-    private val maxReminderDurationHandler = Handler()
-    private val swipeGuideFadeHandler = Handler()
-    private var isAlarmReminder = false
+    private val swipeGuideFadeHandler = Handler(Looper.getMainLooper())
     private var didVibrate = false
-    private var alarm: Alarm? = null
     private var mediaPlayer: MediaPlayer? = null
-    private var lastVolumeValue = 0.1f
     private var dragDownX = 0f
+    private var hasConfiguredButtons = false
+    private var hasStartedAudio = false
     private lateinit var binding: ActivityReminderBinding
+
+    private val viewModel: ReminderViewModel by viewModels {
+        koinViewModelFactory(ReminderViewModel::class)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,44 +54,58 @@ class ReminderActivity : AppCompatActivity() {
         setContentView(binding.root)
         showOverLockscreen()
 
-        val id = intent.getIntExtra(ALARM_ID, -1)
-        isAlarmReminder = id != -1 && alarm != null
+        setupObservers()
 
-        val label = if (isAlarmReminder && alarm != null) {
-            if (alarm!!.label.isEmpty()) {
-                getString(R.string.alarm)
-            } else {
-                alarm!!.label
-            }
-        } else {
-            getString(R.string.timer)
-        }
-
-        binding.reminderTitle.text = label
-        binding.reminderText.text = if (isAlarmReminder) {
-            applicationContext.getFormattedTime(getPassedSeconds(), false, false)
-        } else {
-            getString(R.string.time_expired)
-        }
-
-        val maxDuration = if (isAlarmReminder) {
-            config.alarmMaxReminderSecs
-        } else {
-            config.timerMaxReminderSecs
-        }
-        maxReminderDurationHandler.postDelayed({
-            finishActivity()
-        }, maxDuration * 1000L)
-
-        setupButtons()
-        setupAudio()
+        val alarm = extractAlarm(intent)
+        val isAlarmReminder = alarm != null || intent.getIntExtra(ALARM_ID, -1) != -1
+        viewModel.initialize(
+            ReminderViewModel.Args(
+                alarm = alarm,
+                isAlarmReminder = isAlarmReminder,
+                alarmLabelFallback = getString(R.string.alarm),
+                timerLabel = getString(R.string.timer),
+                timerExpiredText = getString(R.string.time_expired),
+                formattedTimeProvider = {
+                    applicationContext.getFormattedTime(getPassedSeconds(), false, false)
+                },
+            ),
+        )
     }
 
-    private fun setupButtons() {
-        if (isAlarmReminder) {
-            setupAlarmButtons()
-        } else {
-            setupTimerButtons()
+    private fun setupObservers() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.uiState.collect { state ->
+                        if (state.isInitialized) {
+                            renderState(state)
+                        }
+                    }
+                }
+                launch {
+                    viewModel.events.collect { event ->
+                        handleEvent(event)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun renderState(state: ReminderViewModel.UiState) {
+        binding.reminderTitle.text = state.title
+        binding.reminderText.text = state.message
+
+        if (!hasConfiguredButtons) {
+            if (state.isAlarmReminder) {
+                setupAlarmButtons()
+            } else {
+                setupTimerButtons()
+            }
+            hasConfiguredButtons = true
+        }
+
+        if (!hasStartedAudio && state.soundUri != null) {
+            setupAudio(state)
         }
     }
 
@@ -132,14 +153,14 @@ class ReminderActivity : AppCompatActivity() {
                             if (!didVibrate) {
                                 binding.reminderDraggable.performHapticFeedback()
                                 didVibrate = true
-                                finishActivity()
+                                viewModel.onDismissRequested()
                             }
                         }
                         binding.reminderDraggable.x <= minDragX + 50f -> {
                             if (!didVibrate) {
                                 binding.reminderDraggable.performHapticFeedback()
                                 didVibrate = true
-                                snoozeAlarm()
+                                viewModel.onSnoozeRequested()
                             }
                         }
                         else -> {
@@ -165,21 +186,18 @@ class ReminderActivity : AppCompatActivity() {
         ).forEach { it.beGone() }
 
         binding.reminderStop.setOnClickListener {
-            finishActivity()
+            viewModel.onDismissRequested()
         }
     }
 
-    private fun setupAudio() {
-        if (!isAlarmReminder || !config.increaseVolumeGradually) {
-            lastVolumeValue = 1f
-        }
-
-        val soundUri = Uri.parse(alarm?.soundUri ?: config.timerSoundUri)
+    private fun setupAudio(state: ReminderViewModel.UiState) {
+        val uriString = state.soundUri ?: return
+        val soundUri = Uri.parse(uriString)
         try {
             mediaPlayer = MediaPlayer().apply {
                 setAudioStreamType(AudioManager.STREAM_ALARM)
                 setDataSource(this@ReminderActivity, soundUri)
-                setVolume(lastVolumeValue, lastVolumeValue)
+                setVolume(state.currentVolume, state.currentVolume)
                 isLooping = true
                 prepare()
                 start()
@@ -187,29 +205,16 @@ class ReminderActivity : AppCompatActivity() {
         } catch (e: Exception) {
             showErrorToast(e)
         }
-
-        if (config.increaseVolumeGradually) {
-            scheduleVolumeIncrease()
-        }
-    }
-
-    private fun scheduleVolumeIncrease() {
-        increaseVolumeHandler.postDelayed({
-            lastVolumeValue = minOf(lastVolumeValue + 0.1f, 1f)
-            mediaPlayer?.setVolume(lastVolumeValue, lastVolumeValue)
-            scheduleVolumeIncrease()
-        }, increaseVolumeDelay)
+        hasStartedAudio = true
     }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        finishActivity()
+        viewModel.onNewIntent()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        increaseVolumeHandler.removeCallbacksAndMessages(null)
-        maxReminderDurationHandler.removeCallbacksAndMessages(null)
         swipeGuideFadeHandler.removeCallbacksAndMessages(null)
         destroyPlayer()
     }
@@ -218,25 +223,7 @@ class ReminderActivity : AppCompatActivity() {
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
-    }
-
-    private fun snoozeAlarm() {
-        destroyPlayer()
-        val currentAlarm = alarm ?: return
-        if (config.useSameSnooze) {
-            setupAlarmClock(currentAlarm, config.snoozeTime * MINUTE_SECONDS)
-            finishActivity()
-        } else {
-            showPickSecondsDialog(
-                config.snoozeTime * MINUTE_SECONDS,
-                isSnoozePicker = true,
-                cancelCallback = { finishActivity() }
-            ) { seconds ->
-                config.snoozeTime = seconds / MINUTE_SECONDS
-                setupAlarmClock(currentAlarm, seconds)
-                finishActivity()
-            }
-        }
+        hasStartedAudio = false
     }
 
     private fun finishActivity() {
@@ -244,4 +231,49 @@ class ReminderActivity : AppCompatActivity() {
         finish()
         overridePendingTransition(0, 0)
     }
+
+    private fun handleEvent(event: ReminderViewModel.Event) {
+        when (event) {
+            ReminderViewModel.Event.Finish -> finishActivity()
+            is ReminderViewModel.Event.ScheduleSnooze -> {
+                setupAlarmClock(event.alarm, event.seconds)
+                finishActivity()
+            }
+            is ReminderViewModel.Event.ShowSnoozePicker -> {
+                showPickSecondsDialog(
+                    event.defaultSeconds,
+                    isSnoozePicker = true,
+                    cancelCallback = { viewModel.onSnoozePickerCancelled() },
+                ) { seconds ->
+                    viewModel.onSnoozeDurationSelected(seconds)
+                }
+            }
+            is ReminderViewModel.Event.UpdateVolume -> {
+                mediaPlayer?.setVolume(event.volume, event.volume)
+            }
+        }
+    }
+
+    private fun extractAlarm(intent: Intent?): Alarm? {
+        if (intent == null) return null
+        val bundleAlarm = intent.getBundleExtra(MESSAGE_CONTENT)?.getParcelableCompat("alarm", Alarm::class.java)
+        val directAlarm = intent.getParcelableExtraCompat("alarm", Alarm::class.java)
+        return bundleAlarm ?: directAlarm
+    }
+
+    private fun <T : Parcelable> Intent.getParcelableExtraCompat(key: String, clazz: Class<T>): T? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getParcelableExtra(key, clazz)
+        } else {
+            @Suppress("DEPRECATION")
+            getParcelableExtra(key)
+        }
+
+    private fun <T : Parcelable> Bundle.getParcelableCompat(key: String, clazz: Class<T>): T? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getParcelable(key, clazz)
+        } else {
+            @Suppress("DEPRECATION")
+            getParcelable(key)
+        }
 }

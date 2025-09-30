@@ -1,6 +1,8 @@
 package com.example.rise
 
 import android.app.Application
+import com.example.rise.data.alarm.ConfigReminderPreferences
+import com.example.rise.data.alarm.ReminderPreferences
 import com.example.rise.data.auth.AuthStateProvider
 import com.example.rise.data.auth.FirebaseAuthStateProvider
 import com.example.rise.data.auth.FirebaseSignInRepository
@@ -15,9 +17,11 @@ import com.example.rise.data.myaccount.FirebaseMyAccountRepository
 import com.example.rise.data.myaccount.MyAccountRepository
 import com.example.rise.data.people.FirestorePeopleRepository
 import com.example.rise.data.people.PeopleRepository
+import com.example.rise.helpers.Config
 import com.example.rise.ui.SplashActivityViewModel
+import com.example.rise.ui.alarm.ReminderViewModel
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
-import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountBaseViewModel
+import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
@@ -41,10 +45,12 @@ class App: Application() {
         single { FirebaseFirestore.getInstance() }
         single { AuthUI.getInstance() }
         single { FirebaseMessaging.getInstance() }
+        single { Config.newInstance(androidContext()) }
 
         single<AuthStateProvider> { FirebaseAuthStateProvider(get()) }
         single<SignInIntentProvider> { FirebaseUiSignInIntentProvider(get()) }
         single<SignInRepository> { FirebaseSignInRepository(get()) }
+        single<ReminderPreferences> { ConfigReminderPreferences(get()) }
 
         single<ChatRepository> { FirestoreChatRepository(get(), get()) }
         single<PeopleRepository> { FirestorePeopleRepository(get(), get()) }
@@ -52,7 +58,8 @@ class App: Application() {
         single<MyAccountRepository> { FirebaseMyAccountRepository(get(), get(), get(), androidContext()) }
 
         viewModel { SplashActivityViewModel(get()) }
-        viewModel { MyAccountBaseViewModel(get()) }
+        viewModel { ReminderViewModel(get()) }
+        viewModel { MyAccountViewModel(get()) }
         viewModel { DashboardViewModel(get(), get()) }
         viewModel { ChatViewModel(get()) }
         viewModel { PeopleViewModel(get()) }

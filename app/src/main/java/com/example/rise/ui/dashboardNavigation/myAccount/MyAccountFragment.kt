@@ -18,8 +18,8 @@ import kotlinx.coroutines.launch
 
 class MyAccountFragment : BaseFragment() {
 
-    private val viewModel: MyAccountBaseViewModel by viewModels {
-        koinViewModelFactory(MyAccountBaseViewModel::class)
+    private val viewModel: MyAccountViewModel by viewModels {
+        koinViewModelFactory(MyAccountViewModel::class)
     }
 
     private val RC_SELECT_IMAGE = 2
@@ -85,11 +85,11 @@ class MyAccountFragment : BaseFragment() {
     private suspend fun collectEvents() {
         viewModel.events.collect { event ->
             when (event) {
-                is MyAccountBaseViewModel.Event.ShowMessage -> {
+                is MyAccountViewModel.Event.ShowMessage -> {
                     Toast.makeText(requireContext(), event.message, Toast.LENGTH_SHORT).show()
                 }
 
-                MyAccountBaseViewModel.Event.NavigateToSignIn -> {
+                MyAccountViewModel.Event.NavigateToSignIn -> {
                     val intent = Intent(requireContext(), SignInActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     }
