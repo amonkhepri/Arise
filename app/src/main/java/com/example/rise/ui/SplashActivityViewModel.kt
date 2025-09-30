@@ -1,13 +1,13 @@
 package com.example.rise.ui
 
-import com.example.rise.baseclasses.BaseViewModel
+import androidx.lifecycle.ViewModel
 import com.example.rise.data.auth.AuthStateProvider
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 class SplashActivityViewModel(
-    private val authStateProvider: AuthStateProvider
-) : BaseViewModel() {
+    private val authStateProvider: AuthStateProvider,
+) : ViewModel() {
 
     sealed interface NavigationEvent {
         data object ToSignIn : NavigationEvent

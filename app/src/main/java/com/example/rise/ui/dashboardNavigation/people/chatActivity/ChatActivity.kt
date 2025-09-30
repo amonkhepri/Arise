@@ -2,9 +2,11 @@ package com.example.rise.ui.dashboardNavigation.people.chatActivity
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.baseclasses.BaseActivity
+import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.ActivityChatBinding
 import com.example.rise.helpers.AppConstants
 import com.example.rise.helpers.CHAT_CHANNEL
@@ -14,12 +16,14 @@ import com.example.rise.ui.mainActivity.MainActivity
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
 import com.xwray.groupie.Section
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 
-class ChatActivity : BaseActivity<ChatViewModel>() {
+class ChatActivity : BaseActivity() {
 
-    override val viewModelClass = ChatViewModel::class
+    private val viewModel: ChatViewModel by viewModels {
+        koinViewModelFactory(ChatViewModel::class)
+    }
 
     private lateinit var binding: ActivityChatBinding
     private val messagesSection = Section()

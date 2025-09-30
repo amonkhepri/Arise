@@ -1,6 +1,7 @@
 package com.example.rise.ui.mainActivity
 
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
@@ -9,13 +10,16 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
+import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.ui.mainActivity.MainActivityViewModel.MainActivityEvent
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.flow.collect
 
-class MainActivity : BaseActivity<MainActivityViewModel>() {
+class MainActivity : BaseActivity() {
 
-    override val viewModelClass = MainActivityViewModel::class
+    private val viewModel: MainActivityViewModel by viewModels {
+        koinViewModelFactory(MainActivityViewModel::class)
+    }
 
     private val signInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()

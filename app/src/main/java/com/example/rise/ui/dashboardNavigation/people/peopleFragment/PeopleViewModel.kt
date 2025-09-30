@@ -1,7 +1,7 @@
 package com.example.rise.ui.dashboardNavigation.people.peopleFragment
 
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.rise.baseclasses.BaseViewModel
 import com.example.rise.data.people.PeopleRepository
 import com.example.rise.data.people.PersonSummary
 import kotlinx.coroutines.Job
@@ -10,18 +10,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class PeopleViewModel(
-    private val repository: PeopleRepository
-) : BaseViewModel() {
+    private val repository: PeopleRepository,
+) : ViewModel() {
 
     data class PeopleUiState(
         val people: List<PersonSummary> = emptyList(),
         val isLoading: Boolean = true,
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
     )
 
     sealed interface PeopleEvent {
@@ -49,7 +50,7 @@ class PeopleViewModel(
                         it.copy(
                             people = people,
                             isLoading = false,
-                            errorMessage = null
+                            errorMessage = null,
                         )
                     }
                 }

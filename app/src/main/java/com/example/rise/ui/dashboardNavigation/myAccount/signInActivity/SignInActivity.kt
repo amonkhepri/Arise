@@ -8,9 +8,11 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.ProgressBar
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
+import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.ActivitySignInBinding
 import com.example.rise.services.MyFirebaseMessagingService
 import com.example.rise.ui.mainActivity.MainActivity
@@ -21,9 +23,11 @@ import com.firebase.ui.auth.IdpResponse
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.messaging.FirebaseMessaging
 
-class SignInActivity : BaseActivity<SignInViewModel>() {
+class SignInActivity : BaseActivity() {
 
-    override val viewModelClass = SignInViewModel::class
+    private val viewModel: SignInViewModel by viewModels {
+        koinViewModelFactory(SignInViewModel::class)
+    }
 
     private val RC_SIGN_IN = 1
     private val signInProviders = listOf(
@@ -91,5 +95,4 @@ class SignInActivity : BaseActivity<SignInViewModel>() {
             }
         }
     }
-
 }

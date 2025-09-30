@@ -5,9 +5,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.baseclasses.BaseFragment
+import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.FragmentDashboardBinding
 import com.example.rise.extensions.scheduleNextAlarm
 import com.example.rise.helpers.CHAT_CHANNEL
@@ -21,9 +23,11 @@ import com.google.firebase.firestore.Query
 import java.util.Calendar
 import kotlinx.coroutines.flow.collect
 
-class DashboardFragment : BaseFragment<DashboardViewModel>() {
+class DashboardFragment : BaseFragment() {
 
-    override val viewModelClass = DashboardViewModel::class
+    private val viewModel: DashboardViewModel by viewModels {
+        koinViewModelFactory(DashboardViewModel::class)
+    }
 
     var byBottomNavigation: Boolean = false
 
@@ -36,7 +40,7 @@ class DashboardFragment : BaseFragment<DashboardViewModel>() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         _binding = FragmentDashboardBinding.inflate(inflater, container, false)
         return binding.root

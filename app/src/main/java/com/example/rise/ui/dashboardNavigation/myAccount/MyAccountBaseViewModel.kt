@@ -1,7 +1,5 @@
 package com.example.rise.ui.dashboardNavigation.myAccount
 
-import com.example.rise.baseclasses.BaseViewModel
+import androidx.lifecycle.ViewModel
 
-class MyAccountBaseViewModel: BaseViewModel(
-) {
-}
+class MyAccountBaseViewModel : ViewModel()

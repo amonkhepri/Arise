@@ -1,7 +1,7 @@
 package com.example.rise.ui.dashboardNavigation.dashboard
 
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.rise.baseclasses.BaseViewModel
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.models.Alarm
 import com.example.rise.models.TextMessage
@@ -19,8 +19,8 @@ import kotlinx.coroutines.launch
 class DashboardViewModel(
     private val repository: AlarmRepository,
     private val auth: FirebaseAuth,
-    private val clock: Clock = Clock.systemDefaultZone()
-) : BaseViewModel() {
+    private val clock: Clock = Clock.systemDefaultZone(),
+) : ViewModel() {
 
     data class DashboardUiState(
         val alarmQuery: Query? = null,
@@ -28,7 +28,7 @@ class DashboardViewModel(
         val chatChannel: String = "",
         val pendingMessage: TextMessage? = null,
         val isLoading: Boolean = true,
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
     )
 
     sealed interface DashboardEvent {
@@ -45,7 +45,7 @@ class DashboardViewModel(
         byBottomNavigation: Boolean,
         explicitUserId: String?,
         chatChannel: String?,
-        message: TextMessage?
+        message: TextMessage?,
     ) {
         val resolvedUserId = if (!byBottomNavigation && !explicitUserId.isNullOrBlank()) {
             explicitUserId
@@ -59,7 +59,7 @@ class DashboardViewModel(
             chatChannel = chatChannel.orEmpty(),
             pendingMessage = message,
             isLoading = false,
-            errorMessage = null
+            errorMessage = null,
         )
     }
 
@@ -72,7 +72,7 @@ class DashboardViewModel(
             timeInMiliseconds = timeInMillis,
             userName = auth.currentUser?.displayName.orEmpty(),
             chatChannel = state.chatChannel,
-            messsage = message
+            messsage = message,
         )
         viewModelScope.launch {
             try {

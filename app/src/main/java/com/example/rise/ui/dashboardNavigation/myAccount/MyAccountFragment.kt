@@ -7,15 +7,19 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.fragment.app.viewModels
 import com.example.rise.baseclasses.BaseFragment
+import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.FragmentMyAccountBinding
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
 import com.example.rise.util.FirestoreUtil
 import com.firebase.ui.auth.AuthUI
 
-class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
+class MyAccountFragment : BaseFragment() {
 
-    override val viewModelClass = MyAccountBaseViewModel::class
+    private val viewModel: MyAccountBaseViewModel by viewModels {
+        koinViewModelFactory(MyAccountBaseViewModel::class)
+    }
 
     private val RC_SELECT_IMAGE = 2
     private lateinit var selectedImageBytes: ByteArray
@@ -26,7 +30,7 @@ class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         _binding = FragmentMyAccountBinding.inflate(inflater, container, false)
 
@@ -41,7 +45,7 @@ class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
 
         binding.btnSave.setOnClickListener {
             if (::selectedImageBytes.isInitialized) {
-                // StorageUtil.uploadProfilePhoto(selectedImageBytes) { imagePath ->
+                // StorageUtil.uploadProfilePhoto(selectedImageBytes) {
                 //     FirestoreUtil.updateCurrentUser(binding.editTextName.text.toString(),
                 //         binding.editTextBio.text.toString(), imagePath)
                 // }
@@ -49,7 +53,7 @@ class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
                 FirestoreUtil.updateCurrentUser(
                     binding.editTextName.text.toString(),
                     binding.editTextBio.text.toString(),
-                    null
+                    null,
                 )
             }
             Toast.makeText(requireContext(), "saving", Toast.LENGTH_SHORT).show()
@@ -96,5 +100,4 @@ class MyAccountFragment : BaseFragment<MyAccountBaseViewModel>() {
         super.onDestroyView()
         _binding = null
     }
-
 }

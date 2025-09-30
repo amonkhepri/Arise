@@ -5,9 +5,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.baseclasses.BaseFragment
+import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.FragmentPeopleBinding
 import com.example.rise.helpers.AppConstants
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatActivity
@@ -17,9 +19,11 @@ import com.xwray.groupie.Section
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 
-class PeopleFragment : BaseFragment<PeopleViewModel>() {
+class PeopleFragment : BaseFragment() {
 
-    override val viewModelClass = PeopleViewModel::class
+    private val viewModel: PeopleViewModel by viewModels {
+        koinViewModelFactory(PeopleViewModel::class)
+    }
 
     private var _binding: FragmentPeopleBinding? = null
     private val binding get() = _binding!!
@@ -31,7 +35,7 @@ class PeopleFragment : BaseFragment<PeopleViewModel>() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         _binding = FragmentPeopleBinding.inflate(inflater, container, false)
         return binding.root
@@ -66,10 +70,10 @@ class PeopleFragment : BaseFragment<PeopleViewModel>() {
                             summary.name,
                             summary.bio,
                             summary.profilePicturePath,
-                            mutableListOf()
+                            mutableListOf(),
                         ),
                         userId = summary.id,
-                        context = requireContext()
+                        context = requireContext(),
                     )
                 }
                 peopleById = state.people.associateBy { it.id }

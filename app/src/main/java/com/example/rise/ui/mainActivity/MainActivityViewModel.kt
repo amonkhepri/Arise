@@ -1,7 +1,7 @@
 package com.example.rise.ui.mainActivity
 
 import android.app.Activity
-import com.example.rise.baseclasses.BaseViewModel
+import androidx.lifecycle.ViewModel
 import com.example.rise.data.auth.AuthStateProvider
 import com.example.rise.data.auth.SignInIntentProvider
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -12,12 +12,12 @@ import kotlinx.coroutines.flow.update
 
 class MainActivityViewModel(
     private val authStateProvider: AuthStateProvider,
-    private val signInIntentProvider: SignInIntentProvider
-) : BaseViewModel() {
+    private val signInIntentProvider: SignInIntentProvider,
+) : ViewModel() {
 
     data class MainActivityUiState(
         val isSigningIn: Boolean = false,
-        val isUserSignedIn: Boolean = false
+        val isUserSignedIn: Boolean = false,
     )
 
     sealed interface MainActivityEvent {
@@ -25,7 +25,7 @@ class MainActivityViewModel(
     }
 
     private val _uiState = MutableStateFlow(
-        MainActivityUiState(isUserSignedIn = authStateProvider.isSignedIn())
+        MainActivityUiState(isUserSignedIn = authStateProvider.isSignedIn()),
     )
     val uiState = _uiState.asStateFlow()
 

@@ -1,7 +1,7 @@
 package com.example.rise.ui.dashboardNavigation.people.chatActivity
 
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.rise.baseclasses.BaseViewModel
 import com.example.rise.data.chat.ChatRepository
 import com.example.rise.data.chat.ChatUser
 import com.example.rise.models.TextMessage
@@ -13,13 +13,14 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ChatViewModel(
     private val repository: ChatRepository,
-    private val clock: Clock = Clock.systemDefaultZone()
-) : BaseViewModel() {
+    private val clock: Clock = Clock.systemDefaultZone(),
+) : ViewModel() {
 
     data class ChatUiState(
         val title: String = "",
@@ -29,14 +30,14 @@ class ChatViewModel(
         val messages: List<TextMessage> = emptyList(),
         val isLoading: Boolean = true,
         val inputEnabled: Boolean = false,
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
     )
 
     sealed interface ChatEvent {
         data class LaunchSchedule(
             val message: TextMessage,
             val otherUserId: String,
-            val channelId: String
+            val channelId: String,
         ) : ChatEvent
     }
 
@@ -61,7 +62,7 @@ class ChatViewModel(
                     otherUserId = otherUserId,
                     isLoading = true,
                     errorMessage = null,
-                    inputEnabled = false
+                    inputEnabled = false,
                 )
             }
             try {
@@ -72,7 +73,7 @@ class ChatViewModel(
                         currentUser = user,
                         channelId = channelId,
                         isLoading = false,
-                        inputEnabled = true
+                        inputEnabled = true,
                     )
                 }
                 messagesJob = launch {
@@ -117,7 +118,7 @@ class ChatViewModel(
     private fun createMessage(
         text: String,
         currentUser: ChatUser,
-        otherUserId: String
+        otherUserId: String,
     ): TextMessage {
         val timestamp = Date.from(Instant.now(clock))
         return TextMessage(
@@ -125,7 +126,7 @@ class ChatViewModel(
             time = timestamp,
             senderId = currentUser.id,
             recipientId = otherUserId,
-            senderName = currentUser.displayName
+            senderName = currentUser.displayName,
         )
     }
 

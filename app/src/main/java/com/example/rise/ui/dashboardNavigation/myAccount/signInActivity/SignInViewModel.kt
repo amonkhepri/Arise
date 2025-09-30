@@ -1,6 +1,5 @@
 package com.example.rise.ui.dashboardNavigation.myAccount.signInActivity
 
-import com.example.rise.baseclasses.BaseViewModel
+import androidx.lifecycle.ViewModel
 
-class SignInViewModel: BaseViewModel() {
-}
+class SignInViewModel : ViewModel()
