@@ -14,7 +14,7 @@ class SplashActivityViewModel(
         data object ToMain : NavigationEvent
     }
 
-    private val _events = MutableSharedFlow<NavigationEvent>(extraBufferCapacity = 1)
+    private val _events = MutableSharedFlow<NavigationEvent>(replay = 1)
     val events = _events.asSharedFlow()
 
     fun determineDestination() {

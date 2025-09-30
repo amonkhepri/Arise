@@ -18,6 +18,7 @@ import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
 import com.example.rise.ui.mainActivity.MainActivityViewModel
 import com.firebase.ui.auth.AuthUI
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import org.koin.android.ext.koin.androidContext
@@ -52,6 +53,8 @@ class App: Application() {
     override fun onCreate() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
+
+        FirebaseApp.initializeApp(this)
 
         startKoin {
             //Koin android logger

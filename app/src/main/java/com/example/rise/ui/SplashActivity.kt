@@ -3,14 +3,15 @@ package com.example.rise.ui
 
 import android.content.Intent
 import android.os.Bundle
-
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.ui.SplashActivityViewModel.NavigationEvent
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
 import com.example.rise.ui.mainActivity.MainActivity
-import com.google.firebase.FirebaseApp
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 class SplashActivity : BaseActivity<SplashActivityViewModel>() {
 
@@ -18,18 +19,21 @@ class SplashActivity : BaseActivity<SplashActivityViewModel>() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        FirebaseApp.initializeApp(this)
-
-        lifecycleScope.launchWhenStarted {
-            viewModel.events.collect { event ->
-                when (event) {
-                    NavigationEvent.ToSignIn -> startActivity(Intent(this@SplashActivity, SignInActivity::class.java))
-                    NavigationEvent.ToMain -> startActivity(Intent(this@SplashActivity, MainActivity::class.java))
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.events.collect { event ->
+                    when (event) {
+                        NavigationEvent.ToSignIn -> startActivity(Intent(this@SplashActivity, SignInActivity::class.java))
+                        NavigationEvent.ToMain -> startActivity(Intent(this@SplashActivity, MainActivity::class.java))
+                    }
+                    finish()
                 }
-                finish()
             }
         }
+    }
 
+    override fun onStart() {
+        super.onStart()
         viewModel.determineDestination()
     }
 }
