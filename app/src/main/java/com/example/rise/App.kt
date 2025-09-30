@@ -9,6 +9,8 @@ import com.example.rise.data.chat.ChatRepository
 import com.example.rise.data.chat.FirestoreChatRepository
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.data.dashboard.FirestoreAlarmRepository
+import com.example.rise.data.myaccount.FirebaseMyAccountRepository
+import com.example.rise.data.myaccount.MyAccountRepository
 import com.example.rise.data.people.FirestorePeopleRepository
 import com.example.rise.data.people.PeopleRepository
 import com.example.rise.ui.SplashActivityViewModel
@@ -42,9 +44,10 @@ class App: Application() {
         single<ChatRepository> { FirestoreChatRepository(get(), get()) }
         single<PeopleRepository> { FirestorePeopleRepository(get(), get()) }
         single<AlarmRepository> { FirestoreAlarmRepository(get()) }
+        single<MyAccountRepository> { FirebaseMyAccountRepository(get(), get(), get(), androidContext()) }
 
         viewModel { SplashActivityViewModel(get()) }
-        viewModel { MyAccountBaseViewModel() }
+        viewModel { MyAccountBaseViewModel(get()) }
         viewModel { DashboardViewModel(get(), get()) }
         viewModel { ChatViewModel(get()) }
         viewModel { PeopleViewModel(get()) }

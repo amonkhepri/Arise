@@ -1,6 +1,5 @@
 package com.example.rise.ui.dashboardNavigation.myAccount
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -8,12 +7,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.rise.baseclasses.BaseFragment
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.FragmentMyAccountBinding
 import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
-import com.example.rise.util.FirestoreUtil
-import com.firebase.ui.auth.AuthUI
+import kotlinx.coroutines.launch
 
 class MyAccountFragment : BaseFragment() {
 
@@ -22,8 +23,6 @@ class MyAccountFragment : BaseFragment() {
     }
 
     private val RC_SELECT_IMAGE = 2
-    private lateinit var selectedImageBytes: ByteArray
-    private var pictureJustChanged = false
     private var _binding: FragmentMyAccountBinding? = null
     private val binding get() = _binding!!
 
@@ -33,6 +32,11 @@ class MyAccountFragment : BaseFragment() {
         savedInstanceState: Bundle?,
     ): View {
         _binding = FragmentMyAccountBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         binding.imageViewProfilePicture.setOnClickListener {
             val intent = Intent().apply {
@@ -44,54 +48,53 @@ class MyAccountFragment : BaseFragment() {
         }
 
         binding.btnSave.setOnClickListener {
-            if (::selectedImageBytes.isInitialized) {
-                // StorageUtil.uploadProfilePhoto(selectedImageBytes) {
-                //     FirestoreUtil.updateCurrentUser(binding.editTextName.text.toString(),
-                //         binding.editTextBio.text.toString(), imagePath)
-                // }
-            } else {
-                FirestoreUtil.updateCurrentUser(
-                    binding.editTextName.text.toString(),
-                    binding.editTextBio.text.toString(),
-                    null,
-                )
-            }
-            Toast.makeText(requireContext(), "saving", Toast.LENGTH_SHORT).show()
+            viewModel.updateProfile(
+                name = binding.editTextName.text.toString(),
+                bio = binding.editTextBio.text.toString(),
+            )
         }
 
         binding.btnSignOut.setOnClickListener {
-            val intent = Intent(context, SignInActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
+            viewModel.signOut()
+        }
 
-            AuthUI.getInstance()
-                .signOut(requireContext())
-                .addOnCompleteListener {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { collectUiState() }
+                launch { collectEvents() }
+            }
+        }
+
+        viewModel.loadProfile()
+    }
+
+    private suspend fun collectUiState() {
+        viewModel.uiState.collect { state ->
+            if (!binding.editTextName.isFocused && binding.editTextName.text.toString() != state.name) {
+                binding.editTextName.setText(state.name)
+            }
+            if (!binding.editTextBio.isFocused && binding.editTextBio.text.toString() != state.bio) {
+                binding.editTextBio.setText(state.bio)
+            }
+            if (state.errorMessage != null) {
+                Toast.makeText(requireContext(), state.errorMessage, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private suspend fun collectEvents() {
+        viewModel.events.collect { event ->
+            when (event) {
+                is MyAccountBaseViewModel.Event.ShowMessage -> {
+                    Toast.makeText(requireContext(), event.message, Toast.LENGTH_SHORT).show()
+                }
+
+                MyAccountBaseViewModel.Event.NavigateToSignIn -> {
+                    val intent = Intent(requireContext(), SignInActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
                     startActivity(intent)
                 }
-        }
-
-        return binding.root
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == RC_SELECT_IMAGE && resultCode == Activity.RESULT_OK && data != null && data.data != null) {
-            // Image selection handling can be re-enabled when storage integration is restored.
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-
-        FirestoreUtil.getCurrentUser { user ->
-            if (isVisible) {
-                binding.editTextName.setText(user.name)
-                binding.editTextBio.setText(user.bio)
-                // if (!pictureJustChanged && user.profilePicturePath != null)
-                //     GlideApp.with(this)
-                //         .load(StorageUtil.pathToReference(user.profilePicturePath))
-                //         .placeholder(R.drawable.ic_account_circle_black_24dp)
-                //         .into(binding.imageViewProfilePicture)
             }
         }
     }
