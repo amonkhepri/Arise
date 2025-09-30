@@ -16,7 +16,7 @@ class FirebaseUiSignInIntentProvider(private val authUi: AuthUI) : SignInIntentP
                 ),
             )
             .setLogo(R.drawable.ic_fire_emoji)
-            .setIsSmartLockEnabled(false)
+            .setCredentialManagerEnabled(false)
             .build()
     }
 }
