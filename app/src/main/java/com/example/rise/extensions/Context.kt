@@ -498,16 +498,16 @@ fun Context.getStorageDirectories(): Array<String> {
 
         val rawUserId = if (isDigit) lastFolder else ""
         if (TextUtils.isEmpty(rawUserId)) {
-            if (rawEmulatedStorageTarget != null) {
-                paths.add(rawEmulatedStorageTarget)
-            }
+            rawEmulatedStorageTarget?.let(paths::add)
         } else {
-            paths.add(rawEmulatedStorageTarget + File.separator + rawUserId)
+            rawEmulatedStorageTarget?.let { target ->
+                paths.add(target + File.separator + rawUserId)
+            }
         }
     }
 
-    if (!TextUtils.isEmpty(rawSecondaryStoragesStr)) {
-        val rawSecondaryStorages = rawSecondaryStoragesStr!!.split(File.pathSeparator.toRegex())
+    if (!rawSecondaryStoragesStr.isNullOrEmpty()) {
+        val rawSecondaryStorages = rawSecondaryStoragesStr.split(File.pathSeparator.toRegex())
             .dropLastWhile(String::isEmpty).toTypedArray()
         Collections.addAll(paths, *rawSecondaryStorages)
     }
