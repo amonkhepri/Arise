@@ -16,7 +16,10 @@ import android.os.*
 import android.text.SpannableString
 import android.text.TextUtils
 import android.text.style.RelativeSizeSpan
+import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.AlarmManagerCompat
@@ -37,14 +40,25 @@ fun Context.updateTextColors(viewGroup: ViewGroup, tmpTextColor: Int = 0, tmpAcc
     val textColor = if (tmpTextColor == 0) baseConfig.textColor else tmpTextColor
     val backgroundColor = baseConfig.backgroundColor
     val accentColor = if (tmpAccentColor == 0) {
-        if (isBlackAndWhiteTheme()) {
-            Color.WHITE
-        } else {
-            baseConfig.primaryColor
-        }
+        if (isBlackAndWhiteTheme()) Color.WHITE else baseConfig.primaryColor
     } else {
         tmpAccentColor
     }
+
+    fun applyToView(view: View) {
+        when (view) {
+            is ViewGroup -> {
+                for (i in 0 until view.childCount) {
+                    applyToView(view.getChildAt(i))
+                }
+            }
+            is MyTextView -> view.setColors(textColor, accentColor, backgroundColor)
+            is TextView -> view.setTextColor(textColor)
+            is Button -> view.setTextColor(textColor)
+        }
+    }
+
+    applyToView(viewGroup)
 }
 
 fun Context.getDefaultAlarmUri(type: Int): Uri? = RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
@@ -53,7 +67,7 @@ fun Context.getDefaultAlarmTitle(type: Int): String {
     val alarmString = getString(R.string.alarm)
     return try {
         RingtoneManager.getRingtone(this, getDefaultAlarmUri(type))?.getTitle(this) ?: alarmString
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         alarmString
     }
 }
@@ -79,22 +93,22 @@ fun Context.showRemainingTimeMessage(totalMinutes: Int) {
 @RequiresApi(Build.VERSION_CODES.M)
 fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
     val intent = Intent(this, AlarmReceiver::class.java)
-    var bundle = Bundle()
+    val bundle = Bundle()
 
     bundle.putParcelable("alarm", alarm)
     intent.putExtra(MESSAGE_CONTENT, bundle)
     intent.putExtra(ALARM_ID, alarm.idTimeStamp)
 
-    var pendingIntent : PendingIntent = PendingIntent.getBroadcast (
+    val pendingIntent : PendingIntent = PendingIntent.getBroadcast (
         this,
         alarm.idTimeStamp,
         intent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    var alarmManage : AlarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    // TODO time isn't exact, using "setAlarmClock() instead might be a solution to this dilema
-        alarmManage.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarm.timeInMiliseconds.toLong(), pendingIntent)
+    val alarmManager : AlarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    // TODO time isn't exact, using "setAlarmClock()" instead might be a solution to this dilemma
+    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarm.timeInMiliseconds.toLong(), pendingIntent)
 }
 
 fun Context.formatMinutesToTimeString(totalMinutes: Int) = formatSecondsToTimeString(totalMinutes * 60)
@@ -145,8 +159,8 @@ fun Context.grantReadUriPermission(uriString: String) {
             uriString.toUri(),
             Intent.FLAG_GRANT_READ_URI_PERMISSION
         )
-    } catch (ignored: Exception) {
-
+    } catch (_: Exception) {
+        // no-op
     }
 }
 
@@ -185,16 +199,15 @@ fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): No
         }
     }
 
-    val builder = NotificationCompat.Builder(this)
+    val builder = NotificationCompat.Builder(this, channelId)
         .setContentTitle(label)
         .setContentText(getFormattedTime(getPassedSeconds(), false, false))
         .setSmallIcon(R.drawable.ic_alarm)
         .setContentIntent(pendingIntent)
-        .setPriority(Notification.PRIORITY_HIGH)
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
         .setDefaults(Notification.DEFAULT_LIGHTS)
         .setAutoCancel(true)
         .setSound(Uri.parse(soundUri), AudioManager.STREAM_ALARM)
-        .setChannelId(channelId)
         .addAction(R.drawable.ic_snooze, getString(R.string.snooze), getSnoozePendingIntent(alarm))
         .addAction(
             R.drawable.ic_cross,
@@ -233,8 +246,8 @@ fun Context.toast(msg: String, length: Int = Toast.LENGTH_SHORT) {
                 Toast.makeText(applicationContext, msg, length).show()
             }
         }
-    } catch (e: Exception) {
-
+    } catch (_: Exception) {
+        // best effort toast
     }
 }
 
@@ -424,7 +437,7 @@ fun Context.getSDCardPath(): String {
                     sdCardPath = "/storage/${it.name}"
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
     }
 
@@ -491,7 +504,7 @@ fun Context.getStorageDirectories(): Array<String> {
         try {
             Integer.valueOf(lastFolder)
             isDigit = true
-        } catch (ignored: NumberFormatException) {
+        } catch (_: NumberFormatException) {
         }
 
         val rawUserId = if (isDigit) lastFolder else ""

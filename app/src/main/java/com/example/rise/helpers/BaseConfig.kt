@@ -299,7 +299,7 @@ open class BaseConfig(val context: Context) {
         set(dateFormat) = prefs.edit().putString(DATE_FORMAT, dateFormat).apply()
 
     private fun getDefaultDateFormat(): String {
-        val format = android.text.format.DateFormat.getDateFormat(context)
+        val format = DateFormat.getDateFormat(context)
         val pattern = (format as SimpleDateFormat).toLocalizedPattern()
         return when (pattern.lowercase(Locale.ROOT).replace(" ", "")) {
             "dd/mm/y" -> DATE_FORMAT_TWO

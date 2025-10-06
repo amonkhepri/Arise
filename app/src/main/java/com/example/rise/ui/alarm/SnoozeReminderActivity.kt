@@ -9,6 +9,6 @@ class SnoozeReminderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val id = intent.getIntExtra(ALARM_ID, -1)
+        intent.getIntExtra(ALARM_ID, -1)
     }
 }

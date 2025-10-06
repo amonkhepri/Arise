@@ -50,5 +50,8 @@
     <string name="my_name">My Name</string>
 
 
-</resources>
+    <!-- Digital Asset Links placeholder used by Credential Manager; update domain and fingerprints when available. -->
+    <string name="asset_statements">[{"include": "https://example.com/.well-known/assetlinks.json"}]</string>
 
+
+</resources>
