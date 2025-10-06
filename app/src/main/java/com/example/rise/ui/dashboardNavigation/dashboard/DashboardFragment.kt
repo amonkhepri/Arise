@@ -1,6 +1,5 @@
 package com.example.rise.ui.dashboardNavigation.dashboard
 
-import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -20,8 +19,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
-import java.util.Calendar
-import kotlinx.coroutines.flow.collect
 
 class DashboardFragment : BaseFragment() {
 
@@ -50,7 +47,6 @@ class DashboardFragment : BaseFragment() {
         super.onViewCreated(view, savedInstanceState)
         FirebaseFirestore.setLoggingEnabled(true)
         setupRecyclerView()
-        setupFab()
         observeState()
         observeEvents()
         initialiseViewModel()
@@ -68,13 +64,6 @@ class DashboardFragment : BaseFragment() {
 
     private fun setupRecyclerView() {
         binding.alarmList.layoutManager = LinearLayoutManager(context)
-    }
-
-    private fun setupFab() {
-        binding.floatingActionButton.setOnClickListener {
-            val timeInMillis = selectedTimeInMillis()
-            viewModel.createAlarm(timeInMillis)
-        }
     }
 
     private fun observeState() {
@@ -122,29 +111,6 @@ class DashboardFragment : BaseFragment() {
             alarmAdapter?.otherUsrId = otherUserId
         }
         currentQuery = query
-    }
-
-    private fun selectedTimeInMillis(): Long {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        calendar.set(Calendar.HOUR_OF_DAY, getSelectedHour())
-        calendar.set(Calendar.MINUTE, getSelectedMinute())
-        return calendar.timeInMillis
-    }
-
-    private fun getSelectedHour(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        binding.simpleTimePicker.hour
-    } else {
-        @Suppress("DEPRECATION")
-        binding.simpleTimePicker.currentHour
-    }
-
-    private fun getSelectedMinute(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        binding.simpleTimePicker.minute
-    } else {
-        @Suppress("DEPRECATION")
-        binding.simpleTimePicker.currentMinute
     }
 
     private fun showError(message: String) {

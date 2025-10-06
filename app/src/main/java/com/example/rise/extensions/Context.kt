@@ -30,9 +30,8 @@ import com.example.rise.ui.mainActivity.MainActivity
 import com.example.rise.ui.alarm.SnoozeReminderActivity
 import java.io.File
 import java.util.regex.Pattern
+import androidx.core.net.toUri
 
-
-fun Context.isScreenOn() = (getSystemService(Context.POWER_SERVICE) as PowerManager).isScreenOn
 
 fun Context.updateTextColors(viewGroup: ViewGroup, tmpTextColor: Int = 0, tmpAccentColor: Int = 0) {
     val textColor = if (tmpTextColor == 0) baseConfig.textColor else tmpTextColor
@@ -48,7 +47,7 @@ fun Context.updateTextColors(viewGroup: ViewGroup, tmpTextColor: Int = 0, tmpAcc
     }
 }
 
-fun Context.getDefaultAlarmUri(type: Int) = RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
+fun Context.getDefaultAlarmUri(type: Int): Uri? = RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
 
 fun Context.getDefaultAlarmTitle(type: Int): String {
     val alarmString = getString(R.string.alarm)
@@ -61,7 +60,6 @@ fun Context.getDefaultAlarmTitle(type: Int): String {
 
 fun Context.getLaunchIntent() = packageManager.getLaunchIntentForPackage(baseConfig.appId)
 
-@RequiresApi(Build.VERSION_CODES.M)
 fun Context.showAlarmNotification(alarm: Alarm) {
     val pendingIntent = getOpenAlarmTabIntent()
     val notification = getAlarmNotification(pendingIntent, alarm)
@@ -91,7 +89,7 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
         this,
         alarm.idTimeStamp,
         intent,
-        PendingIntent.FLAG_UPDATE_CURRENT
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
     var alarmManage : AlarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -129,14 +127,14 @@ fun Context.getOpenAlarmTabIntent(): PendingIntent {
         this,
         OPEN_ALARMS_TAB_INTENT_ID,
         intent,
-        PendingIntent.FLAG_UPDATE_CURRENT
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 }
 
 fun Context.getAlarmIntent(alarm: Int): PendingIntent {
     val intent = Intent(this, AlarmReceiver::class.java)
     intent.putExtra(ALARM_ID, alarm)
-    return PendingIntent.getBroadcast(this, alarm, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+    return PendingIntent.getBroadcast(this, alarm, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 }
 
 fun Context.grantReadUriPermission(uriString: String) {
@@ -144,7 +142,7 @@ fun Context.grantReadUriPermission(uriString: String) {
         // ensure custom reminder sounds play well
         grantUriPermission(
             "com.android.systemui",
-            Uri.parse(uriString),
+            uriString.toUri(),
             Intent.FLAG_GRANT_READ_URI_PERMISSION
         )
     } catch (ignored: Exception) {
@@ -254,13 +252,13 @@ fun Context.getSnoozePendingIntent(alarm: Alarm): PendingIntent {
     val intent = Intent(this, snoozeClass).setAction("Snooze")
     intent.putExtra(ALARM_ID, alarm.idTimeStamp)
     return if (config.useSameSnooze) {
-        PendingIntent.getService(this, alarm.idTimeStamp, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        PendingIntent.getService(this, alarm.idTimeStamp, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     } else {
         PendingIntent.getActivity(
             this,
             alarm.idTimeStamp,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
 }
@@ -272,7 +270,7 @@ fun Context.getHideAlarmPendingIntent(alarm: Alarm): PendingIntent {
         this,
         alarm.idTimeStamp,
         intent,
-        PendingIntent.FLAG_UPDATE_CURRENT
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 }
 

@@ -1,8 +1,6 @@
 package com.example.rise.data.myaccount
 
-import android.content.Context
 import com.example.rise.models.User
-import com.firebase.ui.auth.AuthUI
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineDispatcher
@@ -13,8 +11,6 @@ import kotlinx.coroutines.withContext
 class FirebaseMyAccountRepository(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val authUI: AuthUI,
-    private val context: Context,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : MyAccountRepository {
 
@@ -42,7 +38,7 @@ class FirebaseMyAccountRepository(
 
     override suspend fun signOut() {
         withContext(ioDispatcher) {
-            authUI.signOut(context).await()
+            auth.signOut()
         }
     }
 }

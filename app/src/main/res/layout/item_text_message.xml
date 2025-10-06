@@ -33,6 +33,7 @@
             android:layout_alignEnd="@id/textView_message_text"
             android:layout_marginEnd="8dp"
             android:textSize="12sp"
+            android:alpha="0.7"
             tools:text="3/15/2018 3:00 PM"/>
     </RelativeLayout>
 </FrameLayout>

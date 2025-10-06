@@ -5,17 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.rise.data.chat.ChatRepository
 import com.example.rise.data.chat.ChatUser
 import com.example.rise.models.TextMessage
-import java.time.Clock
-import java.time.Instant
-import java.util.Date
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Clock
+import java.time.Instant
+import java.util.*
 
 class ChatViewModel(
     private val repository: ChatRepository,
@@ -34,17 +34,21 @@ class ChatViewModel(
     )
 
     sealed interface ChatEvent {
-        data class LaunchSchedule(
+        data class ShowTimePicker(
+            val messageText: String,
+        ) : ChatEvent
+        data class ScheduleAlarm(
             val message: TextMessage,
             val otherUserId: String,
             val channelId: String,
+            val timeInMillis: Long,
         ) : ChatEvent
     }
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val _events = MutableSharedFlow<ChatEvent>(extraBufferCapacity = 1)
+    private val _events = MutableSharedFlow<ChatEvent>(replay = 0, extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
 
     private var messagesJob: Job? = null
@@ -66,20 +70,25 @@ class ChatViewModel(
                 )
             }
             try {
-                val user = repository.getCurrentUser()
+                val currentUserDeferred = async { repository.getCurrentUser() }
                 val channelId = repository.getOrCreateChannel(otherUserId)
                 _uiState.update {
                     it.copy(
-                        currentUser = user,
                         channelId = channelId,
                         isLoading = false,
-                        inputEnabled = true,
                     )
                 }
                 messagesJob = launch {
                     repository.observeMessages(channelId).collect { messages ->
                         _uiState.update { state -> state.copy(messages = messages) }
                     }
+                }
+                val user = currentUserDeferred.await()
+                _uiState.update {
+                    it.copy(
+                        currentUser = user,
+                        inputEnabled = true,
+                    )
                 }
             } catch (error: Throwable) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
@@ -105,14 +114,29 @@ class ChatViewModel(
     fun scheduleMessage(text: String) {
         val state = _uiState.value
         val trimmed = text.trim()
-        val channelId = state.channelId
+        if (trimmed.isEmpty()) {
+            return // Don't schedule empty messages
+        }
+        if (state.channelId == null || state.currentUser == null || state.otherUserId == null) {
+            _uiState.update { it.copy(errorMessage = "Chat not ready. Please wait.") }
+            return // State not ready yet
+        }
+        val emitted = _events.tryEmit(ChatEvent.ShowTimePicker(trimmed))
+        if (!emitted) {
+            _uiState.update { it.copy(errorMessage = "Failed to show time picker") }
+        }
+    }
+
+    fun confirmScheduleMessage(messageText: String, timeInMillis: Long) {
+        val state = _uiState.value
         val currentUser = state.currentUser
         val otherUserId = state.otherUserId
-        if (trimmed.isEmpty() || channelId == null || currentUser == null || otherUserId == null) {
+        val channelId = state.channelId
+        if (currentUser == null || otherUserId == null || channelId == null) {
             return
         }
-        val message = createMessage(trimmed, currentUser, otherUserId)
-        _events.tryEmit(ChatEvent.LaunchSchedule(message, otherUserId, channelId))
+        val message = createMessage(messageText, currentUser, otherUserId)
+        _events.tryEmit(ChatEvent.ScheduleAlarm(message, otherUserId, channelId, timeInMillis))
     }
 
     private fun createMessage(

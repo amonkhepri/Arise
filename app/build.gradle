@@ -7,10 +7,9 @@ apply plugin: 'kotlin-parcelize'
 android {
     namespace 'com.example.rise'
     compileSdk 36
-
     defaultConfig {
         applicationId "com.example.rise"
-        minSdk 23
+        minSdk 26
         targetSdk 36
         versionCode 1
         versionName "1.0"
@@ -37,6 +36,13 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    packagingOptions {
+        resources {
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/LICENSE-notice.md"
+        }
     }
 }
 
@@ -71,6 +77,7 @@ dependencies {
     implementation 'com.firebaseui:firebase-ui-auth:9.0.0'
     implementation 'com.firebaseui:firebase-ui-storage:9.0.0'
     implementation 'com.google.android.gms:play-services-auth:21.4.0'
+    implementation 'com.google.android.libraries.identity.googleid:googleid:1.1.1'
 
     implementation 'com.github.bumptech.glide:glide:5.0.5'
     ksp 'com.github.bumptech.glide:ksp:5.0.5'
@@ -83,7 +90,7 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2'
     testImplementation 'app.cash.turbine:turbine:1.2.1'
-    
+    testImplementation 'org.robolectric:robolectric:4.12.2'
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2'
     testImplementation 'io.mockk:mockk:1.14.5'
 

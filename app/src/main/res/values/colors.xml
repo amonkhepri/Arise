@@ -1,6 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#008577</color>
-    <color name="colorPrimaryDark">#00574B</color>
+    <!-- Always use dark mode colors -->
+    <color name="colorPrimary">#1C1C1E</color>
+    <color name="colorPrimaryDark">#1C1C1E</color>
     <color name="colorAccent">#D81B60</color>
+    <color name="colorSecondary">#D81B60</color>
+
+    <!-- Matrix green -->
+    <color name="matrixGreen">#00FF41</color>
+
+    <!-- Toolbar title -->
+    <color name="receiverNameGray">#9FA4A6</color>
+
+    <!-- Typography -->
+    <color name="textColorSecondary">#9FA4A6</color>
+
+    <!-- Card background colors -->
+    <color name="cardBackground">#2C2C2E</color>
+
+    <!-- Chat colors -->
+    <color name="chatBackground">#000000</color>
+    <color name="messageInputBackground">#2C2C2E</color>
+    <color name="messageTextColor">#FFFFFF</color>
+    <color name="messageBubbleBackground">#3A3A3C</color>
+    <color name="myMessageBubbleBackground">#2C2C2E</color>
+    <color name="myMessageTextColor">@color/matrixGreen</color>
+
+    <!-- Account -->
+    <color name="signOutTextColor">#B0BEC5</color>
 </resources>
