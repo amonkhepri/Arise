@@ -1,6 +1,6 @@
 package com.example.rise.data.dashboard
 
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query

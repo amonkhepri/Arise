@@ -8,7 +8,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import java.util.*
 import com.example.rise.R
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import android.net.Uri
 import android.graphics.Color
 import android.media.RingtoneManager
@@ -24,11 +24,11 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.AlarmManagerCompat
 import androidx.core.app.NotificationCompat
-import com.example.rise.models.AlarmSound
+import com.example.rise.ui.alarm.models.AlarmSound
 import com.example.rise.helpers.*
-import com.example.rise.receivers.AlarmReceiver
-import com.example.rise.receivers.HideAlarmReceiver
-import com.example.rise.services.SnoozeService
+import com.example.rise.ui.alarm.receivers.AlarmReceiver
+import com.example.rise.ui.alarm.receivers.HideAlarmReceiver
+import com.example.rise.ui.alarm.services.SnoozeService
 import com.example.rise.ui.mainActivity.MainActivity
 import com.example.rise.ui.alarm.SnoozeReminderActivity
 import java.io.File

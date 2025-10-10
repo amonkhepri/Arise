@@ -12,6 +12,7 @@ import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import com.example.rise.R
+import com.example.rise.ui.signInActivity.SignInActivity
 import com.google.firebase.auth.FirebaseAuth
 import org.junit.After
 import org.junit.Before

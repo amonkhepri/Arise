@@ -9,7 +9,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.ui.SplashActivityViewModel.NavigationEvent
-import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
+import com.example.rise.ui.signInActivity.SignInActivity
 import com.example.rise.ui.mainActivity.MainActivity
 import kotlinx.coroutines.launch
 

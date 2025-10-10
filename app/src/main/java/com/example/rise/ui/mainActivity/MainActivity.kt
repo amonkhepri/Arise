@@ -16,7 +16,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
-import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
+import com.example.rise.ui.signInActivity.SignInActivity
 import com.example.rise.ui.mainActivity.MainActivityViewModel.MainActivityEvent
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView

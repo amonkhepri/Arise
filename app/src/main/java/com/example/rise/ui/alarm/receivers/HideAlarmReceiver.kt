@@ -1,4 +1,4 @@
-package com.example.rise.receivers
+package com.example.rise.ui.alarm.receivers
 
 import android.content.BroadcastReceiver
 import android.content.Context

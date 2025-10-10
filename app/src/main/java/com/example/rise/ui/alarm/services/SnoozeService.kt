@@ -1,15 +1,14 @@
-package com.example.rise.services
+package com.example.rise.ui.alarm.services
 
 import android.app.IntentService
-import android.content.ContentValues.TAG
+import android.content.ContentValues
 import android.content.Intent
-import android.util.Log
 import com.example.rise.extensions.config
 import com.example.rise.extensions.hideNotification
 import com.example.rise.extensions.setupAlarmClock
 import com.example.rise.helpers.ALARM_ID
 import com.example.rise.helpers.MINUTE_SECONDS
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
 import timber.log.Timber
@@ -20,7 +19,7 @@ class SnoozeService : IntentService("Snooze") {
         val id = intent?.getIntExtra(ALARM_ID, -1)
 
         val alarms = ArrayList<Alarm>()
-        lateinit var alarm:Alarm
+        lateinit var alarm: Alarm
 
         val mFirestore = FirebaseFirestore.getInstance().document("sampleData/user")
 
@@ -30,11 +29,11 @@ class SnoozeService : IntentService("Snooze") {
                 mFirestore.collection("alarms")
                     .add(alarm)
                     .addOnSuccessListener { documentReference ->
-                        Timber.tag(TAG)
+                        Timber.Forest.tag(ContentValues.TAG)
                             .d("DocumentSnapshot add with ID: " + documentReference.id)
                     }
                     .addOnFailureListener { e ->
-                        Timber.tag(TAG).w(e, "Error adding document")
+                        Timber.Forest.tag(ContentValues.TAG).w(e, "Error adding document")
                     }
             }
             return mFirestore.collection("alarms")

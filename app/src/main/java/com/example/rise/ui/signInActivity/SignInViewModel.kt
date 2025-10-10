@@ -1,4 +1,4 @@
-package com.example.rise.ui.dashboardNavigation.myAccount.signInActivity
+package com.example.rise.ui.signInActivity
 
 import android.util.Patterns
 import androidx.credentials.Credential

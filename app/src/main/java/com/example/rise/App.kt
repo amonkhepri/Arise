@@ -2,8 +2,8 @@ package com.example.rise
 
 import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
-import com.example.rise.data.alarm.ConfigReminderPreferences
-import com.example.rise.data.alarm.ReminderPreferences
+import com.example.rise.ui.alarm.data.ConfigReminderPreferences
+import com.example.rise.ui.alarm.data.ReminderPreferences
 import com.example.rise.data.auth.AuthStateProvider
 import com.example.rise.data.auth.FirebaseAuthStateProvider
 import com.example.rise.data.auth.FirebaseSignInRepository
@@ -23,7 +23,7 @@ import com.example.rise.ui.SplashActivityViewModel
 import com.example.rise.ui.alarm.ReminderViewModel
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountViewModel
-import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInViewModel
+import com.example.rise.ui.signInActivity.SignInViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
 import com.example.rise.ui.mainActivity.MainActivityViewModel

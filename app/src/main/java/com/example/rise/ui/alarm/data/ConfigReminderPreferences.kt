@@ -1,4 +1,4 @@
-package com.example.rise.data.alarm
+package com.example.rise.ui.alarm.data
 
 import com.example.rise.helpers.Config
 

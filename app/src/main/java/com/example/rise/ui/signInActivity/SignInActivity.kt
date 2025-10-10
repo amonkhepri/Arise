@@ -1,4 +1,4 @@
-package com.example.rise.ui.dashboardNavigation.myAccount.signInActivity
+package com.example.rise.ui.signInActivity
 
 import android.content.Intent
 import android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK

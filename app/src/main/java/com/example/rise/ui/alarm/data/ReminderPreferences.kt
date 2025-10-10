@@ -1,4 +1,4 @@
-package com.example.rise.data.alarm
+package com.example.rise.ui.alarm.data
 
 interface ReminderPreferences {
     val alarmMaxReminderSeconds: Int

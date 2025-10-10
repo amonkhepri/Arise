@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
@@ -23,7 +22,6 @@
             android:resource="@string/asset_statements" />
         <activity
             android:name=".ui.mainActivity.MainActivity"
-            android:label="@string/app_name"
             android:exported="false" />
         <activity
             android:name=".ui.alarm.ReminderActivity"
@@ -32,7 +30,7 @@
             android:name=".ui.alarm.SnoozeReminderActivity"
             android:exported="false" />
         <activity
-            android:name=".ui.dashboardNavigation.myAccount.signInActivity.SignInActivity"
+            android:name=".ui.signInActivity.SignInActivity"
             android:exported="false"
             android:windowBackground="@color/chatBackground" />
         <activity
@@ -59,7 +57,7 @@
         </activity>
 
         <service
-            android:name=".services.SnoozeService"
+            android:name=".ui.alarm.services.SnoozeService"
             android:exported="false" />
         <service
             android:name=".services.MyFirebaseMessagingService"
@@ -70,7 +68,7 @@
         </service>
 
         <receiver
-            android:name=".receivers.AlarmReceiver"
+            android:name=".ui.alarm.receivers.AlarmReceiver"
             android:exported="false" />
     </application>
 

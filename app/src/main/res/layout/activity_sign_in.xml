@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:background="@color/chatBackground"
     android:padding="24dp"
-    tools:context="com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity">
+    tools:context="com.example.rise.ui.signInActivity.SignInActivity">
 
     <ImageView
         android:id="@+id/logoImage"

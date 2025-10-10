@@ -23,7 +23,7 @@ import com.example.rise.databinding.ActivityChatBinding
 import com.example.rise.extensions.scheduleNextAlarm
 import com.example.rise.helpers.AppConstants
 import com.example.rise.item.TextMessageItem
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import com.google.firebase.auth.FirebaseAuth
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder

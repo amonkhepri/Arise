@@ -4,11 +4,14 @@ import android.text.TextUtils
 import app.cash.turbine.test
 import app.cash.turbine.turbineScope
 import com.example.rise.data.auth.SignInRepository
+import com.example.rise.ui.signInActivity.SignInViewModel
 import com.example.rise.util.MainDispatcherRule
 import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -22,6 +25,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.After
@@ -206,6 +210,52 @@ class SignInViewModelTest {
         }
 
         coVerify { firebaseUser.updateProfile(any()) }
+    }
+
+    @Test
+    fun `register surfaces weak password message`() = runTest {
+        val weakPassword = FirebaseAuthWeakPasswordException(
+            "weak-password",
+            "Password must be at least 6 characters",
+            "pass"
+        )
+        val authTask = TaskCompletionSource<AuthResult>().apply {
+            setException(weakPassword)
+        }.task
+
+        every { firebaseAuth.createUserWithEmailAndPassword(any(), any()) } returns authTask
+
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.register("Test User", "test@example.com", "pass")
+            val event = awaitItem() as SignInViewModel.Event.ShowMessage
+            assertEquals(weakPassword.localizedMessage, event.message)
+            assertNotEquals(weakPassword.reason, event.message)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `register surfaces collision message`() = runTest {
+        val collision = FirebaseAuthUserCollisionException(
+            "email-already-in-use",
+            "Firebase says email exists"
+        )
+        val authTask = TaskCompletionSource<AuthResult>().apply {
+            setException(collision)
+        }.task
+
+        every { firebaseAuth.createUserWithEmailAndPassword(any(), any()) } returns authTask
+
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.register("Test User", "test@example.com", "password123")
+            val event = awaitItem() as SignInViewModel.Event.ShowMessage
+            assertEquals("An account already exists with this email", event.message)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

@@ -3,7 +3,7 @@ package com.example.rise.ui.dashboardNavigation.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.rise.data.dashboard.AlarmRepository
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import com.example.rise.models.TextMessage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.Query

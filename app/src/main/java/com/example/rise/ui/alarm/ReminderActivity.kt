@@ -31,7 +31,7 @@ import com.example.rise.helpers.ALARM_ID
 import com.example.rise.helpers.MESSAGE_CONTENT
 import com.example.rise.helpers.getPassedSeconds
 import com.example.rise.helpers.getColoredDrawableWithColor
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import kotlinx.coroutines.launch
 
 class ReminderActivity : AppCompatActivity() {

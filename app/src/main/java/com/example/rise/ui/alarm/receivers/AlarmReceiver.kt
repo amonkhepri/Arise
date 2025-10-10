@@ -1,4 +1,4 @@
-package com.example.rise.receivers
+package com.example.rise.ui.alarm.receivers
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -8,7 +8,7 @@ import android.widget.Toast
 import com.example.rise.helpers.ALARM_ID
 import com.example.rise.helpers.CHAT_CHANNEL
 import com.example.rise.helpers.MESSAGE_CONTENT
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import com.example.rise.models.TextMessage
 import com.example.rise.util.FirestoreUtil
 import com.google.firebase.firestore.EventListener
