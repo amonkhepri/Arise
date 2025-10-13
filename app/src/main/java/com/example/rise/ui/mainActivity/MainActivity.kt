@@ -1,8 +1,10 @@
 package com.example.rise.ui.mainActivity
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.content.Intent
+import android.view.Menu
+import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.Lifecycle
@@ -16,11 +18,13 @@ import androidx.navigation.ui.setupWithNavController
 import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
+import com.example.rise.debug.FeatureFlagsActivity
 import com.example.rise.ui.signInActivity.SignInActivity
 import com.example.rise.ui.mainActivity.MainActivityViewModel.MainActivityEvent
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.launch
+import com.example.rise.BuildConfig
 
 class MainActivity : BaseActivity() {
 
@@ -99,6 +103,23 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        if (BuildConfig.DEBUG) {
+            menu.add(Menu.NONE, FEATURE_FLAGS_MENU_ID, Menu.NONE, getString(R.string.menu_feature_flags))
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+            return true
+        }
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (BuildConfig.DEBUG && item.itemId == FEATURE_FLAGS_MENU_ID) {
+            startActivity(Intent(this, FeatureFlagsActivity::class.java))
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
     override fun onSupportNavigateUp(): Boolean {
         val navController = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment)
             ?.navController
@@ -107,5 +128,9 @@ class MainActivity : BaseActivity() {
         } else {
             super.onSupportNavigateUp()
         }
+    }
+
+    private companion object {
+        private const val FEATURE_FLAGS_MENU_ID = 1001
     }
 }

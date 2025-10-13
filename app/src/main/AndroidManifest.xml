@@ -24,11 +24,19 @@
             android:name=".ui.mainActivity.MainActivity"
             android:exported="false" />
         <activity
+            android:name=".debug.FeatureFlagsActivity"
+            android:exported="false"
+            android:label="@string/feature_flags_title" />
+        <activity
             android:name=".ui.alarm.ReminderActivity"
             android:exported="false" />
         <activity
             android:name=".ui.alarm.SnoozeReminderActivity"
             android:exported="false" />
+        <activity
+            android:name=".ui.signInActivity.TelegramAuthActivity"
+            android:exported="false"
+            android:windowSoftInputMode="stateHidden" />
         <activity
             android:name=".ui.signInActivity.SignInActivity"
             android:exported="false"

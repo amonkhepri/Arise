@@ -4,6 +4,9 @@ import android.text.TextUtils
 import app.cash.turbine.test
 import app.cash.turbine.turbineScope
 import com.example.rise.data.auth.SignInRepository
+import com.example.rise.data.auth.TelegramAuthData
+import com.example.rise.data.auth.TelegramAuthRepository
+import com.example.rise.data.auth.TelegramAuthResponse
 import com.example.rise.ui.signInActivity.SignInViewModel
 import com.example.rise.util.MainDispatcherRule
 import com.google.android.gms.tasks.TaskCompletionSource
@@ -40,12 +43,13 @@ class SignInViewModelTest {
 
     private val firebaseAuth = mockk<FirebaseAuth>(relaxed = true)
     private val repository = mockk<SignInRepository>(relaxed = true)
+    private val telegramRepository = mockk<TelegramAuthRepository>(relaxed = true)
 
     private fun createViewModel(
         emailValidator: SignInViewModel.EmailValidator = SignInViewModel.EmailValidator { email ->
             email.isNotBlank() && EMAIL_REGEX.matcher(email).matches()
         }
-    ) = SignInViewModel(firebaseAuth, repository, emailValidator)
+    ) = SignInViewModel(firebaseAuth, repository, telegramRepository, emailValidator)
 
     @Before
     fun setUp() {
@@ -254,6 +258,71 @@ class SignInViewModelTest {
             viewModel.register("Test User", "test@example.com", "password123")
             val event = awaitItem() as SignInViewModel.Event.ShowMessage
             assertEquals("An account already exists with this email", event.message)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `signInWithTelegram signs in and navigates`() = runTest {
+        val authResult = mockk<AuthResult>()
+        val firebaseUser = mockk<FirebaseUser>(relaxed = true) {
+            every { displayName } returns null
+            every { updateProfile(any()) } returns TaskCompletionSource<Void>().apply { setResult(null) }.task
+        }
+        val signInTask = TaskCompletionSource<AuthResult>().apply { setResult(authResult) }.task
+
+        coEvery { telegramRepository.exchange(any()) } returns TelegramAuthResponse(
+            customToken = "custom-token",
+            displayName = "Telegram User",
+            photoUrl = null,
+        )
+        every { firebaseAuth.signInWithCustomToken("custom-token") } returns signInTask
+        every { firebaseAuth.currentUser } returns firebaseUser
+        coEvery { repository.ensureUserInitialized() } returns Unit
+        coEvery { repository.fetchMessagingToken() } returns null
+
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.signInWithTelegram(
+                TelegramAuthData(
+                    id = 123L,
+                    firstName = "Telegram",
+                    lastName = "User",
+                    username = "telegram_user",
+                    photoUrl = null,
+                    authDate = 1000L,
+                    hash = "hash",
+                )
+            )
+            assertEquals(SignInViewModel.Event.NavigateToMain, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { telegramRepository.exchange(any()) }
+        verify { firebaseAuth.signInWithCustomToken("custom-token") }
+    }
+
+    @Test
+    fun `signInWithTelegram surfaces repository errors`() = runTest {
+        coEvery { telegramRepository.exchange(any()) } throws IllegalStateException("backend down")
+
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.signInWithTelegram(
+                TelegramAuthData(
+                    id = 1,
+                    firstName = "T",
+                    lastName = null,
+                    username = null,
+                    photoUrl = null,
+                    authDate = 10,
+                    hash = "hash",
+                )
+            )
+            val event = awaitItem() as SignInViewModel.Event.ShowMessage
+            assertEquals("backend down", event.message)
             cancelAndIgnoreRemainingEvents()
         }
     }

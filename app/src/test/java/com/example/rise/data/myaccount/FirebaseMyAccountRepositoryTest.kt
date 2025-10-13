@@ -1,6 +1,7 @@
 package com.example.rise.data.myaccount
 
 import com.example.rise.models.User
+import com.example.rise.transport.TransportRuntimeBridge
 import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -27,11 +28,13 @@ class FirebaseMyAccountRepositoryTest {
     private val firestore: FirebaseFirestore = mockk()
     private val collection: CollectionReference = mockk()
     private val document: DocumentReference = mockk()
+    private val transportBridge: TransportRuntimeBridge = mockk(relaxed = true)
 
     private fun TestScope.repository() = FirebaseMyAccountRepository(
         auth = auth,
         firestore = firestore,
-        ioDispatcher = StandardTestDispatcher(testScheduler)
+        ioDispatcher = StandardTestDispatcher(testScheduler),
+        transportBridge = transportBridge,
     )
 
     @Test

@@ -3,6 +3,7 @@ package com.example.rise.data.chat
 import com.example.rise.models.ChatChannel
 import com.example.rise.models.TextMessage
 import com.example.rise.models.User
+import com.example.rise.transport.TransportRuntimeBridge
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.concurrent.ConcurrentHashMap
@@ -16,6 +17,7 @@ class FirestoreChatRepository(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
     private val localCache: ChatLocalCache,
+    private val transportBridge: TransportRuntimeBridge,
 ) : ChatRepository {
 
     private val usersCollection get() = firestore.collection("users")
@@ -25,6 +27,7 @@ class FirestoreChatRepository(
     @Volatile private var cachedCurrentUser: ChatUser? = null
 
     override suspend fun getCurrentUser(): ChatUser {
+        transportBridge.requireFirestore("FirestoreChatRepository#getCurrentUser")
         val firebaseUser = auth.currentUser ?: throw IllegalStateException("User must be signed in")
         val previousUserId = cachedCurrentUser?.id
         if (previousUserId != null && previousUserId != firebaseUser.uid) {
@@ -44,6 +47,7 @@ class FirestoreChatRepository(
     }
 
     override suspend fun getOrCreateChannel(otherUserId: String): String {
+        transportBridge.requireFirestore("FirestoreChatRepository#getOrCreateChannel")
         channelCache[otherUserId]?.let { return it }
         val currentUserId = auth.currentUser?.uid ?: throw IllegalStateException("User must be signed in")
         localCache.readChannelId(currentUserId, otherUserId)?.let { cachedId ->
@@ -86,6 +90,7 @@ class FirestoreChatRepository(
     }
 
     override fun observeMessages(channelId: String): Flow<List<TextMessage>> = callbackFlow {
+        transportBridge.requireFirestore("FirestoreChatRepository#observeMessages")
         val userId = auth.currentUser?.uid
         val inMemory = messagesCache[channelId]
         if (inMemory != null && inMemory.isNotEmpty()) {
@@ -119,6 +124,7 @@ class FirestoreChatRepository(
     }
 
     override suspend fun sendMessage(channelId: String, message: TextMessage) {
+        transportBridge.requireFirestore("FirestoreChatRepository#sendMessage")
         chatChannelsCollection
             .document(channelId)
             .collection("messages")

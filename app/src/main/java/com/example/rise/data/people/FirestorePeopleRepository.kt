@@ -1,6 +1,7 @@
 package com.example.rise.data.people
 
 import com.example.rise.models.User
+import com.example.rise.transport.TransportRuntimeBridge
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
@@ -9,10 +10,12 @@ import kotlinx.coroutines.flow.callbackFlow
 
 class FirestorePeopleRepository(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val transportBridge: TransportRuntimeBridge,
 ) : PeopleRepository {
 
     override fun observePeople(): Flow<List<PersonSummary>> = callbackFlow {
+        transportBridge.requireFirestore("FirestorePeopleRepository#observePeople")
         val registration = firestore.collection("users")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {

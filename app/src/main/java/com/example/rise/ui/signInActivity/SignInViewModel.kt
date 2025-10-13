@@ -1,11 +1,15 @@
 package com.example.rise.ui.signInActivity
 
+import android.net.Uri
 import android.util.Patterns
 import androidx.credentials.Credential
 import androidx.credentials.PasswordCredential
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.rise.data.auth.SignInRepository
+import com.example.rise.data.auth.TelegramAuthData
+import com.example.rise.data.auth.TelegramAuthRepository
+import com.example.rise.data.auth.TelegramAuthResponse
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
@@ -19,10 +23,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import androidx.core.net.toUri
 
 class SignInViewModel(
     private val firebaseAuth: FirebaseAuth,
     private val repository: SignInRepository,
+    private val telegramRepository: TelegramAuthRepository,
     private val emailValidator: EmailValidator = DefaultEmailValidator,
 ) : ViewModel() {
 
@@ -133,6 +139,30 @@ class SignInViewModel(
         emitMessage(message)
     }
 
+    fun showMessage(message: String) {
+        emitMessage(message)
+    }
+
+    fun signInWithTelegram(authData: TelegramAuthData) {
+        viewModelScope.launch {
+            setLoading(true)
+            try {
+                val response = telegramRepository.exchange(authData)
+                // The backend still issues Firebase custom tokens, so we complete the flow by authenticating with Firebase before continuing the app sign-in pipeline.
+                firebaseAuth.signInWithCustomToken(response.customToken).await()
+                updateProfileIfNeeded(response)
+                finalizeSignIn()
+            } catch (error: Exception) {
+                when (error) {
+                    is FirebaseAuthException -> handleAuthError(error)
+                    else -> emitMessage(error.message ?: "Failed to sign in with Telegram")
+                }
+            } finally {
+                setLoading(false)
+            }
+        }
+    }
+
     private fun signInWithPasswordCredential(credential: PasswordCredential) {
         viewModelScope.launch {
             setLoading(true)
@@ -184,6 +214,29 @@ class SignInViewModel(
             else -> error.localizedMessage ?: "Authentication failed"
         }
         _events.emit(Event.ShowMessage(message))
+    }
+
+    private suspend fun updateProfileIfNeeded(response: TelegramAuthResponse) {
+        val currentUser = firebaseAuth.currentUser ?: return
+        val updateBuilder = UserProfileChangeRequest.Builder()
+
+        var needsUpdate = false
+        if (!response.displayName.isNullOrBlank() && currentUser.displayName.isNullOrBlank()) {
+            updateBuilder.setDisplayName(response.displayName)
+            needsUpdate = true
+        }
+
+        if (!response.photoUrl.isNullOrBlank()) {
+            val photoUri = runCatching { response.photoUrl.toUri() }.getOrNull()
+            if (photoUri != null) {
+                updateBuilder.photoUri = photoUri
+                needsUpdate = true
+            }
+        }
+
+        if (needsUpdate) {
+            runCatching { currentUser.updateProfile(updateBuilder.build()).await() }
+        }
     }
 
     private fun emitMessage(message: String) {

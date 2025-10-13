@@ -40,6 +40,7 @@
     <string name="sign_in_button">Sign in</string>
     <string name="sign_in_create_account">Create account</string>
     <string name="sign_in_use_saved">Use saved credentials</string>
+    <string name="sign_in_continue_telegram">Continue with Telegram</string>
     <string name="sign_in_mode_register">Need an account? Sign up</string>
     <string name="sign_in_mode_sign_in">Already have an account? Sign in</string>
     <string name="sign_in_email_hint">Email</string>
@@ -48,10 +49,27 @@
     <string name="sign_out">Sign Out</string>
     <string name="my_bio">My Bio</string>
     <string name="my_name">My Name</string>
+    <string name="sign_in_telegram_not_configured">Telegram sign-in is not configured yet. Please update the app configuration.</string>
+    <string name="sign_in_telegram_cancelled">Telegram sign-in was cancelled.</string>
+    <string name="sign_in_telegram_missing_data">Unable to retrieve Telegram account details.</string>
+    <string name="sign_in_telegram_disabled">Telegram sign-in is currently disabled.</string>
 
 
     <!-- Digital Asset Links placeholder used by Credential Manager; update domain and fingerprints when available. -->
     <string name="asset_statements">[{"include": "https://example.com/.well-known/assetlinks.json"}]</string>
+
+    <string name="feature_flags_title">Feature Flags</string>
+    <string name="feature_flags_transport_mode_label">Briar transport mode</string>
+    <string name="feature_flags_transport_mode_description">Select the messaging backend used by the app. Changes apply immediately.</string>
+    <string name="feature_flags_selected_value">Current: %1$s</string>
+    <string name="feature_flags_selected_value_loading">Current: Loading...</string>
+    <string name="mode_firestore">Firestore (default)</string>
+    <string name="mode_hybrid">Hybrid (experimental)</string>
+    <string name="mode_briar">Briar only (work in progress)</string>
+    <string name="menu_feature_flags">Feature flags</string>
+    <string name="feature_flags_transport_mode_stage0_warning">Only the Firestore transport is available during Stage 0.</string>
+    <string name="feature_flags_telegram_label">Telegram sign-in</string>
+    <string name="feature_flags_telegram_description">Gate the experimental Telegram login button while the backend connector is incomplete.</string>
 
 
 </resources>
