@@ -13,7 +13,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.example.rise.baseclasses.BaseFragment
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.FragmentMyAccountBinding
-import com.example.rise.ui.dashboardNavigation.myAccount.signInActivity.SignInActivity
+import com.example.rise.ui.signInActivity.SignInActivity
 import kotlinx.coroutines.launch
 
 class MyAccountFragment : BaseFragment() {

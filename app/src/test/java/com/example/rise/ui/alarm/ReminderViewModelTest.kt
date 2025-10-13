@@ -1,8 +1,8 @@
 package com.example.rise.ui.alarm
 
 import app.cash.turbine.test
-import com.example.rise.data.alarm.ReminderPreferences
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.data.ReminderPreferences
+import com.example.rise.ui.alarm.models.Alarm
 import com.example.rise.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy

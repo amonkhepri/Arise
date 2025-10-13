@@ -30,18 +30,27 @@ abstract class MessageItem(open val message: Message) : BindableItem<ItemTextMes
 
     private fun setMessageRootGravity(viewBinding: ItemTextMessageBinding) {
         val messageRoot = viewBinding.messageRoot
+        val context = viewBinding.root.context
         if (message.senderId == FirebaseAuth.getInstance().currentUser?.uid) {
             messageRoot.apply {
                 setBackgroundResource(R.drawable.rect_round_white)
                 val lParams = FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.END)
                 layoutParams = lParams
             }
+            // Set text color for my messages
+            val textColor = context.getColor(R.color.myMessageTextColor)
+            viewBinding.textViewMessageText.setTextColor(textColor)
+            viewBinding.textViewMessageTime.setTextColor(textColor)
         } else {
             messageRoot.apply {
                 setBackgroundResource(R.drawable.rect_round_primary_color)
                 val lParams = FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.START)
                 layoutParams = lParams
             }
+            // Set text color for other messages
+            val textColor = context.getColor(R.color.messageTextColor)
+            viewBinding.textViewMessageText.setTextColor(textColor)
+            viewBinding.textViewMessageTime.setTextColor(textColor)
         }
     }
 }

@@ -1,29 +1,46 @@
 package com.example.rise.ui.dashboardNavigation.people.chatActivity
 
-import android.content.Intent
+import android.app.TimePickerDialog
+import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
+import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
+import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.databinding.ActivityChatBinding
+import com.example.rise.extensions.scheduleNextAlarm
 import com.example.rise.helpers.AppConstants
-import com.example.rise.helpers.CHAT_CHANNEL
-import com.example.rise.helpers.MESSAGE_CONTENT
 import com.example.rise.item.TextMessageItem
-import com.example.rise.ui.mainActivity.MainActivity
+import com.example.rise.ui.alarm.models.Alarm
+import com.google.firebase.auth.FirebaseAuth
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
 import com.xwray.groupie.Section
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
+import java.util.Calendar
 
 class ChatActivity : BaseActivity() {
 
     private val viewModel: ChatViewModel by viewModels {
         koinViewModelFactory(ChatViewModel::class)
     }
+
+    private val alarmRepository: AlarmRepository by inject()
+    private val auth: FirebaseAuth by inject()
 
     private lateinit var binding: ActivityChatBinding
     private val messagesSection = Section()
@@ -34,23 +51,39 @@ class ChatActivity : BaseActivity() {
         binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.setNavigationOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+
         val otherUserId = intent.getStringExtra(AppConstants.USER_ID).orEmpty()
         val otherUserName = intent.getStringExtra(AppConstants.USER_NAME).orEmpty()
         supportActionBar?.title = otherUserName
+        setTitleColor()
 
         setupRecyclerView()
         setupListeners()
 
-        lifecycleScope.launchWhenStarted {
-            viewModel.uiState.collectLatest { state ->
-                renderState(state)
-            }
-        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.uiState.collectLatest { state ->
+                        renderState(state)
+                    }
+                }
 
-        lifecycleScope.launchWhenStarted {
-            viewModel.events.collect { event ->
-                when (event) {
-                    is ChatViewModel.ChatEvent.LaunchSchedule -> handleScheduleEvent(event)
+                launch {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            is ChatViewModel.ChatEvent.ShowTimePicker -> showTimePicker(event.messageText)
+                            is ChatViewModel.ChatEvent.ScheduleAlarm -> handleScheduleAlarm(event)
+                        }
+                    }
                 }
             }
         }
@@ -74,26 +107,104 @@ class ChatActivity : BaseActivity() {
 
         binding.sendWithDelay.setOnClickListener {
             val message = binding.editTextMessage.text.toString()
+            if (message.trim().isEmpty()) {
+                Toast.makeText(this, "Please enter a message first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             viewModel.scheduleMessage(message)
-            binding.editTextMessage.setText("")
         }
     }
 
     private fun renderState(state: ChatViewModel.ChatUiState) {
         supportActionBar?.title = state.title
+        setTitleColor()
         val items = state.messages.map { message -> TextMessageItem(message) }
-        messagesSection.update(items)
-        if (items.isNotEmpty()) {
-            binding.recyclerViewMessages.scrollToPosition(items.lastIndex)
+
+        // Only update if the list actually changed
+        if (messagesSection.itemCount != items.size) {
+            messagesSection.update(items)
+            if (items.isNotEmpty()) {
+                binding.recyclerViewMessages.scrollToPosition(items.lastIndex)
+            }
+        }
+
+        // Show error messages
+        state.errorMessage?.let { error ->
+            Toast.makeText(this, error, Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun handleScheduleEvent(event: ChatViewModel.ChatEvent.LaunchSchedule) {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            putExtra("UsrID", event.otherUserId)
-            putExtra(MESSAGE_CONTENT, event.message)
-            putExtra(CHAT_CHANNEL, event.channelId)
+    private fun showTimePicker(messageText: String) {
+        val calendar = Calendar.getInstance()
+        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+        val currentMinute = calendar.get(Calendar.MINUTE)
+
+        TimePickerDialog(
+            this,
+            R.style.CustomTimePickerDialog,
+            { _, hourOfDay, minute ->
+                val selectedCalendar = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    set(Calendar.MINUTE, minute)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+
+                    // If the selected time is in the past, add one day
+                    if (timeInMillis < System.currentTimeMillis()) {
+                        add(Calendar.DAY_OF_YEAR, 1)
+                    }
+                }
+                viewModel.confirmScheduleMessage(messageText, selectedCalendar.timeInMillis)
+                binding.editTextMessage.setText("")
+            },
+            currentHour,
+            currentMinute,
+            false // Use 12-hour format
+        ).apply {
+            setTitle("Schedule message")
+            show()
         }
-        startActivity(intent)
+    }
+
+    private fun handleScheduleAlarm(event: ChatViewModel.ChatEvent.ScheduleAlarm) {
+        lifecycleScope.launch {
+            try {
+                val userId = auth.currentUser?.uid ?: return@launch
+                val alarm = Alarm(
+                    idTimeStamp = System.currentTimeMillis().toInt(),
+                    timeInMiliseconds = event.timeInMillis,
+                    userName = auth.currentUser?.displayName.orEmpty(),
+                    chatChannel = event.channelId,
+                    messsage = event.message,
+                )
+                alarmRepository.saveAlarm(userId, alarm)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    scheduleNextAlarm(alarm, true)
+                }
+                Toast.makeText(this@ChatActivity, "Message scheduled", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@ChatActivity, "Failed to schedule: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun setTitleColor() {
+        supportActionBar?.title?.let { title ->
+            val receiverNameGray = ContextCompat.getColor(this, R.color.receiverNameGray)
+            val spannableTitle = SpannableString(title)
+            spannableTitle.setSpan(
+                ForegroundColorSpan(receiverNameGray),
+                0,
+                title.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            spannableTitle.setSpan(
+                StyleSpan(Typeface.BOLD),
+                0,
+                title.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            supportActionBar?.title = spannableTitle
+        }
     }
 }

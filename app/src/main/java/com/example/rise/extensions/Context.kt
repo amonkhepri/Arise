@@ -8,7 +8,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import java.util.*
 import com.example.rise.R
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import android.net.Uri
 import android.graphics.Color
 import android.media.RingtoneManager
@@ -16,52 +16,64 @@ import android.os.*
 import android.text.SpannableString
 import android.text.TextUtils
 import android.text.style.RelativeSizeSpan
+import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.AlarmManagerCompat
 import androidx.core.app.NotificationCompat
-import com.example.rise.models.AlarmSound
+import com.example.rise.ui.alarm.models.AlarmSound
 import com.example.rise.helpers.*
-import com.example.rise.receivers.AlarmReceiver
-import com.example.rise.receivers.HideAlarmReceiver
-import com.example.rise.services.SnoozeService
+import com.example.rise.ui.alarm.receivers.AlarmReceiver
+import com.example.rise.ui.alarm.receivers.HideAlarmReceiver
+import com.example.rise.ui.alarm.services.SnoozeService
 import com.example.rise.ui.mainActivity.MainActivity
 import com.example.rise.ui.alarm.SnoozeReminderActivity
 import java.io.File
 import java.util.regex.Pattern
+import androidx.core.net.toUri
 
-
-fun Context.isScreenOn() = (getSystemService(Context.POWER_SERVICE) as PowerManager).isScreenOn
 
 fun Context.updateTextColors(viewGroup: ViewGroup, tmpTextColor: Int = 0, tmpAccentColor: Int = 0) {
     val textColor = if (tmpTextColor == 0) baseConfig.textColor else tmpTextColor
     val backgroundColor = baseConfig.backgroundColor
     val accentColor = if (tmpAccentColor == 0) {
-        if (isBlackAndWhiteTheme()) {
-            Color.WHITE
-        } else {
-            baseConfig.primaryColor
-        }
+        if (isBlackAndWhiteTheme()) Color.WHITE else baseConfig.primaryColor
     } else {
         tmpAccentColor
     }
+
+    fun applyToView(view: View) {
+        when (view) {
+            is ViewGroup -> {
+                for (i in 0 until view.childCount) {
+                    applyToView(view.getChildAt(i))
+                }
+            }
+            is MyTextView -> view.setColors(textColor, accentColor, backgroundColor)
+            is TextView -> view.setTextColor(textColor)
+            is Button -> view.setTextColor(textColor)
+        }
+    }
+
+    applyToView(viewGroup)
 }
 
-fun Context.getDefaultAlarmUri(type: Int) = RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
+fun Context.getDefaultAlarmUri(type: Int): Uri? = RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
 
 fun Context.getDefaultAlarmTitle(type: Int): String {
     val alarmString = getString(R.string.alarm)
     return try {
         RingtoneManager.getRingtone(this, getDefaultAlarmUri(type))?.getTitle(this) ?: alarmString
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         alarmString
     }
 }
 
 fun Context.getLaunchIntent() = packageManager.getLaunchIntentForPackage(baseConfig.appId)
 
-@RequiresApi(Build.VERSION_CODES.M)
 fun Context.showAlarmNotification(alarm: Alarm) {
     val pendingIntent = getOpenAlarmTabIntent()
     val notification = getAlarmNotification(pendingIntent, alarm)
@@ -81,22 +93,22 @@ fun Context.showRemainingTimeMessage(totalMinutes: Int) {
 @RequiresApi(Build.VERSION_CODES.M)
 fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
     val intent = Intent(this, AlarmReceiver::class.java)
-    var bundle = Bundle()
+    val bundle = Bundle()
 
     bundle.putParcelable("alarm", alarm)
     intent.putExtra(MESSAGE_CONTENT, bundle)
     intent.putExtra(ALARM_ID, alarm.idTimeStamp)
 
-    var pendingIntent : PendingIntent = PendingIntent.getBroadcast (
+    val pendingIntent : PendingIntent = PendingIntent.getBroadcast (
         this,
         alarm.idTimeStamp,
         intent,
-        PendingIntent.FLAG_UPDATE_CURRENT
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    var alarmManage : AlarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    // TODO time isn't exact, using "setAlarmClock() instead might be a solution to this dilema
-        alarmManage.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarm.timeInMiliseconds.toLong(), pendingIntent)
+    val alarmManager : AlarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    // TODO time isn't exact, using "setAlarmClock()" instead might be a solution to this dilemma
+    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarm.timeInMiliseconds.toLong(), pendingIntent)
 }
 
 fun Context.formatMinutesToTimeString(totalMinutes: Int) = formatSecondsToTimeString(totalMinutes * 60)
@@ -129,14 +141,14 @@ fun Context.getOpenAlarmTabIntent(): PendingIntent {
         this,
         OPEN_ALARMS_TAB_INTENT_ID,
         intent,
-        PendingIntent.FLAG_UPDATE_CURRENT
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 }
 
 fun Context.getAlarmIntent(alarm: Int): PendingIntent {
     val intent = Intent(this, AlarmReceiver::class.java)
     intent.putExtra(ALARM_ID, alarm)
-    return PendingIntent.getBroadcast(this, alarm, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+    return PendingIntent.getBroadcast(this, alarm, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 }
 
 fun Context.grantReadUriPermission(uriString: String) {
@@ -144,11 +156,11 @@ fun Context.grantReadUriPermission(uriString: String) {
         // ensure custom reminder sounds play well
         grantUriPermission(
             "com.android.systemui",
-            Uri.parse(uriString),
+            uriString.toUri(),
             Intent.FLAG_GRANT_READ_URI_PERMISSION
         )
-    } catch (ignored: Exception) {
-
+    } catch (_: Exception) {
+        // no-op
     }
 }
 
@@ -187,16 +199,15 @@ fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): No
         }
     }
 
-    val builder = NotificationCompat.Builder(this)
+    val builder = NotificationCompat.Builder(this, channelId)
         .setContentTitle(label)
         .setContentText(getFormattedTime(getPassedSeconds(), false, false))
         .setSmallIcon(R.drawable.ic_alarm)
         .setContentIntent(pendingIntent)
-        .setPriority(Notification.PRIORITY_HIGH)
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
         .setDefaults(Notification.DEFAULT_LIGHTS)
         .setAutoCancel(true)
         .setSound(Uri.parse(soundUri), AudioManager.STREAM_ALARM)
-        .setChannelId(channelId)
         .addAction(R.drawable.ic_snooze, getString(R.string.snooze), getSnoozePendingIntent(alarm))
         .addAction(
             R.drawable.ic_cross,
@@ -235,8 +246,8 @@ fun Context.toast(msg: String, length: Int = Toast.LENGTH_SHORT) {
                 Toast.makeText(applicationContext, msg, length).show()
             }
         }
-    } catch (e: Exception) {
-
+    } catch (_: Exception) {
+        // best effort toast
     }
 }
 
@@ -254,13 +265,13 @@ fun Context.getSnoozePendingIntent(alarm: Alarm): PendingIntent {
     val intent = Intent(this, snoozeClass).setAction("Snooze")
     intent.putExtra(ALARM_ID, alarm.idTimeStamp)
     return if (config.useSameSnooze) {
-        PendingIntent.getService(this, alarm.idTimeStamp, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        PendingIntent.getService(this, alarm.idTimeStamp, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     } else {
         PendingIntent.getActivity(
             this,
             alarm.idTimeStamp,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
 }
@@ -272,7 +283,7 @@ fun Context.getHideAlarmPendingIntent(alarm: Alarm): PendingIntent {
         this,
         alarm.idTimeStamp,
         intent,
-        PendingIntent.FLAG_UPDATE_CURRENT
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 }
 
@@ -406,7 +417,7 @@ fun Context.getSDCardPath(): String {
 
     val fullSDpattern = Pattern.compile("^/storage/[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$")
     var sdCardPath = directories.firstOrNull { fullSDpattern.matcher(it).matches() }
-        ?: directories.firstOrNull { !physicalPaths.contains(it.toLowerCase()) } ?: ""
+        ?: directories.firstOrNull { !physicalPaths.contains(it.lowercase(Locale.ROOT)) } ?: ""
 
     // on some devices no method retrieved any SD card path, so test if its not sdcard1 by any chance. It happened on an Android 5.1
     if (sdCardPath.trimEnd('/').isEmpty()) {
@@ -426,7 +437,7 @@ fun Context.getSDCardPath(): String {
                     sdCardPath = "/storage/${it.name}"
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
     }
 
@@ -493,21 +504,21 @@ fun Context.getStorageDirectories(): Array<String> {
         try {
             Integer.valueOf(lastFolder)
             isDigit = true
-        } catch (ignored: NumberFormatException) {
+        } catch (_: NumberFormatException) {
         }
 
         val rawUserId = if (isDigit) lastFolder else ""
         if (TextUtils.isEmpty(rawUserId)) {
-            if (rawEmulatedStorageTarget != null) {
-                paths.add(rawEmulatedStorageTarget)
-            }
+            rawEmulatedStorageTarget?.let(paths::add)
         } else {
-            paths.add(rawEmulatedStorageTarget + File.separator + rawUserId)
+            rawEmulatedStorageTarget?.let { target ->
+                paths.add(target + File.separator + rawUserId)
+            }
         }
     }
 
-    if (!TextUtils.isEmpty(rawSecondaryStoragesStr)) {
-        val rawSecondaryStorages = rawSecondaryStoragesStr!!.split(File.pathSeparator.toRegex())
+    if (!rawSecondaryStoragesStr.isNullOrEmpty()) {
+        val rawSecondaryStorages = rawSecondaryStoragesStr.split(File.pathSeparator.toRegex())
             .dropLastWhile(String::isEmpty).toTypedArray()
         Collections.addAll(paths, *rawSecondaryStorages)
     }

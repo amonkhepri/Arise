@@ -1,8 +1,7 @@
 package com.example.rise.data.myaccount
 
-import android.content.Context
 import com.example.rise.models.User
-import com.firebase.ui.auth.AuthUI
+import com.example.rise.transport.TransportRuntimeBridge
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineDispatcher
@@ -13,12 +12,12 @@ import kotlinx.coroutines.withContext
 class FirebaseMyAccountRepository(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val authUI: AuthUI,
-    private val context: Context,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val transportBridge: TransportRuntimeBridge,
 ) : MyAccountRepository {
 
     override suspend fun fetchCurrentUser(): User = withContext(ioDispatcher) {
+        transportBridge.requireFirestore("FirebaseMyAccountRepository#fetchCurrentUser")
         val uid = auth.currentUser?.uid ?: throw IllegalStateException("UID is null.")
         val snapshot = firestore.collection("users").document(uid).get().await()
         snapshot.toObject(User::class.java) ?: throw IllegalStateException("User not found")
@@ -26,6 +25,7 @@ class FirebaseMyAccountRepository(
 
     override suspend fun updateCurrentUser(name: String, bio: String) {
         withContext(ioDispatcher) {
+            transportBridge.requireFirestore("FirebaseMyAccountRepository#updateCurrentUser")
             val uid = auth.currentUser?.uid ?: throw IllegalStateException("UID is null.")
             val updates = mutableMapOf<String, Any>()
             if (name.isNotBlank()) {
@@ -42,7 +42,7 @@ class FirebaseMyAccountRepository(
 
     override suspend fun signOut() {
         withContext(ioDispatcher) {
-            authUI.signOut(context).await()
+            auth.signOut()
         }
     }
 }

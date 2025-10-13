@@ -2,9 +2,9 @@ package com.example.rise.ui.alarm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.rise.data.alarm.ReminderPreferences
+import com.example.rise.ui.alarm.data.ReminderPreferences
 import com.example.rise.helpers.MINUTE_SECONDS
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow

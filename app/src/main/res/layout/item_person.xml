@@ -8,11 +8,13 @@
     android:layout_height="70dp"
     android:layout_margin="4dp"
     android:foreground="?android:attr/selectableItemBackground"
-    app:cardBackgroundColor="@android:color/white"
+    app:cardBackgroundColor="@color/cardBackground"
     android:clickable="true"
     android:focusable="true"
-    app:cardCornerRadius="4dp"
-    app:cardElevation="4dp">
+    app:cardCornerRadius="8dp"
+    app:cardElevation="8dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="?attr/colorOutline">
 
     <RelativeLayout
         android:layout_width="match_parent"

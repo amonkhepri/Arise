@@ -5,8 +5,9 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.rise.databinding.RecyclerAlarmItemBinding
-import com.example.rise.models.Alarm
+import com.example.rise.ui.alarm.models.Alarm
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -21,6 +22,16 @@ open class MyFireStoreAlarmRecyclerViewAdapter(
 
     lateinit var alarm: Alarm
     open var otherUsrId: String? = null
+
+    override fun onDocumentAdded(change: DocumentChange) {
+        // Filter out past alarms
+        val alarm = change.document.toObject(Alarm::class.java)
+        if (alarm.timeInMiliseconds > System.currentTimeMillis()) {
+            // Add to the end of the list instead of using Firestore's index
+            mSnapshots.add(change.document)
+            notifyItemInserted(mSnapshots.size - 1)
+        }
+    }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(getSnapshot(position))
@@ -38,6 +49,15 @@ open class MyFireStoreAlarmRecyclerViewAdapter(
             val formattedTime = getDateTime(alarm.timeInMiliseconds)
             binding.setTime.text = formattedTime
             binding.displayName.text = alarm.userName
+
+            // Display message text if available
+            val messageText = alarm.messsage?.text
+            if (!messageText.isNullOrEmpty()) {
+                binding.messageText.text = messageText
+                binding.messageText.visibility = android.view.View.VISIBLE
+            } else {
+                binding.messageText.visibility = android.view.View.GONE
+            }
 
             binding.deleteButton.setOnClickListener {
                 if (otherUsrId != null) {

@@ -68,7 +68,7 @@ class ChatViewModelTest {
     }
 
     @org.junit.Test
-    fun `scheduleMessage emits navigation event`() = runTest {
+    fun `scheduleMessage emits time picker event and confirm schedules alarm`() = runTest {
         val repository = FakeChatRepository().apply { messages.tryEmit(emptyList()) }
         val viewModel = ChatViewModel(repository, fixedClock)
         viewModel.initialiseConversation("other", "Bob")
@@ -76,12 +76,19 @@ class ChatViewModelTest {
 
         viewModel.events.test {
             viewModel.scheduleMessage("Later")
-            val event = awaitItem()
-            assertTrue(event is ChatViewModel.ChatEvent.LaunchSchedule)
-            val schedule = event as ChatViewModel.ChatEvent.LaunchSchedule
+            val showPickerEvent = awaitItem()
+            assertTrue(showPickerEvent is ChatViewModel.ChatEvent.ShowTimePicker)
+            val picker = showPickerEvent as ChatViewModel.ChatEvent.ShowTimePicker
+            assertEquals("Later", picker.messageText)
+
+            viewModel.confirmScheduleMessage("Later", 42_000L)
+            val scheduleEvent = awaitItem()
+            assertTrue(scheduleEvent is ChatViewModel.ChatEvent.ScheduleAlarm)
+            val schedule = scheduleEvent as ChatViewModel.ChatEvent.ScheduleAlarm
             assertEquals("other", schedule.otherUserId)
             assertEquals(repository.channelId, schedule.channelId)
             assertEquals("Later", schedule.message.text)
+            assertEquals(42_000L, schedule.timeInMillis)
             cancelAndIgnoreRemainingEvents()
         }
     }
