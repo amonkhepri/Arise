@@ -1,0 +1,21 @@
+// Only include the pure JVM modules in the composite build. The Android-facing modules still
+// rely on AGP 7.x; evaluating them alongside Arise's AGP 8.x toolchain triggers a hard failure.
+// If we ever migrate Briar's Android modules to AGP 8.x we can re-add them here.
+include ':bramble-api'
+include ':bramble-core'
+include ':bramble-java'
+include ':briar-api'
+include ':briar-core'
+include ':briar-headless'
+// Enable the mailbox integration tests by passing
+// `MAILBOX_INTEGRATION_TESTS=true ./gradlew mailbox-integration-tests:test`
+// on the command line (for CI etc) or set `briar.mailbox_integration_tests=true`
+// in gradle.properties to enable the modules for local development.
+if (ext.has("briar.mailbox_integration_tests") && ext.get("briar.mailbox_integration_tests") == "true"
+		|| System.env.MAILBOX_INTEGRATION_TESTS) {
+	include ':mailbox-integration-tests'
+	include(":mailbox-core")
+	include(":mailbox-lib")
+	project(":mailbox-core").projectDir = file("briar-mailbox/mailbox-core")
+	project(":mailbox-lib").projectDir = file("briar-mailbox/mailbox-lib")
+}
