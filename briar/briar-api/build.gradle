@@ -1,0 +1,26 @@
+apply plugin: 'java-library'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+apply plugin: 'ru.vyarus.animalsniffer'
+
+def disableWitnessFlag = (rootProject.findProperty('briar.disableWitness')
+	?: System.getProperty('briar.disableWitness')
+	?: System.getenv('BRIAR_DISABLE_WITNESS'))?.toString()?.toBoolean()
+
+if (!(disableWitnessFlag ?: false)) {
+	apply plugin: 'witness'
+	apply from: 'witness.gradle'
+} else {
+	logger.lifecycle("Skipping Witness dependency verification for ${project.path}")
+}
+
+dependencies {
+	implementation project(':bramble-api')
+
+	signature 'org.codehaus.mojo.signature:java16:1.1@signature'
+
+	testImplementation project(path: ':bramble-api', configuration: 'testOutput')
+
+	testImplementation "junit:junit:$junit_version"
+}

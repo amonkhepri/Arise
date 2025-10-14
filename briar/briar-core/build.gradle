@@ -1,0 +1,59 @@
+apply plugin: 'java-library'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+apply plugin: 'ru.vyarus.animalsniffer'
+apply plugin: 'idea'
+
+def disableWitnessFlag = (rootProject.findProperty('briar.disableWitness')
+	?: System.getProperty('briar.disableWitness')
+	?: System.getenv('BRIAR_DISABLE_WITNESS'))?.toString()?.toBoolean()
+
+if (!(disableWitnessFlag ?: false)) {
+	apply plugin: 'witness'
+	apply from: 'witness.gradle'
+} else {
+	logger.lifecycle("Skipping Witness dependency verification for ${project.path}")
+}
+
+apply from: '../dagger.gradle'
+
+dependencies {
+	api project(':briar-api')
+
+	implementation project(':bramble-core')
+
+	implementation 'com.rometools:rome:2.1.0'
+	implementation 'org.jdom:jdom2:2.0.6.1'
+	implementation "org.jsoup:jsoup:$jsoup_version"
+	implementation "com.squareup.okhttp3:okhttp:$okhttp_version"
+
+	annotationProcessor "com.google.dagger:dagger-compiler:$dagger_version"
+
+	testImplementation project(path: ':bramble-api', configuration: 'testOutput')
+	testImplementation project(path: ':bramble-core', configuration: 'testOutput')
+
+	testImplementation 'net.jodah:concurrentunit:0.4.6'
+	testImplementation "junit:junit:$junit_version"
+	testImplementation "org.jmock:jmock:$jmock_version"
+	testImplementation "org.jmock:jmock-junit4:$jmock_version"
+	testImplementation "org.jmock:jmock-imposters:$jmock_version"
+	testImplementation "com.squareup.okhttp3:mockwebserver:$mockwebserver_version"
+
+	testAnnotationProcessor "com.google.dagger:dagger-compiler:$dagger_version"
+
+	signature 'org.codehaus.mojo.signature:java16:1.1@signature'
+}
+
+// needed to make test output available to briar-headless
+configurations {
+	testOutput.extendsFrom(testImplementation)
+}
+tasks.register('jarTest', Jar) {
+	dependsOn(tasks.named('testClasses'))
+	from(sourceSets.test.output, sourceSets.main.output)
+	archiveClassifier.set('test')
+}
+artifacts {
+	testOutput(tasks.named('jarTest'))
+}
