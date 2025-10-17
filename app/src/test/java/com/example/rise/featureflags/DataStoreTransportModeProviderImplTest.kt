@@ -20,7 +20,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class DataStoreTransportModeProviderTest {
+class DataStoreTransportModeProviderImplTest {
 
     @get:Rule
     val temporaryFolder = TemporaryFolder()
@@ -28,11 +28,11 @@ class DataStoreTransportModeProviderTest {
     private lateinit var scope: CoroutineScope
     private lateinit var dataStore: DataStore<Preferences>
 
-    private fun setUpDataStore(): DataStoreTransportModeProvider {
+    private fun setUpDataStore(): DataStoreTransportModeProviderImpl {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val file = File(temporaryFolder.newFolder(), "transport_mode.preferences_pb")
         dataStore = PreferenceDataStoreFactory.create(scope = scope, produceFile = { file })
-        return DataStoreTransportModeProvider(dataStore)
+        return DataStoreTransportModeProviderImpl(dataStore)
     }
 
     @After

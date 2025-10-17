@@ -4,7 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import com.example.rise.featureflags.BriarTransportMode
-import com.example.rise.featureflags.DataStoreTransportModeProvider
+import com.example.rise.featureflags.DataStoreTransportModeProviderImpl
 import com.example.rise.featureflags.TelegramAuthFlagProvider
 import com.example.rise.util.MainDispatcherRule
 import java.io.File
@@ -31,7 +31,7 @@ class FeatureFlagsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var scope: CoroutineScope
     private lateinit var dataStore: DataStore<Preferences>
-    private lateinit var transportProvider: DataStoreTransportModeProvider
+    private lateinit var transportProvider: DataStoreTransportModeProviderImpl
     private lateinit var telegramProvider: TelegramAuthFlagProvider
 
     private fun drain() {
@@ -44,7 +44,7 @@ class FeatureFlagsViewModelTest {
         scope = CoroutineScope(SupervisorJob() + dispatcher)
         val file = File(temporaryFolder.newFolder(), "flags.preferences_pb")
         dataStore = PreferenceDataStoreFactory.create(scope = scope, produceFile = { file })
-        transportProvider = DataStoreTransportModeProvider(dataStore)
+        transportProvider = DataStoreTransportModeProviderImpl(dataStore)
         telegramProvider = TelegramAuthFlagProvider(dataStore)
         return FeatureFlagsViewModel(transportProvider, telegramProvider)
     }

@@ -10,20 +10,27 @@ Staged Plan
       - Add a BriarRuntimeManager façade registered in Koin that lazily instantiates the Dagger graph, exposes only bridge interfaces (e.g., BriarChatGateway, BriarContactService), and handles lifecycle start/stop when the flag changes.
       - Provide a BriarComponentFactory binding so instrumentation and unit tests can supply fakes while production builds construct the real component.
       - Add diagnostics (logging + background service stub) to confirm the component initialises and shuts down safely under instrumentation without touching existing repositories.
-  - Stage 2 – Chat Dual Stack (flag: HYBRID opt-in)
-      - Extend ChatRepository and related ViewModels to branch on the flag: keep Firestore for FIRESTORE, route through a new BriarChatRepository when HYBRID.
-      - Implement translation layers from Briar PrivateMessages to existing TextMessage models, using flows sourced from Briar’s event bus.
-      - Persist a canonical chat timeline in the current local store, tagging entries with their transport source and original message identifiers so toggling modes preserves history and deduplication.
-      - Provide migration helpers (e.g., UI switch in QA build) so testers can move between Firestore and Briar chat in one session.
-      - Validate send/receive, account bootstrap, and contact sync via automated smoke tests under the flag.
-  - Stage 3 – People & Presence (flag: HYBRID default)
-      - Replace FirestorePeopleRepository with a dual implementation: Firestore remains for FIRESTORE, ContactManager wrapper for HYBRID/BRIAR_ONLY.
-      - Audit other chat-adjacent flows (notifications, SnoozeService) to ensure they degrade gracefully when Briar is active.
-      - Gather UX feedback on the Briar-backed experience while the legacy path is still available.
-  - Stage 4 – Supporting Services (flag: transition to BRIAR_ONLY)
-      - Rehome non-chat Firestore usages (alarms, FCM tokens, dashboard queries) either to Briar group messaging, local storage, or new sync primitives.
-      - Once parity is achieved, flip the default flag to BRIAR_ONLY in internal builds while keeping the ability to fall back for emergency hotfixes.
-  - Stage 5 – Cleanup (flag: BRIAR_ONLY shipped)
+  - Stage 2 – Transport Router Foundation (flag: HYBRID opt-in)
+      - Introduce a transport router that keeps Briar as the canonical path while letting additional connectors (Firestore for now) plug in as secondary transports.
+      - Extend ChatRepository/ViewModels to route through the transport router rather than branching per repository, ensuring Firestore continues to serve FIRESTORE mode while HYBRID leverages Briar-first delivery.
+      - Map all inbound/outbound payloads into a shared conversation model with canonical participant identities and per-message transport metadata.
+      - Persist the unified timeline with transport provenance so connectors can be added or removed without data loss, and add migration helpers so testers can move between modes in a single session.
+      - Cover routing rules (e.g., fallback to Briar when a peer lacks another connector) with targeted integration tests.
+  - Stage 3 – People, Presence & Connector Framework (flag: HYBRID default)
+      - Replace FirestorePeopleRepository with Briar-backed presence/contact flows while exposing connector capability data through the transport router.
+      - Define a connector onboarding contract (auth lifecycle, capability handshake, failure isolation) that future services must implement.
+      - Update chat UI to present a single conversation surface with inline transport badges and connector-aware status indicators.
+      - Exercise connector lifecycle (enable/disable, transient failures) in QA builds and collect usability feedback while legacy paths remain available.
+  - Stage 4 – Telegram Connector Bridge (flag: targeted rollout)
+      - Graduate the Telegram auth flag, wire the Telegram connector into the transport router, and ensure Briar relays messages to peers lacking Telegram.
+      - Sync Telegram contacts through the shared identity model, reconciling matches with Briar contacts and prompting for link/merge conflicts.
+      - Validate bidirectional send/receive, delivery receipts, and error handling across Briar↔Telegram conversations via automated smoke scenarios.
+      - Produce QA runbooks leveraging `agent-tools/` scripts for mixed-network chat verification.
+  - Stage 5 – Supporting Services & Multi-Transport Hardening (flag: transition to BRIAR_ONLY)
+      - Rehome non-chat Firestore usages (alarms, FCM tokens, dashboard queries) to Briar primitives or local storage while confirming other connectors continue to operate.
+      - Build health monitoring/logging for each connector so outages degrade gracefully and Briar-only messaging remains unaffected.
+      - Once feature parity is achieved, flip HYBRID to the default mode in internal builds and keep an emergency fallback to Firestore.
+  - Stage 6 – Cleanup (flag: BRIAR_ONLY shipped)
       - Remove Firebase/Firestore dependencies, google-services.json, and dead code paths.
       - Migrate data/credential storage to Briar’s account system exclusively, finalise documentation, and update licensing/attribution for GPL compliance.
 

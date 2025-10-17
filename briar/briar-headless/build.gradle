@@ -11,6 +11,28 @@ plugins {
 	id 'org.jetbrains.kotlin.kapt'
 }
 
+kotlin {
+	jvmToolchain(17)
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+	kotlinOptions {
+		jvmTarget = "1.8"
+	}
+}
+
+kapt {
+	javacOptions {
+		option("-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED")
+		option("-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED")
+		option("-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED")
+		option("-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED")
+		option("-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED")
+		option("-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED")
+		option("-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED")
+	}
+}
+
 def disableWitnessFlag = (rootProject.findProperty('briar.disableWitness')
 	?: System.getProperty('briar.disableWitness')
 	?: System.getenv('BRIAR_DISABLE_WITNESS'))?.toString()?.toBoolean()

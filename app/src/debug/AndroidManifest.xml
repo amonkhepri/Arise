@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <receiver
+            android:name="com.example.rise.briar.work.BriarRuntimeDiagnosticsReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.rise.debug.RUN_BRIAR_RUNTIME_DIAGNOSTIC" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

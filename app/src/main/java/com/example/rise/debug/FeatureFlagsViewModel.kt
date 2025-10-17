@@ -49,13 +49,17 @@ class FeatureFlagsViewModel(
     }
 
     fun setMode(mode: BriarTransportMode) {
+        if (mode == _state.value.mode) return
+
         if (mode == BriarTransportMode.FIRESTORE) {
-            if (mode != _state.value.mode) {
-                viewModelScope.launch { transportModeProvider.setMode(mode) }
-            }
-        } else {
-            _events.tryEmit(Event.ShowMessageRes(R.string.feature_flags_transport_mode_stage0_warning))
+            viewModelScope.launch { transportModeProvider.setMode(mode) }
+            return
         }
+
+        // Stage 1 allows Hybrid/BRIAR_ONLY toggles, but we still surface a warning so testers
+        // know the experience is experimental.
+        _events.tryEmit(Event.ShowMessageRes(R.string.feature_flags_transport_mode_stage0_warning))
+        viewModelScope.launch { transportModeProvider.setMode(mode) }
     }
 
     fun setTelegramEnabled(enabled: Boolean) {

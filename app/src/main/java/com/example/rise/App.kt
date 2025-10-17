@@ -23,21 +23,27 @@ import com.example.rise.data.myaccount.MyAccountRepository
 import com.example.rise.data.people.FirestorePeopleRepository
 import com.example.rise.data.people.PeopleRepository
 import com.example.rise.helpers.Config
+import com.example.rise.briar.BriarRuntimeEnvironmentImpl
+import com.example.rise.briar.runtime.BriarComponentFactory
+import com.example.rise.briar.runtime.BriarRuntimeEnvironment
+import com.example.rise.briar.runtime.BriarRuntimeManager
+import com.example.rise.briar.runtime.BriarComponentFactoryImpl
+import com.example.rise.briar.runtime.BriarRuntimeManagerImpl
+import com.example.rise.debug.FeatureFlagsViewModel
+import com.example.rise.featureflags.DataStoreTransportModeProviderImpl
+import com.example.rise.featureflags.TransportModeProvider
+import com.example.rise.featureflags.TelegramAuthFlagProvider
+import com.example.rise.featureflags.transportModeDataStore
+import com.example.rise.transport.TransportRuntimeBridgeImpl
+import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.ui.SplashActivityViewModel
 import com.example.rise.ui.alarm.ReminderViewModel
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountViewModel
-import com.example.rise.ui.signInActivity.SignInViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
 import com.example.rise.ui.mainActivity.MainActivityViewModel
-import com.example.rise.debug.FeatureFlagsViewModel
-import com.example.rise.featureflags.DataStoreTransportModeProvider
-import com.example.rise.featureflags.TransportModeProvider
-import com.example.rise.featureflags.TelegramAuthFlagProvider
-import com.example.rise.featureflags.transportModeDataStore
-import com.example.rise.transport.DefaultTransportRuntimeBridge
-import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.ui.signInActivity.SignInViewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -60,9 +66,12 @@ class App: Application() {
         single { FirebaseMessaging.getInstance() }
         single { Config.newInstance(androidContext()) }
         single<DataStore<Preferences>> { androidContext().transportModeDataStore }
-        single<TransportModeProvider> { DataStoreTransportModeProvider(get()) }
+        single<TransportModeProvider> { DataStoreTransportModeProviderImpl(get()) }
         single { TelegramAuthFlagProvider(get()) }
-        single<TransportRuntimeBridge> { DefaultTransportRuntimeBridge(get()) }
+        single<BriarRuntimeEnvironment> { BriarRuntimeEnvironmentImpl(androidContext()) }
+        single<BriarComponentFactory> { BriarComponentFactoryImpl() }
+        single<BriarRuntimeManager> { BriarRuntimeManagerImpl(environment = get(), componentFactory = get()) }
+        single<TransportRuntimeBridge> { TransportRuntimeBridgeImpl(get(), get()) }
 
         single<AuthStateProvider> { FirebaseAuthStateProvider(get()) }
         single<SignInRepository> { FirebaseSignInRepository(get(), get()) }

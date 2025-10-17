@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import timber.log.Timber
 
-class DataStoreTransportModeProvider(
+class DataStoreTransportModeProviderImpl(
     private val dataStore: DataStore<Preferences>
 ) : TransportModeProvider {
 
