@@ -2,11 +2,10 @@ package com.example.rise.ui.dashboardNavigation.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.rise.auth.AuthenticationService
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.ui.alarm.models.Alarm
 import com.example.rise.models.TextMessage
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.Query
 import java.time.Clock
 import java.time.Instant
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,12 +17,12 @@ import kotlinx.coroutines.launch
 
 class DashboardViewModel(
     private val repository: AlarmRepository,
-    private val auth: FirebaseAuth,
+    private val authService: AuthenticationService,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
     data class DashboardUiState(
-        val alarmQuery: Query? = null,
+        val alarmQuery: AlarmRepository.AlarmQuery? = null,
         val activeUserId: String? = null,
         val chatChannel: String = "",
         val pendingMessage: TextMessage? = null,
@@ -32,7 +31,7 @@ class DashboardViewModel(
     )
 
     sealed interface DashboardEvent {
-        data class ScheduleAlarm(val alarm: Alarm) : DashboardEvent
+        data class ScheduleDelayedMessage(val alarm: Alarm) : DashboardEvent
     }
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -50,7 +49,7 @@ class DashboardViewModel(
         val resolvedUserId = if (!byBottomNavigation && !explicitUserId.isNullOrBlank()) {
             explicitUserId
         } else {
-            auth.currentUser?.uid ?: throw IllegalStateException("User must be signed in")
+            authService.currentUser()?.id ?: throw IllegalStateException("User must be signed in")
         }
         val query = repository.alarmsQuery(resolvedUserId)
         _uiState.value = DashboardUiState(
@@ -67,10 +66,11 @@ class DashboardViewModel(
         val state = _uiState.value
         val userId = state.activeUserId ?: return
         val message = messageOverride ?: state.pendingMessage
+        val currentUser = authService.currentUser()
         val alarm = Alarm(
             idTimeStamp = Instant.now(clock).toEpochMilli().toInt(),
             timeInMiliseconds = timeInMillis,
-            userName = auth.currentUser?.displayName.orEmpty(),
+            userName = currentUser?.displayName.orEmpty(),
             chatChannel = state.chatChannel,
             messsage = message,
         )
@@ -78,7 +78,7 @@ class DashboardViewModel(
             try {
                 repository.saveAlarm(userId, alarm)
                 if (alarm.messsage != null) {
-                    _events.emit(DashboardEvent.ScheduleAlarm(alarm))
+                    _events.emit(DashboardEvent.ScheduleDelayedMessage(alarm))
                 }
             } catch (error: Throwable) {
                 _uiState.update { it.copy(errorMessage = error.message) }

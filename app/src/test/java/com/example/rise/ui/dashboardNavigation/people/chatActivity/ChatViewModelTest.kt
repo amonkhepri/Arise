@@ -38,9 +38,9 @@ class ChatViewModelTest {
         assertTrue("Expected input enabled. State: $initialState", initialState.inputEnabled)
         assertEquals("Expected title to update. State: $initialState", "Bob", initialState.title)
         assertEquals(
-            "Expected channel id to match. State: $initialState",
-            repository.channelId,
-            initialState.channelId,
+            "Expected conversation id to match. State: $initialState",
+            repository.conversationId,
+            initialState.conversationId,
         )
 
         val newMessages = listOf(repository.sampleMessage)
@@ -83,10 +83,10 @@ class ChatViewModelTest {
 
             viewModel.confirmScheduleMessage("Later", 42_000L)
             val scheduleEvent = awaitItem()
-            assertTrue(scheduleEvent is ChatViewModel.ChatEvent.ScheduleAlarm)
-            val schedule = scheduleEvent as ChatViewModel.ChatEvent.ScheduleAlarm
+            assertTrue(scheduleEvent is ChatViewModel.ChatEvent.ScheduleDelayedMessage)
+            val schedule = scheduleEvent as ChatViewModel.ChatEvent.ScheduleDelayedMessage
             assertEquals("other", schedule.otherUserId)
-            assertEquals(repository.channelId, schedule.channelId)
+            assertEquals(repository.conversationId, schedule.conversationId)
             assertEquals("Later", schedule.message.text)
             assertEquals(42_000L, schedule.timeInMillis)
             cancelAndIgnoreRemainingEvents()
@@ -103,11 +103,11 @@ class ChatViewModelTest {
         )
         val messages = MutableSharedFlow<List<TextMessage>>(replay = 1)
         val sentMessages = mutableListOf<TextMessage>()
-        val channelId = "channel-123"
+        val conversationId = "conversation-123"
         override suspend fun getCurrentUser(): ChatUser = ChatUser(id = "self", displayName = "Alice")
-        override suspend fun getOrCreateChannel(otherUserId: String): String = channelId
-        override fun observeMessages(channelId: String) = messages
-        override suspend fun sendMessage(channelId: String, message: TextMessage) {
+        override suspend fun getOrCreateConversation(otherUserId: String, otherUserName: String): String = conversationId
+        override fun observeMessages(conversationId: String) = messages
+        override suspend fun sendMessage(conversationId: String, message: TextMessage) {
             sentMessages += message
         }
     }

@@ -31,7 +31,7 @@ import com.xwray.groupie.Section
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
-import java.util.Calendar
+import java.util.*
 
 class ChatActivity : BaseActivity() {
 
@@ -81,7 +81,7 @@ class ChatActivity : BaseActivity() {
                     viewModel.events.collect { event ->
                         when (event) {
                             is ChatViewModel.ChatEvent.ShowTimePicker -> showTimePicker(event.messageText)
-                            is ChatViewModel.ChatEvent.ScheduleAlarm -> handleScheduleAlarm(event)
+                            is ChatViewModel.ChatEvent.ScheduleDelayedMessage -> handleDelayedMessage(event)
                         }
                     }
                 }
@@ -166,7 +166,7 @@ class ChatActivity : BaseActivity() {
         }
     }
 
-    private fun handleScheduleAlarm(event: ChatViewModel.ChatEvent.ScheduleAlarm) {
+    private fun handleDelayedMessage(event: ChatViewModel.ChatEvent.ScheduleDelayedMessage) {
         lifecycleScope.launch {
             try {
                 val userId = auth.currentUser?.uid ?: return@launch
@@ -174,7 +174,7 @@ class ChatActivity : BaseActivity() {
                     idTimeStamp = System.currentTimeMillis().toInt(),
                     timeInMiliseconds = event.timeInMillis,
                     userName = auth.currentUser?.displayName.orEmpty(),
-                    chatChannel = event.channelId,
+                    chatChannel = event.conversationId,
                     messsage = event.message,
                 )
                 alarmRepository.saveAlarm(userId, alarm)

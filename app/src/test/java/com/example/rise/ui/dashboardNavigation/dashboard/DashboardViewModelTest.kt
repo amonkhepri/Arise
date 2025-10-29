@@ -4,11 +4,10 @@ import app.cash.turbine.test
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.ui.alarm.models.Alarm
 import com.example.rise.models.TextMessage
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
+import android.net.Uri
+import com.example.rise.auth.AuthenticationService
+import com.example.rise.auth.AuthStateHandle
 import com.google.firebase.firestore.Query
-import io.mockk.every
-import io.mockk.mockk
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -28,15 +27,16 @@ class DashboardViewModelTest {
     @get:Rule
     val dispatcherRule = MainDispatcherRule()
 
-    private val query: Query = mockk(relaxed = true)
+    private val query = StubAlarmQuery("query")
     private val repository = FakeAlarmRepository(query)
-    private val firebaseUser: FirebaseUser = mockk {
-        every { uid } returns "self"
-        every { displayName } returns "Alice"
-    }
-    private val auth: FirebaseAuth = mockk {
-        every { currentUser } returns firebaseUser
-    }
+    private val auth = FakeAuthenticationService(
+        AuthenticationService.User(
+            id = "self",
+            displayName = "Alice",
+            email = "alice@example.com",
+            photoUrl = null,
+        )
+    )
     private val clock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC)
 
     @org.junit.Test
@@ -69,7 +69,7 @@ class DashboardViewModelTest {
             viewModel.createAlarm(timeInMillis = 1234L)
             advanceUntilIdle()
             val event = awaitItem()
-            assertTrue(event is DashboardViewModel.DashboardEvent.ScheduleAlarm)
+            assertTrue(event is DashboardViewModel.DashboardEvent.ScheduleDelayedMessage)
             assertEquals(1, repository.saved.size)
             val alarm = repository.saved.first()
             assertEquals(1234L, alarm.timeInMiliseconds)
@@ -80,11 +80,42 @@ class DashboardViewModelTest {
         }
     }
 
-    private class FakeAlarmRepository(private val query: Query) : AlarmRepository {
+    private class FakeAlarmRepository(private val query: AlarmRepository.AlarmQuery) : AlarmRepository {
         val saved = mutableListOf<Alarm>()
-        override fun alarmsQuery(userId: String): Query = query
+        override fun alarmsQuery(userId: String): AlarmRepository.AlarmQuery = query
         override suspend fun saveAlarm(userId: String, alarm: Alarm) {
             saved += alarm
         }
+    }
+
+    private class StubAlarmQuery(private val id: String) : AlarmRepository.AlarmQuery {
+        override fun asFirestoreQuery(): Query = throw UnsupportedOperationException("Not needed in test $id")
+    }
+
+    private class FakeAuthenticationService(
+        private var current: AuthenticationService.User?
+    ) : AuthenticationService {
+        override fun currentUser(): AuthenticationService.User? = current
+
+        override fun addAuthStateListener(listener: (AuthenticationService.User?) -> Unit): AuthStateHandle {
+            listener(current)
+            return AuthStateHandle { }
+        }
+
+        override suspend fun signInWithEmail(email: String, password: String) = unsupported()
+
+        override suspend fun createUserWithEmail(email: String, password: String) = unsupported()
+
+        override suspend fun signInWithCustomToken(customToken: String) = unsupported()
+
+        override suspend fun updateProfile(displayName: String?, photoUrl: android.net.Uri?) {
+            current = current?.copy(displayName = displayName ?: current?.displayName, photoUrl = photoUrl)
+        }
+
+        override fun signOut() {
+            current = null
+        }
+
+        private fun unsupported(): Nothing = throw UnsupportedOperationException("Not needed in test")
     }
 }

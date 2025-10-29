@@ -10,12 +10,11 @@ import com.example.rise.data.auth.SignInRepository
 import com.example.rise.data.auth.TelegramAuthData
 import com.example.rise.data.auth.TelegramAuthRepository
 import com.example.rise.data.auth.TelegramAuthResponse
-import com.google.firebase.auth.FirebaseAuth
+import com.example.rise.auth.AuthenticationService
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
-import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -26,7 +25,7 @@ import kotlinx.coroutines.tasks.await
 import androidx.core.net.toUri
 
 class SignInViewModel(
-    private val firebaseAuth: FirebaseAuth,
+    private val authenticationService: AuthenticationService,
     private val repository: SignInRepository,
     private val telegramRepository: TelegramAuthRepository,
     private val emailValidator: EmailValidator = DefaultEmailValidator,
@@ -81,7 +80,7 @@ class SignInViewModel(
         viewModelScope.launch {
             setLoading(true)
             try {
-                firebaseAuth.signInWithEmailAndPassword(trimmedEmail, password).await()
+                authenticationService.signInWithEmail(trimmedEmail, password)
                 _events.emit(Event.SaveCredentials(trimmedEmail, password))
                 finalizeSignIn()
             } catch (error: Exception) {
@@ -110,13 +109,8 @@ class SignInViewModel(
         viewModelScope.launch {
             setLoading(true)
             try {
-                firebaseAuth.createUserWithEmailAndPassword(trimmedEmail, password).await()
-                firebaseAuth.currentUser?.let { user ->
-                    val update = UserProfileChangeRequest.Builder()
-                        .setDisplayName(trimmedName)
-                        .build()
-                    user.updateProfile(update).await()
-                }
+                authenticationService.createUserWithEmail(trimmedEmail, password)
+                authenticationService.updateProfile(trimmedName, null)
                 _events.emit(Event.SaveCredentials(trimmedEmail, password))
                 finalizeSignIn()
             } catch (error: Exception) {
@@ -149,7 +143,7 @@ class SignInViewModel(
             try {
                 val response = telegramRepository.exchange(authData)
                 // The backend still issues Firebase custom tokens, so we complete the flow by authenticating with Firebase before continuing the app sign-in pipeline.
-                firebaseAuth.signInWithCustomToken(response.customToken).await()
+                authenticationService.signInWithCustomToken(response.customToken)
                 updateProfileIfNeeded(response)
                 finalizeSignIn()
             } catch (error: Exception) {
@@ -167,7 +161,7 @@ class SignInViewModel(
         viewModelScope.launch {
             setLoading(true)
             try {
-                firebaseAuth.signInWithEmailAndPassword(credential.id, credential.password).await()
+                authenticationService.signInWithEmail(credential.id, credential.password)
                 finalizeSignIn()
             } catch (error: Exception) {
                 handleAuthError(error)
@@ -217,25 +211,24 @@ class SignInViewModel(
     }
 
     private suspend fun updateProfileIfNeeded(response: TelegramAuthResponse) {
-        val currentUser = firebaseAuth.currentUser ?: return
-        val updateBuilder = UserProfileChangeRequest.Builder()
-
+        val currentUser = authenticationService.currentUser() ?: return
         var needsUpdate = false
+        var displayNameToApply: String? = null
         if (!response.displayName.isNullOrBlank() && currentUser.displayName.isNullOrBlank()) {
-            updateBuilder.setDisplayName(response.displayName)
+            displayNameToApply = response.displayName
             needsUpdate = true
         }
 
+        var photoUri: Uri? = null
         if (!response.photoUrl.isNullOrBlank()) {
-            val photoUri = runCatching { response.photoUrl.toUri() }.getOrNull()
-            if (photoUri != null) {
-                updateBuilder.photoUri = photoUri
+            photoUri = runCatching { response.photoUrl.toUri() }.getOrNull()
+            if (photoUri != null && currentUser.photoUrl != photoUri) {
                 needsUpdate = true
             }
         }
 
         if (needsUpdate) {
-            runCatching { currentUser.updateProfile(updateBuilder.build()).await() }
+            runCatching { authenticationService.updateProfile(displayNameToApply, photoUri) }
         }
     }
 

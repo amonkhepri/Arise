@@ -6,7 +6,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.baseclasses.BaseFragment
 import com.example.rise.baseclasses.koinViewModelFactory
@@ -18,6 +20,7 @@ import com.xwray.groupie.GroupieViewHolder
 import com.xwray.groupie.Section
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class PeopleFragment : BaseFragment() {
 
@@ -55,7 +58,8 @@ class PeopleFragment : BaseFragment() {
             adapter = this@PeopleFragment.adapter
         }
         adapter.setOnItemClickListener { item, _ ->
-            val personItem = item as? com.example.rise.item.PersonItem ?: return@setOnItemClickListener
+            val personItem =
+                item as? com.example.rise.item.PersonItem ?: return@setOnItemClickListener
             val summary = peopleById[personItem.userId] ?: return@setOnItemClickListener
             viewModel.onPersonSelected(summary)
         }
@@ -83,10 +87,12 @@ class PeopleFragment : BaseFragment() {
     }
 
     private fun observeEvents() {
-        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
-            viewModel.events.collect { event ->
-                when (event) {
-                    is PeopleViewModel.PeopleEvent.OpenChat -> openChat(event)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.events.collect { event ->
+                    when (event) {
+                        is PeopleViewModel.PeopleEvent.OpenChat -> openChat(event)
+                    }
                 }
             }
         }

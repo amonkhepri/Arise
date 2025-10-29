@@ -10,7 +10,7 @@ data class ChatUser(
 
 interface ChatRepository {
     suspend fun getCurrentUser(): ChatUser
-    suspend fun getOrCreateChannel(otherUserId: String): String
-    fun observeMessages(channelId: String): Flow<List<TextMessage>>
-    suspend fun sendMessage(channelId: String, message: TextMessage)
+    suspend fun getOrCreateConversation(otherUserId: String, otherUserName: String): String
+    fun observeMessages(conversationId: String): Flow<List<TextMessage>>
+    suspend fun sendMessage(conversationId: String, message: TextMessage)
 }

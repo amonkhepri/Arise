@@ -14,8 +14,8 @@ import com.example.rise.data.auth.SignInRepository
 import com.example.rise.data.auth.TelegramAuthRepository
 import com.example.rise.data.chat.ChatLocalCache
 import com.example.rise.data.chat.ChatRepository
-import com.example.rise.data.chat.FirestoreChatRepository
-import com.example.rise.data.chat.SharedPrefsChatCache
+import com.example.rise.data.chat.TransportBackedChatRepository
+import com.example.rise.data.chat.RoomChatCache
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.data.dashboard.FirestoreAlarmRepository
 import com.example.rise.data.myaccount.FirebaseMyAccountRepository
@@ -34,8 +34,28 @@ import com.example.rise.featureflags.DataStoreTransportModeProviderImpl
 import com.example.rise.featureflags.TransportModeProvider
 import com.example.rise.featureflags.TelegramAuthFlagProvider
 import com.example.rise.featureflags.transportModeDataStore
-import com.example.rise.transport.TransportRuntimeBridgeImpl
+import com.example.rise.auth.AuthenticationService
+import com.example.rise.auth.FirebaseAuthenticationService
+import com.example.rise.transport.connectors.FirestoreConnector
+import com.example.rise.transport.router.ConnectorRegistry
+import com.example.rise.transport.router.DefaultConnectorRegistry
+import com.example.rise.transport.router.IdentityRegistry
+import com.example.rise.transport.router.IdentityRegistryImpl
+import com.example.rise.transport.router.IdentityRegistryStore
+import com.example.rise.transport.router.SharedPrefsIdentityRegistryStore
+import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.TransportRouter
+import com.example.rise.transport.router.TransportRouterImpl
+import com.example.rise.transport.store.ConversationDatabase
+import com.example.rise.transport.store.ConversationStore
+import com.example.rise.transport.store.ChatCacheDao
+import com.example.rise.transport.store.RoomConversationStore
 import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.TransportRuntimeBridgeImpl
+import com.example.rise.data.firestore.UserRemoteDataSource
+import com.example.rise.data.firestore.FirebaseUserRemoteDataSource
+import com.example.rise.data.firestore.ChatRemoteDataSource
+import com.example.rise.data.firestore.FirebaseChatRemoteDataSource
 import com.example.rise.ui.SplashActivityViewModel
 import com.example.rise.ui.alarm.ReminderViewModel
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
@@ -78,19 +98,51 @@ class App: Application() {
         single { OkHttpClient.Builder().build() }
         single<TelegramAuthRepository> { DefaultTelegramAuthRepository(get()) }
         single<ReminderPreferences> { ConfigReminderPreferences(get()) }
+        single<AuthenticationService> { FirebaseAuthenticationService(get()) }
+        single<UserRemoteDataSource> { FirebaseUserRemoteDataSource(get()) }
+        single<ChatRemoteDataSource> { FirebaseChatRemoteDataSource(get()) }
 
-        single<ChatLocalCache> { SharedPrefsChatCache(androidContext()) }
-        single<ChatRepository> {
-            FirestoreChatRepository(
-                firestore = get(),
-                auth = get(),
+        single { ConversationDatabase.build(androidContext()) }
+        single { get<ConversationDatabase>().conversationDao() }
+        single<ChatCacheDao> { get<ConversationDatabase>().chatCacheDao() }
+        single<ChatLocalCache> { RoomChatCache(get()) }
+        single<ConversationStore> {
+            RoomConversationStore(
+                dao = get(),
+            )
+        }
+        single<IdentityRegistryStore> { SharedPrefsIdentityRegistryStore(androidContext()) }
+        single<IdentityRegistry> { IdentityRegistryImpl(get()) }
+        single<TransportConnector> {
+            FirestoreConnector(
+                authService = get(),
+                chatRemoteDataSource = get(),
+                transportBridge = get(),
                 localCache = get(),
+            )
+        }
+        single<ConnectorRegistry> {
+            DefaultConnectorRegistry(connectors = setOf(get<TransportConnector>()))
+        }
+        single<TransportRouter> {
+            TransportRouterImpl(
+                transportBridge = get(),
+                connectorRegistry = get(),
+                conversationStore = get(),
+                identityRegistry = get(),
+            )
+        }
+        single<ChatRepository> { TransportBackedChatRepository(get()) }
+        single<PeopleRepository> { FirestorePeopleRepository(get(), get(), get()) }
+        single<AlarmRepository> { FirestoreAlarmRepository(get(), get()) }
+        single<MyAccountRepository> {
+            FirebaseMyAccountRepository(
+                authService = get(),
+                userRemoteDataSource = get(),
+                ioDispatcher = Dispatchers.IO,
                 transportBridge = get(),
             )
         }
-        single<PeopleRepository> { FirestorePeopleRepository(get(), get(), get()) }
-        single<AlarmRepository> { FirestoreAlarmRepository(get(), get()) }
-        single<MyAccountRepository> { FirebaseMyAccountRepository(get(), get(), Dispatchers.IO, get()) }
         single { Clock.systemDefaultZone() }
         single<SignInViewModel.EmailValidator> { SignInViewModel.DefaultEmailValidator }
 

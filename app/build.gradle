@@ -50,6 +50,22 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    testOptions {
+        unitTests.all {
+            it.jvmArgs(
+                    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+                    "--add-opens=java.base/java.util=ALL-UNNAMED",
+                    "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+                    "--add-opens=java.base/java.text=ALL-UNNAMED",
+                    "--add-opens=java.desktop/java.awt.font=ALL-UNNAMED",
+                    "-Djdk.attach.allowAttachSelf=true",
+                    "-XX:+EnableDynamicAgentLoading"
+            )
+        }
+        unitTests.returnDefaultValues = true
+    }
+
     packagingOptions {
         resources {
             excludes += "META-INF/LICENSE.md"
@@ -67,6 +83,26 @@ kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
     }
+}
+
+kotlin {
+    jvmToolchain(17)
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+tasks.withType(Test).configureEach {
+    jvmArgs(
+        "-Djdk.attach.allowAttachSelf=true",
+        "-XX:+EnableDynamicAgentLoading",
+        "-Dnet.bytebuddy.experimental=true"
+    )
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
 }
 
 dependencies {
@@ -109,6 +145,9 @@ dependencies {
 
     implementation 'com.github.bumptech.glide:glide:5.0.5'
     ksp 'com.github.bumptech.glide:ksp:5.0.5'
+    implementation 'androidx.room:room-runtime:2.8.2'
+    implementation 'androidx.room:room-ktx:2.8.2'
+    ksp 'androidx.room:room-compiler:2.8.2'
     implementation 'com.jakewharton.timber:timber:5.0.1'
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.9.4"
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4"
@@ -122,6 +161,8 @@ dependencies {
     testImplementation 'org.robolectric:robolectric:4.16'
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2'
     testImplementation 'io.mockk:mockk:1.14.6'
+    testImplementation 'androidx.test:core:1.6.1'
+    testImplementation 'androidx.test.ext:junit:1.2.1'
 
     implementation 'com.github.lisawray.groupie:groupie:2.10.1'
     implementation 'com.github.lisawray.groupie:groupie-viewbinding:2.10.1'

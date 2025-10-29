@@ -69,7 +69,7 @@ class DashboardFragment : BaseFragment() {
     private fun observeState() {
         viewLifecycleOwner.lifecycleScope.launchWhenStarted {
             viewModel.uiState.collect { state ->
-                state.alarmQuery?.let { updateAdapter(it, state.activeUserId) }
+                state.alarmQuery?.let { updateAdapter(it.asFirestoreQuery(), state.activeUserId) }
                 state.errorMessage?.let { showError(it) }
             }
         }
@@ -79,7 +79,7 @@ class DashboardFragment : BaseFragment() {
         viewLifecycleOwner.lifecycleScope.launchWhenStarted {
             viewModel.events.collect { event ->
                 when (event) {
-                    is DashboardViewModel.DashboardEvent.ScheduleAlarm ->
+                    is DashboardViewModel.DashboardEvent.ScheduleDelayedMessage ->
                         context?.scheduleNextAlarm(event.alarm, true)
                 }
             }
