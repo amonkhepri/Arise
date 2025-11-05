@@ -6,11 +6,12 @@ import com.example.rise.data.people.PersonSummary
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
+import com.example.rise.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.test.runTest
-import com.example.rise.util.MainDispatcherRule
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PeopleViewModelTest {
@@ -30,7 +31,7 @@ class PeopleViewModelTest {
         val entries = listOf(
             PersonSummary(id = "a", name = "Alice", bio = "Bio", profilePicturePath = null)
         )
-        repository.people.tryEmit(entries)
+        repository.emit(entries)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
@@ -46,7 +47,7 @@ class PeopleViewModelTest {
 
         viewModel.start()
         advanceUntilIdle()
-        repository.people.tryEmit(listOf(summary))
+        repository.emit(listOf(summary))
         advanceUntilIdle()
 
         viewModel.events.test {
@@ -60,8 +61,42 @@ class PeopleViewModelTest {
         }
     }
 
+    @org.junit.Test
+    fun `start surfaces sync errors`() = runTest {
+        val repository = FakePeopleRepository()
+        val viewModel = PeopleViewModel(repository)
+
+        viewModel.start()
+        advanceUntilIdle()
+
+        repository.emitError(IllegalStateException("boom"))
+        advanceUntilIdle()
+
+        assertEquals("boom", viewModel.uiState.value.errorMessage)
+    }
+
     private class FakePeopleRepository : PeopleRepository {
-        val people = MutableSharedFlow<List<PersonSummary>>(replay = 1)
+        private val people = MutableSharedFlow<List<PersonSummary>>(replay = 1)
+        private val errorsFlow = MutableSharedFlow<Throwable>(extraBufferCapacity = 1)
+        private var latest: List<PersonSummary> = emptyList()
+
+        fun emit(entries: List<PersonSummary>) {
+            latest = entries
+            people.tryEmit(entries)
+        }
+
+        fun emitError(error: Throwable) {
+            errorsFlow.tryEmit(error)
+        }
+
+        override val errors = errorsFlow
+
         override fun observePeople() = people
+
+        override fun observePerson(personId: String) =
+            people.map { entries -> entries.firstOrNull { it.id == personId } }
+
+        override suspend fun findPerson(personId: String): PersonSummary? =
+            latest.firstOrNull { it.id == personId }
     }
 }

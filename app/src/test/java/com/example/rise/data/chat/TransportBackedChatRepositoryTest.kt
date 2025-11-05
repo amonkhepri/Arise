@@ -9,6 +9,7 @@ import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.TransportRouter
 import java.util.Date
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -114,8 +115,9 @@ class TransportBackedChatRepositoryTest {
         var capturedIdentity: CanonicalIdentity? = null
             private set
         val sentMessages = mutableListOf<ConnectorOutboundMessage>()
+        var resetCalls = 0
 
-        override val currentIdentity: kotlinx.coroutines.flow.Flow<CanonicalIdentity>
+        override val currentIdentity: Flow<CanonicalIdentity>
             get() = error("not used")
 
         override suspend fun ensureCurrentIdentity(): CanonicalIdentity = standardIdentity
@@ -125,10 +127,14 @@ class TransportBackedChatRepositoryTest {
             return conversation
         }
 
-        override fun observeConversation(conversationId: String): kotlinx.coroutines.flow.Flow<List<CanonicalMessage>> = observedMessages
+        override fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>> = observedMessages
 
         override suspend fun send(message: ConnectorOutboundMessage) {
             sentMessages += message
+        }
+
+        override suspend fun reset() {
+            resetCalls += 1
         }
     }
 }

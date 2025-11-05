@@ -2,6 +2,7 @@ package com.example.rise.transport.store
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -19,6 +20,14 @@ interface ConversationDao {
 
     @Query("DELETE FROM messages WHERE conversationId = :conversationId")
     suspend fun deleteMessagesForConversation(conversationId: String)
+
+    @Transaction
+    suspend fun replaceMessages(conversationId: String, messages: List<MessageEntity>) {
+        deleteMessagesForConversation(conversationId)
+        if (messages.isNotEmpty()) {
+            upsertMessages(messages)
+        }
+    }
 
     @Query("SELECT * FROM conversations WHERE id = :conversationId")
     suspend fun getConversation(conversationId: String): ConversationEntity?

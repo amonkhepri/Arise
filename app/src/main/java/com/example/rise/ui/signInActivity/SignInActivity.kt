@@ -9,7 +9,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
-import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -81,6 +81,7 @@ import com.example.rise.ui.mainActivity.MainActivity
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.android.ext.android.inject
 import java.util.Locale
+import androidx.core.graphics.drawable.toDrawable
 
 class SignInActivity : BaseActivity() {
 
@@ -113,9 +114,10 @@ class SignInActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         val backgroundColor = ContextCompat.getColor(this, R.color.chatBackground)
         window.statusBarColor = backgroundColor
-        window.navigationBarColor = backgroundColor
-        window.setBackgroundDrawable(ColorDrawable(backgroundColor))
-        WindowCompat.getInsetsController(window, window.decorView)?.apply {
+        window.
+        navigationBarColor = backgroundColor
+        window.setBackgroundDrawable(backgroundColor.toDrawable())
+        WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
         }
@@ -213,6 +215,15 @@ class SignInActivity : BaseActivity() {
     }
 }
 
+internal object SignInTestTags {
+    const val NameInput = "nameInput"
+    const val EmailInput = "emailInput"
+    const val PasswordInput = "passwordInput"
+    const val PrimaryActionButton = "primaryActionButton"
+    const val SavedCredentialsButton = "savedCredentialsButton"
+    const val ToggleModeButton = "toggleModeButton"
+}
+
 @Composable
 private fun SignInScreen(
     uiState: SignInViewModel.UiState,
@@ -269,7 +280,9 @@ private fun SignInScreen(
                         TextField(
                             value = name,
                             onValueChange = onNameChange,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag(SignInTestTags.NameInput),
                             placeholder = { Text(text = stringResource(R.string.sign_in_name_hint)) },
                             singleLine = true,
                             enabled = !uiState.isLoading,
@@ -314,7 +327,9 @@ private fun SignInScreen(
                 TextField(
                     value = email,
                     onValueChange = onEmailChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.EmailInput),
                     placeholder = { Text(text = stringResource(R.string.sign_in_email_hint)) },
                     singleLine = true,
                     enabled = !uiState.isLoading,
@@ -347,7 +362,9 @@ private fun SignInScreen(
                 TextField(
                     value = password,
                     onValueChange = onPasswordChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.PasswordInput),
                     placeholder = { Text(text = stringResource(R.string.sign_in_password_hint)) },
                     singleLine = true,
                     enabled = !uiState.isLoading,
@@ -390,7 +407,9 @@ private fun SignInScreen(
                         focusManager.clearFocus(force = true)
                         onPrimaryAction()
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.PrimaryActionButton),
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -410,7 +429,9 @@ private fun SignInScreen(
 
                 OutlinedButton(
                     onClick = onSavedCredentials,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.SavedCredentialsButton),
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = textColor),
@@ -446,6 +467,7 @@ private fun SignInScreen(
                 TextButton(
                     onClick = onToggleMode,
                     enabled = !uiState.isLoading,
+                    modifier = Modifier.testTag(SignInTestTags.ToggleModeButton),
                     colors = ButtonDefaults.textButtonColors(contentColor = accentGreen)
                 ) {
                     val toggleLabel = if (uiState.mode == SignInViewModel.Mode.Register) {

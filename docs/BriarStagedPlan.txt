@@ -36,18 +36,33 @@ mirrors.
       - Stub `BridgeOrchestrator` hooks and cover Briar-first routing rules plus fallback behaviour 
 with focused unit/integration tests.
   - Stage 3 – People, Presence & Connector Framework (flag: HYBRID default)
-      - Migrate people/presence flows onto the router + `IdentityRegistry`, retiring 
-`FirestorePeopleRepository` while keeping Firestore connectors active via the router.
-      - Expand the connector onboarding contract (auth lifecycle, capability handshake, failure 
-isolation) and surface connector status/capabilities to the UI.
-      - Deliver a `BriarConnector` façade backed by `BriarRuntimeBridge` so HYBRID mode promotes 
-Briar to the primary transport and feeds initial bridge orchestrator hooks.
-      - Update chat and settings surfaces to display unified conversations with transport badges, 
-connector health indicators, identity merge affordances, and live Briar availability state.
-      - Define structured router telemetry (event schema + Flow exporter) and land consistent 
-logging hooks so later stages can feed health dashboards.
-      - Exercise connector enable/disable and transient failure scenarios in QA builds using 
-`agent-tools/` scripts, gathering feedback while legacy paths remain available.
+  - Inventory every people/presence entry point still backed by Firestore and document 
+required data shapes for the router + `IdentityRegistry`.
+  - Introduce a router-backed `PeopleRepository` that maps existing Firestore models to 
+canonical identities, while delegating Firestore I/O to `FirestoreConnector`.
+  - Ensure connector sync layers (e.g., Firestore) publish the canonical current-user ID via the
+ router-facing API so roster filtering never races stale registry state when the primary connector
+ changes.
+  - Rewire presence observers and caches to subscribe through the router, add regression 
+smoke tests, and keep a feature toggle to fall back to Firestore flows.
+      - Script data backfill routines so Firestore-derived presence and contacts data hydrate
+`IdentityRegistry` on first launch.
+      - Formalise the connector onboarding lifecycle as a state machine (auth, handshake, 
+capabilities, failure isolation) and record it in shared docs.
+      - Update each connector implementation to emit lifecycle state updates, persist capability 
+metadata, and expose failures for UI consumption.
+      - Surface connector status, capabilities, and failure states via ViewModels to the chat and 
+settings UI layers with loading/error affordances.
+      - Implement the `BriarConnector` façade backed by `BriarRuntimeBridge`, publish its 
+capability map, and register it as the preferred connector when HYBRID is active.
+      - Land BridgeOrchestrator hooks that prioritise the Briar connector yet gracefully fall back 
+to Firestore when peers lack Briar transport.
+      - Refresh chat and settings surfaces to show unified conversations, transport badges, 
+connector health indicators, identity merge affordances, and live Briar availability.
+      - Define the router telemetry event schema, craft a Flow exporter, and add logging hooks 
+across connector lifecycle and UI entry points.
+      - Use `agent-tools/run-and-log.sh` plus targeted click scripts to exercise connector 
+enable/disable and transient failure scenarios, capturing QA logs and screenshots.
   - Stage 4 – Telegram Connector Bridge (flag: targeted rollout)
       - Graduate the Telegram auth flag, implement the `TelegramConnector`, and activate 
 `BridgeOrchestrator` logic so Briar automatically relays messages when recipients lack Telegram.
@@ -72,4 +87,3 @@ canonical) since Stage 5 promotes Briar-first delivery; do not proceed without
 router + connectors cover all flows.
       - Migrate data/credential storage to the canonical identity system, finalise documentation, 
 and update licensing/attribution for GPL compliance.
-

@@ -42,4 +42,17 @@ data class CanonicalMessage(
 data class IdentityRecord(
     val identity: CanonicalIdentity,
     val aliases: Map<TransportId, String>,
+    val profile: IdentityProfile = IdentityProfile(),
+)
+
+enum class PresenceStatus {
+    UNKNOWN,
+    ONLINE,
+    OFFLINE,
+}
+
+data class IdentityProfile(
+    val bio: String? = null,
+    val profilePicturePath: String? = null,
+    val presence: PresenceStatus = PresenceStatus.UNKNOWN,
 )

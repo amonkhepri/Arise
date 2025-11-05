@@ -67,17 +67,24 @@ class IdentityRegistryImpl(
     override suspend fun upsertIdentity(
         identity: CanonicalIdentity,
         aliases: Map<TransportId, String>,
+        profile: IdentityProfile?,
         setAsCurrent: Boolean
     ) {
         mutex.withLock {
             val updated = _records.value.toMutableMap()
-            val existingAliases = updated[identity.id]?.aliases.orEmpty().toMutableMap()
+            val existingRecord = updated[identity.id]
+            val existingAliases = existingRecord?.aliases.orEmpty().toMutableMap()
             aliases.forEach { (transport, alias) ->
                 moveAliasIfNeeded(updated, canonicalId = identity.id, transport = transport, alias = alias)
                 existingAliases[transport] = alias
                 aliasToCanonical[transport to alias] = identity.id
             }
-            updated[identity.id] = IdentityRecord(identity = identity, aliases = existingAliases.toMap())
+            val profileToStore = profile ?: existingRecord?.profile ?: IdentityProfile()
+            updated[identity.id] = IdentityRecord(
+                identity = identity,
+                aliases = existingAliases.toMap(),
+                profile = profileToStore,
+            )
             _records.value = updated
             if (setAsCurrent) {
                 _currentIdentity.value = identity
@@ -87,6 +94,23 @@ class IdentityRegistryImpl(
             store.persist(updated, _currentIdentity.value?.id)
         }
     }
+
+    override suspend fun removeIdentity(canonicalId: String) {
+        mutex.withLock {
+            val updated = _records.value.toMutableMap()
+            val record = updated.remove(canonicalId) ?: return@withLock
+            record.aliases.forEach { (transport, alias) ->
+                aliasToCanonical.remove(transport to alias)
+            }
+            _records.value = updated
+            if (_currentIdentity.value?.id == canonicalId) {
+                _currentIdentity.value = null
+            }
+            store.persist(updated, _currentIdentity.value?.id)
+        }
+    }
+
+    override fun identitiesSnapshot(): List<IdentityRecord> = _records.value.values.toList()
 
     override suspend fun linkAlias(canonicalId: String, transport: TransportId, transportId: String) {
         mutex.withLock {

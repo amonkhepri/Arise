@@ -31,12 +31,15 @@ class MyAccountFragment : BaseFragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
+        timber.log.Timber.tag("MyAccountFragment").d("onCreateView")
         _binding = FragmentMyAccountBinding.inflate(inflater, container, false)
         return binding.root
+
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        timber.log.Timber.tag("MyAccountFragment").d("onViewCreated")
 
         binding.imageViewProfilePicture.setOnClickListener {
             val intent = Intent().apply {
@@ -56,19 +59,21 @@ class MyAccountFragment : BaseFragment() {
 
         binding.btnSignOut.setOnClickListener {
             viewModel.signOut()
+            //also remove this fragment from backstack
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { collectUiState() }
                 launch { collectEvents() }
+                launch {viewModel.loadProfile()}
             }
         }
 
-        viewModel.loadProfile()
     }
 
     private suspend fun collectUiState() {
+        timber.log.Timber.tag("MyAccountFragment").d("collectUiState")
         viewModel.uiState.collect { state ->
             if (!binding.editTextName.isFocused && binding.editTextName.text.toString() != state.name) {
                 binding.editTextName.setText(state.name)
@@ -83,6 +88,8 @@ class MyAccountFragment : BaseFragment() {
     }
 
     private suspend fun collectEvents() {
+        // I also want a qualifier "MyAccountFragment" here
+        timber.log.Timber.tag("MyAccountFragment").d("collectEvents")
         viewModel.events.collect { event ->
             when (event) {
                 is MyAccountViewModel.Event.ShowMessage -> {
@@ -102,5 +109,7 @@ class MyAccountFragment : BaseFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+        timber.log.Timber.tag("MyAccountFragment").d("onDestroyView")
+
     }
 }

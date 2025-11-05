@@ -15,9 +15,11 @@ class IdentityRegistryImplTest {
         val registry = IdentityRegistryImpl(store)
 
         val canonical = CanonicalIdentity(id = "self", displayName = "Self")
+        val profile = IdentityProfile(bio = "Hello", profilePicturePath = "path", presence = PresenceStatus.ONLINE)
         registry.upsertIdentity(
             identity = canonical,
             aliases = mapOf(TransportId.FIRESTORE to "firestore-self"),
+            profile = profile,
             setAsCurrent = true,
         )
 
@@ -27,7 +29,9 @@ class IdentityRegistryImplTest {
         assertTrue(store.state.records.containsKey("self"))
         val identities = registry.identities.first()
         assertEquals(1, identities.size)
-        assertEquals("Self", identities.first().identity.displayName)
+        val record = identities.first()
+        assertEquals("Self", record.identity.displayName)
+        assertEquals(profile, record.profile)
     }
 
     @Test
@@ -38,11 +42,13 @@ class IdentityRegistryImplTest {
         registry.upsertIdentity(
             identity = CanonicalIdentity(id = "alice", displayName = "Alice"),
             aliases = mapOf(TransportId.FIRESTORE to "fire-alice"),
+            profile = IdentityProfile(bio = "A", profilePicturePath = null, presence = PresenceStatus.UNKNOWN),
             setAsCurrent = true,
         )
         registry.upsertIdentity(
             identity = CanonicalIdentity(id = "bob", displayName = "Bob"),
             aliases = emptyMap(),
+            profile = IdentityProfile(),
             setAsCurrent = false,
         )
 
@@ -54,6 +60,40 @@ class IdentityRegistryImplTest {
         assertFalse(alice.aliases.containsKey(TransportId.FIRESTORE))
         val resolved = registry.resolveByConnector(TransportId.FIRESTORE, "fire-alice")
         assertEquals("bob", resolved.id)
+    }
+
+    @Test
+    fun `removeIdentity deletes aliases and records`() = runTest {
+        val store = FakeIdentityRegistryStore()
+        val registry = IdentityRegistryImpl(store)
+
+        registry.upsertIdentity(
+            identity = CanonicalIdentity(id = "alice", displayName = "Alice"),
+            aliases = mapOf(TransportId.FIRESTORE to "fire-alice"),
+            profile = IdentityProfile(),
+            setAsCurrent = false,
+        )
+
+        registry.removeIdentity("alice")
+
+        val records = registry.identities.first()
+        assertTrue(records.none { it.identity.id == "alice" })
+        assertTrue(store.state.records.isEmpty())
+    }
+
+    @Test
+    fun `identitiesSnapshot returns latest records`() = runTest {
+        val registry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        registry.upsertIdentity(
+            identity = CanonicalIdentity(id = "user", displayName = "User"),
+            aliases = mapOf(TransportId.FIRESTORE to "fire-user"),
+            profile = IdentityProfile(),
+            setAsCurrent = false,
+        )
+
+        val snapshot = registry.identitiesSnapshot()
+        assertEquals(1, snapshot.size)
+        assertEquals("user", snapshot.first().identity.id)
     }
 
     private class FakeIdentityRegistryStore(
@@ -68,7 +108,8 @@ class IdentityRegistryImplTest {
             val recordsCopy = records.mapValues { (_, record) ->
                 IdentityRecord(
                     identity = record.identity,
-                    aliases = record.aliases.toMap()
+                    aliases = record.aliases.toMap(),
+                    profile = record.profile,
                 )
             }
             state = IdentityRegistryStore.StoredState(recordsCopy, currentIdentityId)

@@ -14,11 +14,11 @@ import com.example.rise.baseclasses.BaseFragment
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.FragmentPeopleBinding
 import com.example.rise.helpers.AppConstants
+import com.example.rise.item.PersonItem
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatActivity
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
 import com.xwray.groupie.Section
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -59,8 +59,8 @@ class PeopleFragment : BaseFragment() {
         }
         adapter.setOnItemClickListener { item, _ ->
             val personItem =
-                item as? com.example.rise.item.PersonItem ?: return@setOnItemClickListener
-            val summary = peopleById[personItem.userId] ?: return@setOnItemClickListener
+                item as? PersonItem ?: return@setOnItemClickListener
+            val summary = peopleById[personItem.summary.id] ?: return@setOnItemClickListener
             viewModel.onPersonSelected(summary)
         }
     }
@@ -69,15 +69,8 @@ class PeopleFragment : BaseFragment() {
         viewLifecycleOwner.lifecycleScope.launchWhenStarted {
             viewModel.uiState.collectLatest { state ->
                 val items = state.people.map { summary ->
-                    com.example.rise.item.PersonItem(
-                        person = com.example.rise.models.User(
-                            summary.name,
-                            summary.bio,
-                            summary.profilePicturePath,
-                            mutableListOf(),
-                        ),
-                        userId = summary.id,
-                        context = requireContext(),
+                    PersonItem(
+                        summary = summary,
                     )
                 }
                 peopleById = state.people.associateBy { it.id }

@@ -6,6 +6,12 @@ import com.example.rise.auth.AuthenticationService
 import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.data.people.PeopleSync
+import com.example.rise.transport.router.CanonicalConversation
+import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.CanonicalMessage
+import com.example.rise.transport.router.TransportRouter
+import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.briar.runtime.BriarRuntimeEvent
 import com.example.rise.briar.runtime.BriarRuntimeStatus
@@ -15,6 +21,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -30,10 +38,14 @@ class FirebaseMyAccountRepositoryTest {
     private val authService = FakeAuthenticationService()
     private val userDataSource = FakeUserRemoteDataSource()
     private val transportBridge = NoOpTransportRuntimeBridge()
+    private lateinit var lastPeopleSync: RecordingPeopleSync
+    private lateinit var lastTransportRouter: RecordingTransportRouter
 
     private fun TestScope.repository() = FirebaseMyAccountRepository(
         authService = authService,
         userRemoteDataSource = userDataSource,
+        peopleSync = RecordingPeopleSync().also { lastPeopleSync = it },
+        transportRouter = RecordingTransportRouter().also { lastTransportRouter = it },
         ioDispatcher = StandardTestDispatcher(testScheduler),
         transportBridge = transportBridge,
     )
@@ -112,10 +124,12 @@ class FirebaseMyAccountRepositoryTest {
     }
 
     @Test
-    fun `signOut delegates to AuthenticationService`() = runTest {
+    fun `signOut clears session state and delegates to AuthenticationService`() = runTest {
         repository().signOut()
 
         assertTrue(authService.signOutCalled)
+        assertEquals(1, lastPeopleSync.stopCalls)
+        assertEquals(1, lastTransportRouter.resetCalls)
     }
 
     private class FakeAuthenticationService : AuthenticationService {
@@ -135,7 +149,7 @@ class FirebaseMyAccountRepositoryTest {
 
         override suspend fun signInWithCustomToken(customToken: String) = unsupported()
 
-        override suspend fun updateProfile(displayName: String?, photoUrl: android.net.Uri?) {
+        override suspend fun updateProfile(displayName: String?, photoUrl: Uri?) {
             user = user?.copy(displayName = displayName ?: user?.displayName, photoUrl = photoUrl)
         }
 
@@ -177,5 +191,33 @@ class FirebaseMyAccountRepositoryTest {
             override val isAvailable: Boolean = false
         })
         override fun requireFirestore(caller: String) = Unit
+    }
+
+    private class RecordingPeopleSync : PeopleSync {
+        var stopCalls = 0
+        override val errors: Flow<Throwable> = emptyFlow()
+        override val currentUserCanonicalId: Flow<String?> = emptyFlow()
+        override fun ensureStarted() = Unit
+        override fun stop() { stopCalls++ }
+    }
+
+    private class RecordingTransportRouter : TransportRouter {
+        var resetCalls = 0
+
+        override val currentIdentity: Flow<CanonicalIdentity> = emptyFlow()
+
+        override suspend fun ensureCurrentIdentity(): CanonicalIdentity = throw UnsupportedOperationException()
+
+        override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation =
+            throw UnsupportedOperationException()
+
+        override fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>> = emptyFlow()
+
+        override suspend fun send(message: ConnectorOutboundMessage) =
+            throw UnsupportedOperationException()
+
+        override suspend fun reset() {
+            resetCalls++
+        }
     }
 }

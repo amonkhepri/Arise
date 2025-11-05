@@ -18,12 +18,25 @@ interface TransportRouter {
     /** Ensures the current canonical identity is loaded and returns it. */
     suspend fun ensureCurrentIdentity(): CanonicalIdentity
 
-    /** Ensures the canonical conversation exists and returns its descriptor. */
+    /**
+     * Creates (or loads an existing) canonical conversation between the current identity and the
+     * specified peer. Implementations should provision transport-layer conversations when
+     * necessary, persist the canonical record, and trigger background observation so message
+     * history will start flowing into storage.
+     */
     suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation
 
-    /** Observe the canonical timeline for the given conversation. */
+    /**
+     * Produces a continuous stream of canonical messages for the given conversation. Unlike
+     * [ensureConversation], which bootstraps storage and observation, this flow is read-only and
+     * should emit the evolving timeline (including historical items) so UIs can render updates in
+     * realtime.
+     */
     fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>>
 
     /** Dispatch an outbound message; router handles primary/mirror paths per mode. */
     suspend fun send(message: ConnectorOutboundMessage)
+
+    /** Clears cached identities, conversations, and observation jobs (used on sign-out). */
+    suspend fun reset()
 }

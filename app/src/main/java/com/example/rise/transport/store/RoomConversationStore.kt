@@ -28,8 +28,7 @@ class RoomConversationStore(
             if (messages.isEmpty()) {
                 dao.deleteMessagesForConversation(conversationId)
             } else {
-                dao.deleteMessagesForConversation(conversationId)
-                dao.upsertMessages(messages.map { it.toEntity() })
+                dao.replaceMessages(conversationId, messages.map { it.toEntity() })
             }
         }
     }

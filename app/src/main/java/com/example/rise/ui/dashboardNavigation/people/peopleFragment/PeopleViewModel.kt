@@ -9,8 +9,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -40,11 +38,13 @@ class PeopleViewModel(
     fun start() {
         if (observeJob != null) return
         observeJob = viewModelScope.launch {
-            repository.observePeople()
-                .onStart { _uiState.update { it.copy(isLoading = true, errorMessage = null) } }
-                .catch { error ->
+            launch {
+                repository.errors.collect { error ->
                     _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
                 }
+            }
+            repository.observePeople()
+                .onStart { _uiState.update { it.copy(isLoading = true, errorMessage = null) } }
                 .collect { people ->
                     _uiState.update {
                         it.copy(

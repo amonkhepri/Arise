@@ -1,9 +1,11 @@
 package com.example.rise.data.myaccount
 
 import com.example.rise.auth.AuthenticationService
-import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.models.User
+import com.example.rise.data.people.PeopleSync
+import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.router.TransportRouter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,6 +13,8 @@ import kotlinx.coroutines.withContext
 class FirebaseMyAccountRepository(
     private val authService: AuthenticationService,
     private val userRemoteDataSource: UserRemoteDataSource,
+    private val peopleSync: PeopleSync,
+    private val transportRouter: TransportRouter,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val transportBridge: TransportRuntimeBridge,
 ) : MyAccountRepository {
@@ -40,6 +44,8 @@ class FirebaseMyAccountRepository(
 
     override suspend fun signOut() {
         withContext(ioDispatcher) {
+            peopleSync.stop()
+            transportRouter.reset()
             authService.signOut()
         }
     }

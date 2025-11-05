@@ -78,6 +78,7 @@ class MyAccountViewModel(
         viewModelScope.launch {
             try {
                 repository.signOut()
+                _uiState.update { UiState() }
                 _events.emit(Event.NavigateToSignIn)
             } catch (error: Exception) {
                 _events.emit(Event.ShowMessage(error.message ?: "Failed to sign out"))

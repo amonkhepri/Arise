@@ -52,8 +52,21 @@ interface IdentityRegistry {
     suspend fun upsertIdentity(
         identity: CanonicalIdentity,
         aliases: Map<TransportId, String>,
+        profile: IdentityProfile? = null,
         setAsCurrent: Boolean = false,
     )
+
+    /**
+     * Removes an identity entirely from the registry. Typically used by contact sync flows when a
+     * remote contact disappears.
+     */
+    suspend fun removeIdentity(canonicalId: String)
+
+    /**
+     * Synchronous snapshot of all known identities. Intended for seeding logic that needs to diff
+     * remote data without collecting the Flow indefinitely.
+     */
+    fun identitiesSnapshot(): List<IdentityRecord>
 
     /**
      * Manually links a connector alias to an existing canonical identity (used by merge UI).

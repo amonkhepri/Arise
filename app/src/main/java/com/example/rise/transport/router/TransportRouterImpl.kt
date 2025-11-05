@@ -71,6 +71,10 @@ class TransportRouterImpl(
         }
     }
 
+    override suspend fun reset() {
+        resetCachedIdentity()
+    }
+
     private suspend fun resolveCurrentIdentity(mode: BriarTransportMode): CanonicalIdentity {
         val primaryConnector = connectorRegistry.primaryFor(mode)
         val cachedIdentity = identityRegistry.currentIdentitySnapshot()
@@ -152,28 +156,28 @@ class TransportRouterImpl(
     }
 
     private fun ensureObservation(conversationId: String) {
-        val lock = observationLocks.computeIfAbsent(conversationId) { ReentrantLock() }
-        lock.lock()
+        val conversationLock = observationLocks.computeIfAbsent(conversationId) { ReentrantLock() }
+        conversationLock.lock()
         try {
-            val existing = observationJobs[conversationId]
-            if (existing != null) {
-                if (existing.isActive) {
+            val currentObservationJob = observationJobs[conversationId]
+            if (currentObservationJob != null) {
+                if (currentObservationJob.isActive) {
                     return
                 }
-                observationJobs.remove(conversationId, existing)
-                existing.cancel()
+                observationJobs.remove(conversationId, currentObservationJob)
+                currentObservationJob.cancel()
             }
 
-            val newJob = newObservationJob(conversationId)
-            observationJobs[conversationId] = newJob
-            newJob.invokeOnCompletion {
-                observationJobs.remove(conversationId, newJob)
-                observationLocks.remove(conversationId, lock)
+            val lazyObservationJob = newObservationJob(conversationId)
+            observationJobs[conversationId] = lazyObservationJob
+            lazyObservationJob.invokeOnCompletion {
+                observationJobs.remove(conversationId, lazyObservationJob)
+                observationLocks.remove(conversationId, conversationLock)
             }
-            newJob.start()
+            lazyObservationJob.start()
         } finally {
-            if (lock.isHeldByCurrentThread) {
-                lock.unlock()
+            if (conversationLock.isHeldByCurrentThread) {
+                conversationLock.unlock()
             }
         }
     }

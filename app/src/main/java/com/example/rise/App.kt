@@ -20,8 +20,10 @@ import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.data.dashboard.FirestoreAlarmRepository
 import com.example.rise.data.myaccount.FirebaseMyAccountRepository
 import com.example.rise.data.myaccount.MyAccountRepository
-import com.example.rise.data.people.FirestorePeopleRepository
+import com.example.rise.data.people.FirestorePeopleSync
 import com.example.rise.data.people.PeopleRepository
+import com.example.rise.data.people.PeopleSync
+import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.helpers.Config
 import com.example.rise.briar.BriarRuntimeEnvironmentImpl
 import com.example.rise.briar.runtime.BriarComponentFactory
@@ -133,12 +135,15 @@ class App: Application() {
             )
         }
         single<ChatRepository> { TransportBackedChatRepository(get()) }
-        single<PeopleRepository> { FirestorePeopleRepository(get(), get(), get()) }
+        single<PeopleSync> { FirestorePeopleSync(auth = get(), firestore = get(), identityRegistry = get(), transportBridge = get()) }
+        single<PeopleRepository> { RouterPeopleRepository(identityRegistry = get(), sync = get()) }
         single<AlarmRepository> { FirestoreAlarmRepository(get(), get()) }
         single<MyAccountRepository> {
             FirebaseMyAccountRepository(
                 authService = get(),
                 userRemoteDataSource = get(),
+                peopleSync = get(),
+                transportRouter = get(),
                 ioDispatcher = Dispatchers.IO,
                 transportBridge = get(),
             )
@@ -162,9 +167,7 @@ class App: Application() {
 
         // Force dark mode
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-
         Timber.plant(Timber.DebugTree())
-
         FirebaseApp.initializeApp(this)
 
         startKoin {
