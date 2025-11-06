@@ -1,6 +1,7 @@
 package com.example.rise.transport.router
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * Contract implemented by each transport. Stage 2 primarily exercises the Firestore connector,
@@ -30,6 +31,12 @@ interface TransportConnector {
      * messages which the router will persist to the shared store.
      */
     fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>>
+
+    /**
+     * Roster observer used by people sync flows to stay aligned with connector-backed contacts.
+     * Connectors that do not surface a roster can rely on the default empty flow.
+     */
+    fun observeContacts(): Flow<List<ConnectorContact>> = emptyFlow()
 
     /**
      * Sends a message through the connector. Connectors may return immediately (fire-and-forget)

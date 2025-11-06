@@ -68,13 +68,13 @@ class TransportRouterImplTest {
     @Test
     fun `ensureCurrentIdentity refreshes cached identity when connector reports different user`() = scope.runTest {
         val oldIdentity = IdentityRecord(
-            identity = CanonicalIdentity(id = "old-user", displayName = "Old User"),
+            canonicalIdentity = CanonicalIdentity(id = "old-user", displayName = "Old User"),
             aliases = mapOf(TransportId.FIRESTORE to "old-user"),
         )
         val store = FakeIdentityRegistryStore(
             IdentityRegistryStore.StoredState(
-                records = mapOf(oldIdentity.identity.id to oldIdentity),
-                currentIdentityId = oldIdentity.identity.id,
+                records = mapOf(oldIdentity.canonicalIdentity.id to oldIdentity),
+                currentIdentityId = oldIdentity.canonicalIdentity.id,
             )
         )
         val conversationStore = InMemoryConversationStore()
@@ -104,7 +104,7 @@ class TransportRouterImplTest {
         assertEquals("new-user", store.state.currentIdentityId)
         val persisted = store.state.records["new-user"]
         requireNotNull(persisted)
-        assertEquals("New User", persisted.identity.displayName)
+        assertEquals("New User", persisted.canonicalIdentity.displayName)
         assertEquals(1, conversationStore.clearAllCalls)
         advanceUntilIdle()
         assertEquals(0, router.observationJobCount())
@@ -118,7 +118,7 @@ class TransportRouterImplTest {
             IdentityRegistryStore.StoredState(
                 records = mapOf(
                     cachedIdentity.id to IdentityRecord(
-                        identity = cachedIdentity,
+                        canonicalIdentity = cachedIdentity,
                         aliases = mapOf(TransportId.FIRESTORE to cachedIdentity.id),
                     )
                 ),
@@ -154,7 +154,7 @@ class TransportRouterImplTest {
             IdentityRegistryStore.StoredState(
                 records = mapOf(
                     cachedIdentity.id to IdentityRecord(
-                        identity = cachedIdentity,
+                        canonicalIdentity = cachedIdentity,
                         aliases = mapOf(TransportId.FIRESTORE to cachedIdentity.id),
                     )
                 ),
@@ -224,7 +224,7 @@ class TransportRouterImplTest {
             IdentityRegistryStore.StoredState(
                 records = mapOf(
                     identity.id to IdentityRecord(
-                        identity = identity,
+                        canonicalIdentity = identity,
                         aliases = mapOf(TransportId.FIRESTORE to identity.id),
                     )
                 ),
@@ -262,7 +262,7 @@ class TransportRouterImplTest {
             IdentityRegistryStore.StoredState(
                 records = mapOf(
                     cachedIdentity.id to IdentityRecord(
-                        identity = cachedIdentity,
+                        canonicalIdentity = cachedIdentity,
                         aliases = mapOf(TransportId.FIRESTORE to cachedIdentity.id),
                     )
                 ),
@@ -301,7 +301,7 @@ class TransportRouterImplTest {
             IdentityRegistryStore.StoredState(
                 records = mapOf(
                     cachedIdentity.id to IdentityRecord(
-                        identity = cachedIdentity,
+                        canonicalIdentity = cachedIdentity,
                         aliases = mapOf(TransportId.FIRESTORE to cachedIdentity.id),
                     )
                 ),
@@ -772,7 +772,7 @@ class TransportRouterImplTest {
         override fun persist(records: Map<String, IdentityRecord>, currentIdentityId: String?) {
             val snapshot = records.mapValues { (_, record) ->
                 IdentityRecord(
-                    identity = record.identity,
+                    canonicalIdentity = record.canonicalIdentity,
                     aliases = record.aliases.toMap(),
                 )
             }

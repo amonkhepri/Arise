@@ -21,9 +21,9 @@ import com.example.rise.data.dashboard.FirestoreAlarmRepository
 import com.example.rise.data.myaccount.FirebaseMyAccountRepository
 import com.example.rise.data.myaccount.MyAccountRepository
 import com.example.rise.data.people.FirestorePeopleSync
-import com.example.rise.data.people.PeopleRepository
-import com.example.rise.data.people.PeopleSync
 import com.example.rise.data.people.RouterPeopleRepository
+import com.example.rise.data.people.PeopleSync
+import com.example.rise.data.people.RouterPeopleRepositoryImpl
 import com.example.rise.helpers.Config
 import com.example.rise.briar.BriarRuntimeEnvironmentImpl
 import com.example.rise.briar.runtime.BriarComponentFactory
@@ -119,6 +119,7 @@ class App: Application() {
             FirestoreConnector(
                 authService = get(),
                 chatRemoteDataSource = get(),
+                userRemoteDataSource = get(),
                 transportBridge = get(),
                 localCache = get(),
             )
@@ -135,8 +136,15 @@ class App: Application() {
             )
         }
         single<ChatRepository> { TransportBackedChatRepository(get()) }
-        single<PeopleSync> { FirestorePeopleSync(auth = get(), firestore = get(), identityRegistry = get(), transportBridge = get()) }
-        single<PeopleRepository> { RouterPeopleRepository(identityRegistry = get(), sync = get()) }
+        single<PeopleSync> {
+            FirestorePeopleSync(
+                firebaseAuth = get(),
+                transportConnector = get(),
+                identityRegistry = get(),
+                transportBridge = get(),
+            )
+        }
+        single<RouterPeopleRepository> { RouterPeopleRepositoryImpl(identityRegistry = get(), peopleSync = get()) }
         single<AlarmRepository> { FirestoreAlarmRepository(get(), get()) }
         single<MyAccountRepository> {
             FirebaseMyAccountRepository(

@@ -29,7 +29,7 @@ class IdentityRegistryImpl(
             }
         }
         val currentIdentity = storedState.currentIdentityId?.let { id ->
-            storedState.records[id]?.identity
+            storedState.records[id]?.canonicalIdentity
         }
         if (currentIdentity != null) {
             _currentIdentity.value = currentIdentity
@@ -41,7 +41,7 @@ class IdentityRegistryImpl(
     override val identities: Flow<List<IdentityRecord>> = _records
         .asStateFlow()
         .map { records ->
-            records.values.sortedBy { it.identity.displayName }
+            records.values.sortedBy { it.canonicalIdentity.displayName }
         }
 
     override fun currentIdentitySnapshot(): CanonicalIdentity? = _currentIdentity.value
@@ -52,7 +52,7 @@ class IdentityRegistryImpl(
     ): CanonicalIdentity {
         val canonicalId = aliasToCanonical[transport to transportId]
             ?: error("Unknown identity for $transport:$transportId")
-        return _records.value[canonicalId]?.identity
+        return _records.value[canonicalId]?.canonicalIdentity
             ?: error("No canonical identity stored for id=$canonicalId")
     }
 
@@ -81,7 +81,7 @@ class IdentityRegistryImpl(
             }
             val profileToStore = profile ?: existingRecord?.profile ?: IdentityProfile()
             updated[identity.id] = IdentityRecord(
-                identity = identity,
+                canonicalIdentity = identity,
                 aliases = existingAliases.toMap(),
                 profile = profileToStore,
             )

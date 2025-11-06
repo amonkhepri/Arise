@@ -1,7 +1,7 @@
 package com.example.rise.ui.dashboardNavigation.people.peopleFragment
 
 import app.cash.turbine.test
-import com.example.rise.data.people.PeopleRepository
+import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PersonSummary
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -21,7 +21,7 @@ class PeopleViewModelTest {
 
     @org.junit.Test
     fun `start observes people and updates state`() = runTest {
-        val repository = FakePeopleRepository()
+        val repository = FakeRouterPeopleRepository()
         val viewModel = PeopleViewModel(repository)
 
         viewModel.start()
@@ -41,7 +41,7 @@ class PeopleViewModelTest {
 
     @org.junit.Test
     fun `onPersonSelected emits navigation event`() = runTest {
-        val repository = FakePeopleRepository()
+        val repository = FakeRouterPeopleRepository()
         val viewModel = PeopleViewModel(repository)
         val summary = PersonSummary(id = "a", name = "Alice", bio = "Bio", profilePicturePath = null)
 
@@ -63,7 +63,7 @@ class PeopleViewModelTest {
 
     @org.junit.Test
     fun `start surfaces sync errors`() = runTest {
-        val repository = FakePeopleRepository()
+        val repository = FakeRouterPeopleRepository()
         val viewModel = PeopleViewModel(repository)
 
         viewModel.start()
@@ -75,7 +75,7 @@ class PeopleViewModelTest {
         assertEquals("boom", viewModel.uiState.value.errorMessage)
     }
 
-    private class FakePeopleRepository : PeopleRepository {
+    private class FakeRouterPeopleRepository : RouterPeopleRepository {
         private val people = MutableSharedFlow<List<PersonSummary>>(replay = 1)
         private val errorsFlow = MutableSharedFlow<Throwable>(extraBufferCapacity = 1)
         private var latest: List<PersonSummary> = emptyList()
@@ -89,7 +89,7 @@ class PeopleViewModelTest {
             errorsFlow.tryEmit(error)
         }
 
-        override val errors = errorsFlow
+        override val syncPeopleErrors = errorsFlow
 
         override fun observePeople() = people
 

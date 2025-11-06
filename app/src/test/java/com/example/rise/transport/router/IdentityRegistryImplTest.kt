@@ -30,7 +30,7 @@ class IdentityRegistryImplTest {
         val identities = registry.identities.first()
         assertEquals(1, identities.size)
         val record = identities.first()
-        assertEquals("Self", record.identity.displayName)
+        assertEquals("Self", record.canonicalIdentity.displayName)
         assertEquals(profile, record.profile)
     }
 
@@ -54,9 +54,9 @@ class IdentityRegistryImplTest {
 
         registry.linkAlias(canonicalId = "bob", transport = TransportId.FIRESTORE, transportId = "fire-alice")
 
-        val bob = registry.identities.first().first { it.identity.id == "bob" }
+        val bob = registry.identities.first().first { it.canonicalIdentity.id == "bob" }
         assertEquals("fire-alice", bob.aliases[TransportId.FIRESTORE])
-        val alice = registry.identities.first().first { it.identity.id == "alice" }
+        val alice = registry.identities.first().first { it.canonicalIdentity.id == "alice" }
         assertFalse(alice.aliases.containsKey(TransportId.FIRESTORE))
         val resolved = registry.resolveByConnector(TransportId.FIRESTORE, "fire-alice")
         assertEquals("bob", resolved.id)
@@ -77,7 +77,7 @@ class IdentityRegistryImplTest {
         registry.removeIdentity("alice")
 
         val records = registry.identities.first()
-        assertTrue(records.none { it.identity.id == "alice" })
+        assertTrue(records.none { it.canonicalIdentity.id == "alice" })
         assertTrue(store.state.records.isEmpty())
     }
 
@@ -93,7 +93,7 @@ class IdentityRegistryImplTest {
 
         val snapshot = registry.identitiesSnapshot()
         assertEquals(1, snapshot.size)
-        assertEquals("user", snapshot.first().identity.id)
+        assertEquals("user", snapshot.first().canonicalIdentity.id)
     }
 
     private class FakeIdentityRegistryStore(
@@ -107,7 +107,7 @@ class IdentityRegistryImplTest {
         override fun persist(records: Map<String, IdentityRecord>, currentIdentityId: String?) {
             val recordsCopy = records.mapValues { (_, record) ->
                 IdentityRecord(
-                    identity = record.identity,
+                    canonicalIdentity = record.canonicalIdentity,
                     aliases = record.aliases.toMap(),
                     profile = record.profile,
                 )

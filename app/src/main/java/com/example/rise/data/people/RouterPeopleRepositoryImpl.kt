@@ -1,0 +1,307 @@
+package com.example.rise.data.people
+
+import com.example.rise.models.User
+import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.ConnectorContact
+import com.example.rise.transport.router.IdentityProfile
+import com.example.rise.transport.router.IdentityRegistry
+import com.example.rise.transport.router.IdentityRecord
+import com.example.rise.transport.router.PresenceStatus
+import com.example.rise.transport.router.TransportId
+import com.example.rise.transport.router.TransportConnector
+import com.google.firebase.auth.FirebaseAuth
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+interface PeopleSync {
+    /**
+     * Emits sync errors that occur while observing the people data. Consumers should surface the
+     * error state but keep listening for subsequent updates because the sync layer will retry.
+     */
+    val syncPeopleErrors: Flow<Throwable>
+
+    /**
+     * Emits the canonical ID of the currently signed-in user, or `null` if no user is signed in.
+     */
+    val currentUserCanonicalId: Flow<String?>
+
+    /**
+     * Starts the sync process if it is not already running.
+     */
+    fun ensureStarted()
+
+    /**
+     * Stops the sync process if it is running.
+     */
+    fun stop()
+}
+
+class RouterPeopleRepositoryImpl(
+    private val identityRegistry: IdentityRegistry,
+    private val peopleSync: PeopleSync,
+) : RouterPeopleRepository {
+
+    override val syncPeopleErrors: Flow<Throwable> = peopleSync.syncPeopleErrors
+
+    override fun observePeople(): Flow<List<PersonSummary>> {
+        peopleSync.ensureStarted()
+        val currentUserIds: Flow<String?> = peopleSync.currentUserCanonicalId
+
+        return identityRegistry.identities.combine(currentUserIds) { records, currentUserId ->
+            val effectiveCurrentUserId = currentUserId ?: identityRegistry.currentIdentitySnapshot()?.id
+            records
+                .filter { effectiveCurrentUserId == null || it.canonicalIdentity.id != effectiveCurrentUserId }
+                .map { it.toPersonSummary() }
+        }
+    }
+
+    override fun observePerson(personId: String): Flow<PersonSummary?> {
+        peopleSync.ensureStarted()
+        return identityRegistry.identities.map { records ->
+            records
+                .firstOrNull { it.canonicalIdentity.id == personId }
+                ?.toPersonSummary()
+        }
+    }
+
+    //TODO: findPerson is used in tests only
+    override suspend fun findPerson(personId: String): PersonSummary? {
+        peopleSync.ensureStarted()
+        return identityRegistry.identitiesSnapshot()
+            .firstOrNull { record -> record.canonicalIdentity.id == personId }
+            ?.toPersonSummary()
+    }
+
+    private fun IdentityRecord.toPersonSummary(): PersonSummary {
+        return PersonSummary(
+            id = canonicalIdentity.id,
+            name = canonicalIdentity.displayName,
+            bio = profile.bio ?: "",
+            profilePicturePath = profile.profilePicturePath,
+            presence = profile.presence,
+        )
+    }
+
+}
+
+internal data class FirestoreSnapshotEntry(
+    val canonicalId: String,
+    val user: User,
+)
+
+class FirestorePeopleSync(
+    private val firebaseAuth: FirebaseAuth?,
+    private val transportConnector: TransportConnector,
+    private val identityRegistry: IdentityRegistry,
+    private val transportBridge: TransportRuntimeBridge,
+    private val syncSupervisorJob: Job = SupervisorJob(),
+    private val scope: CoroutineScope = CoroutineScope(syncSupervisorJob + Dispatchers.IO),
+    private val currentUserIdProvider: () -> String? = { firebaseAuth?.currentUser?.uid },
+    private val initialRetryDelayMillis: Long = 250,
+    private val maxRetryDelayMillis: Long = 30_000,
+    private val backoffMultiplier: Double = 2.0,
+    private val delayProvider: suspend (Long) -> Unit = { delay(it) },
+) : PeopleSync {
+
+    private val syncActive = AtomicBoolean(false)
+    private var rosterJob: Job? = null
+    private var restartJob: Job? = null
+    private var retryDelayMillis: Long = initialRetryDelayMillis
+    private val _errors = MutableSharedFlow<Throwable>(extraBufferCapacity = 1)
+    private val currentUserIdState = MutableStateFlow(currentUserIdProvider())
+    private val snapshotProcessingMutex = Mutex()
+
+    private val authListener: FirebaseAuth.AuthStateListener? = firebaseAuth?.let { firebaseAuth ->
+        FirebaseAuth.AuthStateListener { updatedAuth ->
+            val userId = updatedAuth.currentUser?.uid
+            currentUserIdState.value = userId
+            if (userId != null) {
+                ensureStarted()
+            } else {
+                stop()
+            }
+        }
+    }
+
+    init {
+        require(transportConnector.transport == TransportId.FIRESTORE) {
+            "FirestorePeopleSync requires a Firestore transport connector"
+        }
+        firebaseAuth?.let { firebaseAuth ->
+            val listener = authListener ?: return@let
+            firebaseAuth.addAuthStateListener(listener)
+            syncSupervisorJob.invokeOnCompletion { firebaseAuth.removeAuthStateListener(listener) }
+        }
+    }
+
+    override val syncPeopleErrors: Flow<Throwable> = _errors.asSharedFlow()
+    override val currentUserCanonicalId: StateFlow<String?> = currentUserIdState.asStateFlow()
+
+    override fun ensureStarted() {
+        if (!syncActive.compareAndSet(false, true)) {
+            return
+        }
+        retryDelayMillis = initialRetryDelayMillis
+        restartJob?.cancel()
+        registerListener()
+    }
+
+    override fun stop() {
+        rosterJob?.cancel()
+        rosterJob = null
+        restartJob?.cancel()
+        restartJob = null
+        syncSupervisorJob.cancelChildren()
+        syncActive.set(false)
+        currentUserIdState.value = null
+        retryDelayMillis = initialRetryDelayMillis
+    }
+
+    private fun registerListener() {
+        if (!syncActive.get()) return
+        transportBridge.requireFirestore("FirestorePeopleSync#ensureStarted")
+        rosterJob?.cancel()
+        rosterJob = scope.launch {
+            try {
+                transportConnector.observeContacts().collect { contacts ->
+                    resetBackoff()
+                    val currentUserId = currentUserIdProvider()
+                    currentUserIdState.value = currentUserId
+                    val entries = contacts.map { contact ->
+                        FirestoreSnapshotEntry(
+                            canonicalId = contact.canonicalId,
+                            user = contact.toUser(),
+                        )
+                    }
+                    snapshotProcessingMutex.withLock {
+                        processSnapshot(
+                            entries = entries,
+                            currentUserId = currentUserId,
+                            identityRegistry = identityRegistry,
+                        )
+                    }
+                }
+            } catch (error: Throwable) {
+                if (!syncActive.get()) return@launch
+                if (error is CancellationException) return@launch
+                handleListenerError(error)
+            }
+        }
+    }
+
+    private fun handleListenerError(error: Throwable) {
+        _errors.tryEmit(error)
+        rosterJob?.cancel()
+        rosterJob = null
+        scheduleRetry()
+    }
+
+    private fun scheduleRetry() {
+        if (!syncActive.get()) return
+        restartJob?.cancel()
+        val delayMillis = retryDelayMillis
+        restartJob = scope.launch {
+            delayProvider(delayMillis)
+            if (!syncActive.get()) return@launch
+            registerListener()
+        }
+        val nextDelay = (retryDelayMillis * backoffMultiplier).toLong()
+        retryDelayMillis = nextDelay.coerceAtMost(maxRetryDelayMillis)
+    }
+
+    private fun resetBackoff() {
+        retryDelayMillis = initialRetryDelayMillis
+        restartJob?.cancel()
+        restartJob = null
+    }
+}
+
+internal suspend fun processSnapshot(
+    entries: List<FirestoreSnapshotEntry>,
+    currentUserId: String?,
+    identityRegistry: IdentityRegistry,
+) {
+    val remoteIds = entries.mapTo(mutableSetOf()) { it.canonicalId }
+    val existingIds = identityRegistry.identitiesSnapshot()
+        .filter { record ->
+            record.canonicalIdentity.id != currentUserId &&
+                record.aliases.containsKey(TransportId.FIRESTORE)
+        }
+        .mapTo(mutableSetOf()) { it.canonicalIdentity.id }
+    val (currentEntries, otherEntries) = if (currentUserId == null) {
+        emptyList<FirestoreSnapshotEntry>() to entries
+    } else {
+        entries.partition { it.canonicalId == currentUserId }
+    }
+
+    suspend fun upsert(entry: FirestoreSnapshotEntry, setAsCurrent: Boolean) {
+        identityRegistry.upsertIdentity(
+            identity = CanonicalIdentity(
+                id = entry.canonicalId,
+                displayName = entry.user.name,
+            ),
+            aliases = mapOf(TransportId.FIRESTORE to entry.canonicalId),
+            profile = IdentityProfile(
+                bio = entry.user.bio,
+                profilePicturePath = entry.user.profilePicturePath,
+                presence = PresenceStatus.UNKNOWN,
+            ),
+            setAsCurrent = setAsCurrent,
+        )
+    }
+
+    currentEntries.forEach { entry -> upsert(entry, setAsCurrent = true) }
+    otherEntries.forEach { entry -> upsert(entry, setAsCurrent = false) }
+
+    removeMissingContacts(
+        identityRegistry = identityRegistry,
+        remoteIds = remoteIds,
+        currentUserId = currentUserId,
+        knownIdsBeforeSnapshot = existingIds
+    )
+}
+
+internal suspend fun removeMissingContacts(
+    identityRegistry: IdentityRegistry,
+    remoteIds: Set<String>,
+    currentUserId: String?,
+    knownIdsBeforeSnapshot: Set<String>,
+) {
+    identityRegistry.identitiesSnapshot()
+        .filter { record ->
+            val canonicalId = record.canonicalIdentity.id
+            if (canonicalId == currentUserId) return@filter false
+            if (canonicalId !in knownIdsBeforeSnapshot) return@filter false
+            record.aliases.containsKey(TransportId.FIRESTORE) && canonicalId !in remoteIds
+        }
+        .forEach { record ->
+            identityRegistry.removeIdentity(record.canonicalIdentity.id)
+        }
+}
+
+private fun ConnectorContact.toUser(): User {
+    return User(
+        name = displayName,
+        bio = bio.orEmpty(),
+        profilePicturePath = profilePicturePath,
+        registrationTokens = registrationTokens.toMutableList(),
+    )
+}

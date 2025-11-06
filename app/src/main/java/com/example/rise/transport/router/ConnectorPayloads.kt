@@ -39,4 +39,8 @@ data class ConnectorContact(
     val transportId: String,
     val displayName: String,
     val canonicalId: String,
+    val bio: String? = null,
+    val profilePicturePath: String? = null,
+    val presence: PresenceStatus = PresenceStatus.UNKNOWN,
+    val registrationTokens: List<String> = emptyList(),
 )

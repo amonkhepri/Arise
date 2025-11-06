@@ -5,10 +5,13 @@ import com.example.rise.auth.AuthenticationService
 import com.example.rise.data.chat.CachedChatMessage
 import com.example.rise.data.chat.ChatLocalCache
 import com.example.rise.data.firestore.ChatRemoteDataSource
+import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.featureflags.BriarTransportMode
+import com.example.rise.models.User
 import com.example.rise.models.TextMessage
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.ConnectorInboundMessage
+import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportId
 import com.example.rise.util.MainDispatcherRule
 import com.example.rise.briar.runtime.BriarRuntimeEvent
@@ -26,6 +29,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -195,6 +199,41 @@ class FirestoreConnectorTest {
         )
     }
 
+    @Test
+    fun `observeContacts emits connector contacts`() = runTest {
+        val fixture = ConnectorFixture(dispatcherRule.testDispatcher)
+        val connector = fixture.connector
+
+        val alice = User(
+            name = "Alice",
+            bio = "Bio",
+            profilePicturePath = "path-a",
+            registrationTokens = mutableListOf("token-a"),
+        )
+        val bob = User(
+            name = "Bob",
+            bio = "",
+            profilePicturePath = null,
+            registrationTokens = mutableListOf("token-b"),
+        )
+        fixture.userRemoteDataSource.emit(
+            "uid-a" to alice,
+            "uid-b" to bob,
+        )
+
+        val contacts = connector.observeContacts().first()
+
+        assertEquals(2, contacts.size)
+        val aliceContact = contacts.first { it.canonicalId == "uid-a" }
+        assertEquals(TransportId.FIRESTORE, aliceContact.transport)
+        assertEquals("uid-a", aliceContact.transportId)
+        assertEquals("Alice", aliceContact.displayName)
+        assertEquals("Bio", aliceContact.bio)
+        assertEquals("path-a", aliceContact.profilePicturePath)
+        assertEquals(PresenceStatus.UNKNOWN, aliceContact.presence)
+        assertEquals(listOf("token-a"), aliceContact.registrationTokens)
+    }
+
     private class ConnectorFixture(dispatcher: TestDispatcher) {
         val authService = FakeAuthenticationService(
             AuthenticationService.User(
@@ -208,6 +247,7 @@ class FirestoreConnectorTest {
             displayNames["uid-a"] = "Alice"
             displayNames["uid-b"] = "Bob"
         }
+        val userRemoteDataSource = FakeUserRemoteDataSource()
         val transportBridge: TransportRuntimeBridge = NoOpTransportRuntimeBridge()
         val localCache = FakeChatLocalCache()
         val conversation = com.example.rise.transport.router.CanonicalConversation(
@@ -218,6 +258,7 @@ class FirestoreConnectorTest {
         val connector = FirestoreConnector(
             authService = authService,
             chatRemoteDataSource = chatRemoteDataSource,
+            userRemoteDataSource = userRemoteDataSource,
             transportBridge = transportBridge,
             localCache = localCache,
                 cacheDispatcher = dispatcher,
@@ -316,6 +357,27 @@ class FirestoreConnectorTest {
 
         override suspend fun sendMessage(conversationId: String, message: TextMessage) {
             sentMessages += conversationId to message
+        }
+    }
+
+    private class FakeUserRemoteDataSource : UserRemoteDataSource {
+        private val state = MutableStateFlow<List<UserRemoteDataSource.UserSnapshot>>(emptyList())
+        private val users = mutableMapOf<String, User>()
+        val updateRequests = mutableListOf<Pair<String, Map<String, Any>>>()
+
+        override suspend fun fetchUser(userId: String): User? = users[userId]
+
+        override suspend fun updateUser(userId: String, updates: Map<String, Any>) {
+            updateRequests += userId to updates
+        }
+
+        override fun observeUsers(): Flow<List<UserRemoteDataSource.UserSnapshot>> = state
+
+        fun emit(vararg entries: Pair<String, User>) {
+            entries.forEach { (id, user) -> users[id] = user }
+            state.value = entries.map { (id, user) ->
+                UserRemoteDataSource.UserSnapshot(id = id, user = user)
+            }
         }
     }
 

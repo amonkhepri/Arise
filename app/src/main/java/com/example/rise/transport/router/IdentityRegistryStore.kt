@@ -60,7 +60,7 @@ class SharedPrefsIdentityRegistryStore(
                         )
                     } ?: IdentityProfile()
                     identities[canonicalId] = IdentityRecord(
-                        identity = CanonicalIdentity(
+                        canonicalIdentity = CanonicalIdentity(
                             id = canonicalId,
                             displayName = displayName,
                         ),
@@ -90,8 +90,8 @@ class SharedPrefsIdentityRegistryStore(
             }
             array.put(
                 JSONObject().apply {
-                    put(KEY_CANONICAL_ID, record.identity.id)
-                    put(KEY_DISPLAY_NAME, record.identity.displayName)
+                    put(KEY_CANONICAL_ID, record.canonicalIdentity.id)
+                    put(KEY_DISPLAY_NAME, record.canonicalIdentity.displayName)
                     put(KEY_ALIASES, aliasesJson)
                     put(KEY_PROFILE, profileJson)
                 }

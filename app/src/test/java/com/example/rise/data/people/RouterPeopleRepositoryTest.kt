@@ -29,13 +29,13 @@ class RouterPeopleRepositoryTest {
 
     private lateinit var sync: FakePeopleSync
     private lateinit var identityRegistry: FakeIdentityRegistry
-    private lateinit var repository: RouterPeopleRepository
+    private lateinit var repository: RouterPeopleRepositoryImpl
 
     @Before
     fun setUp() {
         identityRegistry = FakeIdentityRegistry()
         sync = FakePeopleSync()
-        repository = RouterPeopleRepository(identityRegistry, sync)
+        repository = RouterPeopleRepositoryImpl(identityRegistry, sync)
     }
 
     @Test
@@ -43,12 +43,12 @@ class RouterPeopleRepositoryTest {
         identityRegistry.setIdentities(
             listOf(
                 IdentityRecord(
-                    identity = CanonicalIdentity("self", "Self"),
+                    canonicalIdentity = CanonicalIdentity("self", "Self"),
                     aliases = emptyMap(),
                     profile = IdentityProfile(bio = "", profilePicturePath = null, presence = PresenceStatus.ONLINE),
                 ),
                 IdentityRecord(
-                    identity = CanonicalIdentity("friend", "Friend"),
+                    canonicalIdentity = CanonicalIdentity("friend", "Friend"),
                     aliases = mapOf(TransportId.FIRESTORE to "friend"),
                     profile = IdentityProfile(bio = "Howdy", profilePicturePath = "path", presence = PresenceStatus.OFFLINE),
                 ),
@@ -75,7 +75,7 @@ class RouterPeopleRepositoryTest {
     @Test
     fun `observePeople emits updates when identity profile changes`() = runTest {
         val friendRecord = IdentityRecord(
-            identity = CanonicalIdentity("friend", "Friend"),
+            canonicalIdentity = CanonicalIdentity("friend", "Friend"),
             aliases = mapOf(TransportId.FIRESTORE to "friend"),
             profile = IdentityProfile(bio = "", profilePicturePath = null, presence = PresenceStatus.OFFLINE),
         )
@@ -100,17 +100,17 @@ class RouterPeopleRepositoryTest {
     @Test
     fun `observePeople filters current identity while sync canonical id is unknown`() = runTest {
         val selfRecord = IdentityRecord(
-            identity = CanonicalIdentity("self", "Self"),
+            canonicalIdentity = CanonicalIdentity("self", "Self"),
             aliases = mapOf(TransportId.FIRESTORE to "self"),
             profile = IdentityProfile(),
         )
         val friendRecord = IdentityRecord(
-            identity = CanonicalIdentity("friend", "Friend"),
+            canonicalIdentity = CanonicalIdentity("friend", "Friend"),
             aliases = mapOf(TransportId.FIRESTORE to "friend"),
             profile = IdentityProfile(),
         )
         identityRegistry.setIdentities(listOf(selfRecord, friendRecord))
-        identityRegistry.setCurrentIdentity(selfRecord.identity)
+        identityRegistry.setCurrentIdentity(selfRecord.canonicalIdentity)
         sync.setCurrentUserId(null)
 
         repository.observePeople().test {
@@ -124,7 +124,7 @@ class RouterPeopleRepositoryTest {
     @Test
     fun `observePerson emits updates for requested identity`() = runTest {
         val friendRecord = IdentityRecord(
-            identity = CanonicalIdentity("friend", "Friend"),
+            canonicalIdentity = CanonicalIdentity("friend", "Friend"),
             aliases = mapOf(TransportId.FIRESTORE to "friend"),
             profile = IdentityProfile(bio = "Howdy", profilePicturePath = null, presence = PresenceStatus.UNKNOWN),
         )
@@ -137,7 +137,7 @@ class RouterPeopleRepositoryTest {
             assertEquals(PresenceStatus.UNKNOWN, initial.presence)
 
             val updatedRecord = friendRecord.copy(
-                identity = friendRecord.identity.copy(displayName = "Frida"),
+                canonicalIdentity = friendRecord.canonicalIdentity.copy(displayName = "Frida"),
                 profile = friendRecord.profile.copy(presence = PresenceStatus.ONLINE),
             )
             identityRegistry.updateIdentity(updatedRecord)
@@ -154,7 +154,7 @@ class RouterPeopleRepositoryTest {
     @Test
     fun `findPerson returns snapshot from identity registry`() = runTest {
         val friendRecord = IdentityRecord(
-            identity = CanonicalIdentity("friend", "Friend"),
+            canonicalIdentity = CanonicalIdentity("friend", "Friend"),
             aliases = mapOf(TransportId.FIRESTORE to "friend"),
             profile = IdentityProfile(bio = "Howdy", profilePicturePath = "path", presence = PresenceStatus.ONLINE),
         )
@@ -173,16 +173,16 @@ class RouterPeopleRepositoryTest {
     @Test
     fun `observePeople continues emitting after sync error`() = runTest {
         val friendRecord = IdentityRecord(
-            identity = CanonicalIdentity("friend", "Friend"),
+            canonicalIdentity = CanonicalIdentity("friend", "Friend"),
             aliases = mapOf(TransportId.FIRESTORE to "friend"),
             profile = IdentityProfile(presence = PresenceStatus.ONLINE),
         )
         identityRegistry.setIdentities(listOf(friendRecord))
         val sync = ErroringPeopleSync().apply { setCurrentUserId("self") }
-        val repository = RouterPeopleRepository(identityRegistry = identityRegistry, sync = sync)
+        val repository = RouterPeopleRepositoryImpl(identityRegistry = identityRegistry, peopleSync = sync)
 
         val errorJob = launch {
-            repository.errors.test {
+            repository.syncPeopleErrors.test {
                 val error = awaitItem()
                 assertEquals("listener failure", error.message)
                 cancelAndIgnoreRemainingEvents()
@@ -212,7 +212,7 @@ class RouterPeopleRepositoryTest {
     fun `observePeople does not drop contacts when current identity updates`() = runTest {
         val registry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
         val sync = FakePeopleSync().apply { setCurrentUserId("self") }
-        val repository = RouterPeopleRepository(identityRegistry = registry, sync = sync)
+        val repository = RouterPeopleRepositoryImpl(identityRegistry = registry, peopleSync = sync)
 
         repository.observePeople().test {
             awaitItem() // initial empty emission
@@ -247,7 +247,7 @@ class RouterPeopleRepositoryTest {
     fun `observePeople temporarily filters contact while current identity catches up`() = runTest {
         val registry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
         val sync = FakePeopleSync().apply { setCurrentUserId("self") }
-        val repository = RouterPeopleRepository(identityRegistry = registry, sync = sync)
+        val repository = RouterPeopleRepositoryImpl(identityRegistry = registry, peopleSync = sync)
 
         repository.observePeople().test {
             assertEquals(emptyList<PersonSummary>(), awaitItem())
@@ -271,7 +271,7 @@ class RouterPeopleRepositoryTest {
             setIdentities(
                 listOf(
                     IdentityRecord(
-                        identity = CanonicalIdentity("orphan", "Orphan"),
+                        canonicalIdentity = CanonicalIdentity("orphan", "Orphan"),
                         aliases = mapOf(TransportId.FIRESTORE to "orphan"),
                         profile = IdentityProfile(),
                     )
@@ -295,15 +295,15 @@ class RouterPeopleRepositoryTest {
             identityRegistry = registry,
         )
 
-        val snapshot = registry.identitiesSnapshot().associateBy { it.identity.id }
+        val snapshot = registry.identitiesSnapshot().associateBy { it.canonicalIdentity.id }
         assertEquals(setOf("friend", "self"), snapshot.keys)
         val friend = snapshot.getValue("friend")
-        assertEquals("Friend", friend.identity.displayName)
+        assertEquals("Friend", friend.canonicalIdentity.displayName)
         assertEquals("Bio", friend.profile.bio)
         assertEquals("path", friend.profile.profilePicturePath)
         assertEquals(PresenceStatus.UNKNOWN, friend.profile.presence)
         val self = snapshot.getValue("self")
-        assertEquals("Self", self.identity.displayName)
+        assertEquals("Self", self.canonicalIdentity.displayName)
         assertEquals("Bio", self.profile.bio)
         assertEquals(PresenceStatus.UNKNOWN, self.profile.presence)
         assertEquals("self", registry.currentIdentitySnapshot()?.id)
@@ -321,7 +321,7 @@ private class InMemoryIdentityRegistryStore(
     override fun persist(records: Map<String, IdentityRecord>, currentIdentityId: String?) {
         val snapshot = records.mapValues { (_, record) ->
             IdentityRecord(
-                identity = record.identity,
+                canonicalIdentity = record.canonicalIdentity,
                 aliases = record.aliases.toMap(),
                 profile = record.profile,
             )
@@ -337,12 +337,12 @@ private class FakeIdentityRegistry : IdentityRegistry {
     private val _current = MutableStateFlow<CanonicalIdentity?>(null)
 
     fun setIdentities(records: List<IdentityRecord>) {
-        _records.value = records.associateBy { it.identity.id }
+        _records.value = records.associateBy { it.canonicalIdentity.id }
     }
 
     fun updateIdentity(record: IdentityRecord) {
         _records.update { current ->
-            current + (record.identity.id to record)
+            current + (record.canonicalIdentity.id to record)
         }
     }
 
@@ -354,7 +354,7 @@ private class FakeIdentityRegistry : IdentityRegistry {
         .filterNotNull()
 
     override val identities = _records
-        .map { it.values.sortedBy { record -> record.identity.displayName } }
+        .map { it.values.sortedBy { record -> record.canonicalIdentity.displayName } }
 
     override fun currentIdentitySnapshot(): CanonicalIdentity? = _current.value
 
@@ -398,7 +398,7 @@ private class FakePeopleSync : PeopleSync {
         private set
     private val _currentUserId = MutableStateFlow<String?>(null)
 
-    override val errors = emptyFlow<Throwable>()
+    override val syncPeopleErrors = emptyFlow<Throwable>()
     override val currentUserCanonicalId = _currentUserId
 
     override fun ensureStarted() {
@@ -416,7 +416,7 @@ private class ErroringPeopleSync : PeopleSync {
     private val _errors = MutableSharedFlow<Throwable>(extraBufferCapacity = 1)
     private val _currentUserId = MutableStateFlow<String?>(null)
 
-    override val errors = _errors
+    override val syncPeopleErrors = _errors
     override val currentUserCanonicalId = _currentUserId
 
     override fun ensureStarted() = Unit

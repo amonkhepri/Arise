@@ -178,6 +178,8 @@ class FirebaseMyAccountRepositoryTest {
             )
             users[userId] = updated
         }
+
+        override fun observeUsers(): Flow<List<UserRemoteDataSource.UserSnapshot>> = emptyFlow()
     }
 
     private class NoOpTransportRuntimeBridge : TransportRuntimeBridge {
@@ -195,7 +197,7 @@ class FirebaseMyAccountRepositoryTest {
 
     private class RecordingPeopleSync : PeopleSync {
         var stopCalls = 0
-        override val errors: Flow<Throwable> = emptyFlow()
+        override val syncPeopleErrors: Flow<Throwable> = emptyFlow()
         override val currentUserCanonicalId: Flow<String?> = emptyFlow()
         override fun ensureStarted() = Unit
         override fun stop() { stopCalls++ }

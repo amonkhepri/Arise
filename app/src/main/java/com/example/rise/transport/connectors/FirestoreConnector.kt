@@ -5,12 +5,15 @@ import com.example.rise.auth.AuthenticationService
 import com.example.rise.data.chat.CachedChatMessage
 import com.example.rise.data.chat.ChatLocalCache
 import com.example.rise.data.firestore.ChatRemoteDataSource
+import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.models.TextMessage
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.ConnectorContact
 import com.example.rise.transport.router.ConnectorInboundMessage
 import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.ConnectorStatus
+import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportConnector
 import com.example.rise.transport.router.TransportId
 import java.util.concurrent.ConcurrentHashMap
@@ -27,6 +30,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -34,6 +39,7 @@ import kotlinx.coroutines.sync.withLock
 class FirestoreConnector(
     private val authService: AuthenticationService,
     private val chatRemoteDataSource: ChatRemoteDataSource,
+    private val userRemoteDataSource: UserRemoteDataSource,
     private val transportBridge: TransportRuntimeBridge,
     private val localCache: ChatLocalCache,
     cacheDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -146,6 +152,25 @@ class FirestoreConnector(
             }
         }
         awaitClose { job.cancel() }
+    }
+
+    override fun observeContacts(): Flow<List<ConnectorContact>> {
+        return userRemoteDataSource.observeUsers()
+            .onStart { transportBridge.requireFirestore("FirestoreConnector#observeContacts") }
+            .map { snapshots ->
+                snapshots.map { snapshot ->
+                    ConnectorContact(
+                        transport = TransportId.FIRESTORE,
+                        transportId = snapshot.id,
+                        displayName = snapshot.user.name,
+                        canonicalId = snapshot.id,
+                        bio = snapshot.user.bio,
+                        profilePicturePath = snapshot.user.profilePicturePath,
+                        presence = PresenceStatus.UNKNOWN,
+                        registrationTokens = snapshot.user.registrationTokens.toList(),
+                    )
+                }
+            }
     }
 
     override suspend fun sendMessage(message: ConnectorOutboundMessage) {

@@ -40,7 +40,7 @@ data class CanonicalMessage(
  * present merge options or edit mappings.
  */
 data class IdentityRecord(
-    val identity: CanonicalIdentity,
+    val canonicalIdentity: CanonicalIdentity,
     val aliases: Map<TransportId, String>,
     val profile: IdentityProfile = IdentityProfile(),
 )

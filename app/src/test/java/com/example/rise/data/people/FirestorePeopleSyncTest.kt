@@ -9,31 +9,32 @@ import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.CanonicalIdentity
 import com.example.rise.transport.router.IdentityProfile
+import com.example.rise.transport.router.ConnectorContact
+import com.example.rise.transport.router.ConnectorStatus
 import com.example.rise.transport.router.IdentityRecord
 import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.IdentityRegistryImpl
 import com.example.rise.transport.router.IdentityRegistryStore
 import com.example.rise.transport.router.TransportId
+import com.example.rise.transport.router.TransportConnector
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
 import com.example.rise.util.MainDispatcherRule
-import com.google.firebase.firestore.EventListener
 import com.google.firebase.firestore.FirebaseFirestoreException
-import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.QuerySnapshot
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -49,11 +50,7 @@ class FirestorePeopleSyncTest {
 
   @Test
   fun `listener error should reach people view model`() = runTest {
-    var capturedListener: EventListener<QuerySnapshot>? = null
-    val registration = object : ListenerRegistration {
-      override fun remove() = Unit
-    }
-
+    val connector = FakeFirestoreConnector()
     val transportBridge = object : TransportRuntimeBridge {
       override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
       override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
@@ -69,35 +66,29 @@ class FirestorePeopleSyncTest {
     }
 
     val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
+   val dispatcher = StandardTestDispatcher(testScheduler)
     val scope = CoroutineScope(job + dispatcher)
     val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
     val sync = FirestorePeopleSync(
-      auth = null,
-      firestore = null,
+      firebaseAuth = null,
+      transportConnector = connector,
       identityRegistry = identityRegistry,
       transportBridge = transportBridge,
-      job = job,
+      syncSupervisorJob = job,
       scope = scope,
       currentUserIdProvider = { null },
-      listenerBinder = { listener ->
-        capturedListener = listener
-        registration
-      },
     )
-    val repository = RouterPeopleRepository(identityRegistry, sync)
+    val repository = RouterPeopleRepositoryImpl(identityRegistry, sync)
     val viewModel = PeopleViewModel(repository)
 
     viewModel.start()
     advanceUntilIdle()
 
-    val listener = capturedListener
-    assertNotNull("Expected snapshot listener to be registered", listener)
     val exception = FirebaseFirestoreException(
       "Permission denied",
       FirebaseFirestoreException.Code.PERMISSION_DENIED,
     )
-    listener!!.onEvent(null, exception)
+    connector.emitError(exception)
     advanceUntilIdle()
 
     assertEquals("Permission denied", viewModel.uiState.value.errorMessage)
@@ -113,12 +104,61 @@ class FirestorePeopleSyncTest {
     }
   }
 
+  private class FakeFirestoreConnector : TransportConnector {
+    private val contacts = MutableSharedFlow<List<ConnectorContact>>(extraBufferCapacity = Int.MAX_VALUE)
+    private val errors = MutableSharedFlow<Throwable>(extraBufferCapacity = Int.MAX_VALUE)
+    private val _status = MutableStateFlow(ConnectorStatus.ACTIVE)
+
+    override val status = _status
+    override val transport: TransportId = TransportId.FIRESTORE
+    var observeContactsCalls: Int = 0
+
+    override suspend fun currentIdentity(): CanonicalIdentity {
+      throw UnsupportedOperationException("Not needed in test")
+    }
+
+    override suspend fun ensureConversation(conversation: com.example.rise.transport.router.CanonicalConversation): String {
+      throw UnsupportedOperationException("Not needed in test")
+    }
+
+    override fun observeMessages(conversationId: String): Flow<List<com.example.rise.transport.router.ConnectorInboundMessage>> {
+      throw UnsupportedOperationException("Not needed in test")
+    }
+
+    override fun observeContacts(): Flow<List<ConnectorContact>> = callbackFlow {
+      observeContactsCalls += 1
+      val contactsJob = launch {
+        contacts.collect { entries ->
+          trySend(entries).isSuccess
+        }
+      }
+      val errorsJob = launch {
+        errors.collect { error ->
+          close(error)
+        }
+      }
+      awaitClose {
+        contactsJob.cancel()
+        errorsJob.cancel()
+      }
+    }
+
+    override suspend fun sendMessage(message: com.example.rise.transport.router.ConnectorOutboundMessage) {
+      throw UnsupportedOperationException("Not needed in test")
+    }
+
+    suspend fun emitContacts(entries: List<ConnectorContact>) {
+      contacts.emit(entries)
+    }
+
+    suspend fun emitError(error: Throwable) {
+      errors.emit(error)
+    }
+  }
+
   @Test
   fun `listener error retries with exponential backoff`() = runTest {
-    var currentListener: EventListener<QuerySnapshot>? = null
-    val registration = object : ListenerRegistration {
-      override fun remove() = Unit
-    }
+    val connector = FakeFirestoreConnector()
     val delays = mutableListOf<Long>()
     val transportBridge = object : TransportRuntimeBridge {
       override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
@@ -142,17 +182,13 @@ class FirestorePeopleSyncTest {
     )
 
     val sync = FirestorePeopleSync(
-      auth = null,
-      firestore = null,
+      firebaseAuth = null,
+      transportConnector = connector,
       identityRegistry = identityRegistry,
       transportBridge = transportBridge,
-      job = job,
+      syncSupervisorJob = job,
       scope = scope,
       currentUserIdProvider = { null },
-      listenerBinder = { listener ->
-        currentListener = listener
-        registration
-      },
       initialRetryDelayMillis = 1_000,
       maxRetryDelayMillis = 4_000,
       backoffMultiplier = 2.0,
@@ -163,27 +199,25 @@ class FirestorePeopleSyncTest {
     )
 
     sync.ensureStarted()
-    assertNotNull("Expected initial listener registration", currentListener)
+    advanceUntilIdle()
+    assertEquals(1, connector.observeContactsCalls)
 
     repeat(3) { index ->
-      currentListener!!.onEvent(null, error)
-      runCurrent()
+      connector.emitError(error)
+      advanceUntilIdle()
       val expectedDelay = when (index) {
         0 -> 1_000L
         1 -> 2_000L
         else -> 4_000L
       }
       assertEquals(expectedDelay, delays[index])
-      assertNotNull("Expected listener re-registration after error", currentListener)
+      assertEquals(index + 2, connector.observeContactsCalls)
     }
   }
 
   @Test
   fun `successful snapshot resets retry delay`() = runTest {
-    var currentListener: EventListener<QuerySnapshot>? = null
-    val registration = object : ListenerRegistration {
-      override fun remove() = Unit
-    }
+    val connector = FakeFirestoreConnector()
     val delays = mutableListOf<Long>()
     val transportBridge = object : TransportRuntimeBridge {
       override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
@@ -207,17 +241,13 @@ class FirestorePeopleSyncTest {
     )
 
     val sync = FirestorePeopleSync(
-      auth = null,
-      firestore = null,
+      firebaseAuth = null,
+      transportConnector = connector,
       identityRegistry = identityRegistry,
       transportBridge = transportBridge,
-      job = job,
+      syncSupervisorJob = job,
       scope = scope,
       currentUserIdProvider = { null },
-      listenerBinder = { listener ->
-        currentListener = listener
-        registration
-      },
       initialRetryDelayMillis = 1_000,
       maxRetryDelayMillis = 4_000,
       backoffMultiplier = 2.0,
@@ -228,36 +258,25 @@ class FirestorePeopleSyncTest {
     )
 
     sync.ensureStarted()
-    val listener: EventListener<QuerySnapshot> = requireNotNull(currentListener)
+    advanceUntilIdle()
+    connector.emitError(error)
+    advanceUntilIdle()
 
-    // First failure -> 1_000
-    listener.onEvent(null, error)
-    runCurrent()
-    // Update to new listener
-    val listenerAfterFirstRetry = requireNotNull(currentListener)
+    connector.emitError(error)
+    advanceUntilIdle()
 
-    // Second failure -> 2_000
-    listenerAfterFirstRetry.onEvent(null, error)
-    runCurrent()
-    val listenerAfterSecondRetry = requireNotNull(currentListener)
+    connector.emitContacts(emptyList())
+    advanceUntilIdle()
 
-    // Successful snapshot should reset backoff delay
-    listenerAfterSecondRetry.onEvent(null, null)
-    runCurrent()
-    val listenerAfterSuccess = requireNotNull(currentListener)
-
-    // Next failure should use initial delay (1_000) again
-    listenerAfterSuccess.onEvent(null, error)
-    runCurrent()
+    connector.emitError(error)
+    advanceUntilIdle()
 
     assertEquals(listOf(1_000L, 2_000L, 1_000L), delays)
   }
 
   @Test
   fun `error after restart should still trigger listener re-registration`() = runTest {
-    var currentListener: EventListener<QuerySnapshot>? = null
-    val registration = ListenerRegistration { }
-    var registrations = 0
+    val connector = FakeFirestoreConnector()
     val transportBridge = object : TransportRuntimeBridge {
       override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
       override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
@@ -280,18 +299,13 @@ class FirestorePeopleSyncTest {
     )
 
     val sync = FirestorePeopleSync(
-      auth = null,
-      firestore = null,
+      firebaseAuth = null,
+      transportConnector = connector,
       identityRegistry = identityRegistry,
       transportBridge = transportBridge,
-      job = job,
+      syncSupervisorJob = job,
       scope = scope,
       currentUserIdProvider = { "self" },
-      listenerBinder = { listener ->
-        registrations += 1
-        currentListener = listener
-        registration
-      },
       initialRetryDelayMillis = 1_000,
       maxRetryDelayMillis = 1_000,
       backoffMultiplier = 2.0,
@@ -299,16 +313,18 @@ class FirestorePeopleSyncTest {
     )
 
     sync.ensureStarted()
-    assertEquals(1, registrations)
+    advanceUntilIdle()
+    assertEquals(1, connector.observeContactsCalls)
 
     sync.stop()
     sync.ensureStarted()
-    assertEquals(2, registrations)
+    advanceUntilIdle()
+    assertEquals(2, connector.observeContactsCalls)
 
-    currentListener!!.onEvent(null, error)
-    runCurrent()
+    connector.emitError(error)
+    advanceUntilIdle()
 
-    assertEquals("Expected listener to re-register after error even after restart", 3, registrations)
+    assertEquals("Expected listener to re-register after error even after restart", 3, connector.observeContactsCalls)
   }
 
   @Test
@@ -345,7 +361,7 @@ class FirestorePeopleSyncTest {
     registry.allowFirstUpsert()
     firstSnapshot.join()
 
-    val finalIds = registry.identitiesSnapshot().map { it.identity.id }
+    val finalIds = registry.identitiesSnapshot().map { it.canonicalIdentity.id }
     assertTrue("Expected registry to retain newer contact bob but was $finalIds", "bob" in finalIds)
   }
 }
@@ -381,7 +397,7 @@ private class BlockingIdentityRegistry(
   override suspend fun resolveByConnector(transport: TransportId, transportId: String): CanonicalIdentity {
     val canonicalId = aliasIndex[transport to transportId]
       ?: error("Unknown identity for $transport:$transportId")
-    return records[canonicalId]?.identity
+    return records[canonicalId]?.canonicalIdentity
       ?: error("Missing identity record for $canonicalId")
   }
 
@@ -408,7 +424,7 @@ private class BlockingIdentityRegistry(
       }
       val profileToStore = profile ?: existing?.profile ?: IdentityProfile()
       records[identity.id] = IdentityRecord(
-        identity = identity,
+        canonicalIdentity = identity,
         aliases = mergedAliases.toMap(),
         profile = profileToStore,
       )

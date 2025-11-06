@@ -2,7 +2,7 @@ package com.example.rise.ui.dashboardNavigation.people.peopleFragment
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.rise.data.people.PeopleRepository
+import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PersonSummary
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class PeopleViewModel(
-    private val repository: PeopleRepository,
+    private val routerPeopleRepository: RouterPeopleRepository,
 ) : ViewModel() {
 
     data class PeopleUiState(
@@ -39,11 +39,11 @@ class PeopleViewModel(
         if (observeJob != null) return
         observeJob = viewModelScope.launch {
             launch {
-                repository.errors.collect { error ->
+                routerPeopleRepository.syncPeopleErrors.collect { error ->
                     _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
                 }
             }
-            repository.observePeople()
+            routerPeopleRepository.observePeople()
                 .onStart { _uiState.update { it.copy(isLoading = true, errorMessage = null) } }
                 .collect { people ->
                     _uiState.update {
