@@ -7,12 +7,14 @@ import com.example.rise.data.chat.ChatLocalCache
 import com.example.rise.data.firestore.ChatRemoteDataSource
 import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.models.TextMessage
+import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.CanonicalIdentity
 import com.example.rise.transport.router.ConnectorContact
 import com.example.rise.transport.router.ConnectorInboundMessage
 import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.ConnectorStatus
+import com.example.rise.transport.router.AccountConnector
 import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportConnector
 import com.example.rise.transport.router.TransportId
@@ -43,7 +45,7 @@ class FirestoreConnector(
     private val transportBridge: TransportRuntimeBridge,
     private val localCache: ChatLocalCache,
     cacheDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : TransportConnector {
+) : TransportConnector, AccountConnector {
 
     private val _status = MutableStateFlow(ConnectorStatus.ACTIVE)
     override val status: StateFlow<ConnectorStatus> = _status.asStateFlow()
@@ -183,6 +185,23 @@ class FirestoreConnector(
             senderName = message.senderName,
         )
         chatRemoteDataSource.sendMessage(message.conversationId, textMessage)
+    }
+
+    override suspend fun fetchAccountProfile(): User {
+        transportBridge.requireFirestore("FirestoreConnector#fetchAccountProfile")
+        val uid = authService.currentUser()?.id ?: throw IllegalStateException("User must be signed in")
+        return userRemoteDataSource.fetchUser(uid) ?: throw IllegalStateException("User not found")
+    }
+
+    override suspend fun updateAccountProfile(update: AccountConnector.AccountProfileUpdate) {
+        transportBridge.requireFirestore("FirestoreConnector#updateAccountProfile")
+        val uid = authService.currentUser()?.id ?: throw IllegalStateException("User must be signed in")
+        val patch = mutableMapOf<String, Any>()
+        update.name?.let { patch["name"] = it }
+        update.bio?.let { patch["bio"] = it }
+        update.profilePicturePath?.let { patch["profilePicturePath"] = it }
+        if (patch.isEmpty()) return
+        userRemoteDataSource.updateUser(uid, patch)
     }
 
     private fun ChatRemoteDataSource.RemoteMessage.toConnectorMessage(conversationId: String): ConnectorInboundMessage {

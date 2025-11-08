@@ -62,7 +62,7 @@
     <string name="feature_flags_transport_mode_label">Briar transport mode</string>
     <string name="feature_flags_transport_mode_description">Select the messaging backend used by the app. Changes apply immediately.</string>
     <string name="feature_flags_selected_value">Current: %1$s</string>
-    <string name="feature_flags_selected_value_loading">Current: Loading...</string>
+    <string name="feature_flags_selected_value_loading">Current: Loading…</string>
     <string name="mode_firestore">Firestore (default)</string>
     <string name="mode_hybrid">Hybrid (experimental)</string>
     <string name="mode_briar">Briar only (work in progress)</string>
@@ -70,6 +70,12 @@
     <string name="feature_flags_transport_mode_stage0_warning">Only the Firestore transport is available during Stage 0.</string>
     <string name="feature_flags_telegram_label">Telegram sign-in</string>
     <string name="feature_flags_telegram_description">Gate the experimental Telegram login button while the backend connector is incomplete.</string>
+
+    <!-- Presence -->
+    <string name="presence_online">Online</string>
+    <string name="presence_offline">Offline</string>
+    <string name="presence_unknown">Status unknown</string>
+    <string name="person_avatar_content_description">Profile picture</string>
 
 
 </resources>

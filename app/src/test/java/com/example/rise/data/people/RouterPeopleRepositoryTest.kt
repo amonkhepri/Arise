@@ -222,10 +222,12 @@ class RouterPeopleRepositoryTest {
                     FirestoreSnapshotEntry(
                         canonicalId = "friend",
                         user = User("Friend", "Howdy", null, mutableListOf()),
+                        presence = PresenceStatus.UNKNOWN,
                     ),
                     FirestoreSnapshotEntry(
                         canonicalId = "self",
                         user = User("Self", "Bio", null, mutableListOf()),
+                        presence = PresenceStatus.UNKNOWN,
                     ),
                 ),
                 currentUserId = "self",
@@ -282,10 +284,12 @@ class RouterPeopleRepositoryTest {
             FirestoreSnapshotEntry(
                 canonicalId = "friend",
                 user = User("Friend", "Bio", "path", mutableListOf()),
+                presence = PresenceStatus.OFFLINE,
             ),
             FirestoreSnapshotEntry(
                 canonicalId = "self",
                 user = User("Self", "Bio", null, mutableListOf()),
+                presence = PresenceStatus.ONLINE,
             ),
         )
 
@@ -301,11 +305,11 @@ class RouterPeopleRepositoryTest {
         assertEquals("Friend", friend.canonicalIdentity.displayName)
         assertEquals("Bio", friend.profile.bio)
         assertEquals("path", friend.profile.profilePicturePath)
-        assertEquals(PresenceStatus.UNKNOWN, friend.profile.presence)
+        assertEquals(PresenceStatus.OFFLINE, friend.profile.presence)
         val self = snapshot.getValue("self")
         assertEquals("Self", self.canonicalIdentity.displayName)
         assertEquals("Bio", self.profile.bio)
-        assertEquals(PresenceStatus.UNKNOWN, self.profile.presence)
+        assertEquals(PresenceStatus.ONLINE, self.profile.presence)
         assertEquals("self", registry.currentIdentitySnapshot()?.id)
     }
 }

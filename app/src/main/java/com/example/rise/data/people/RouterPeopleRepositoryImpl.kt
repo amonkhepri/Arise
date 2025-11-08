@@ -105,6 +105,7 @@ class RouterPeopleRepositoryImpl(
 internal data class FirestoreSnapshotEntry(
     val canonicalId: String,
     val user: User,
+    val presence: PresenceStatus,
 )
 
 class FirestorePeopleSync(
@@ -189,6 +190,7 @@ class FirestorePeopleSync(
                         FirestoreSnapshotEntry(
                             canonicalId = contact.canonicalId,
                             user = contact.toUser(),
+                            presence = contact.presence,
                         )
                     }
                     snapshotProcessingMutex.withLock {
@@ -262,7 +264,7 @@ internal suspend fun processSnapshot(
             profile = IdentityProfile(
                 bio = entry.user.bio,
                 profilePicturePath = entry.user.profilePicturePath,
-                presence = PresenceStatus.UNKNOWN,
+                presence = entry.presence,
             ),
             setAsCurrent = setAsCurrent,
         )

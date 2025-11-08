@@ -4,8 +4,6 @@ import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import com.example.rise.ui.alarm.data.ConfigReminderPreferences
-import com.example.rise.ui.alarm.data.ReminderPreferences
 import com.example.rise.data.auth.AuthStateProvider
 import com.example.rise.data.auth.DefaultTelegramAuthRepository
 import com.example.rise.data.auth.FirebaseAuthStateProvider
@@ -18,13 +16,12 @@ import com.example.rise.data.chat.TransportBackedChatRepository
 import com.example.rise.data.chat.RoomChatCache
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.data.dashboard.FirestoreAlarmRepository
-import com.example.rise.data.myaccount.FirebaseMyAccountRepository
+import com.example.rise.data.myaccount.RouterMyAccountRepository
 import com.example.rise.data.myaccount.MyAccountRepository
 import com.example.rise.data.people.FirestorePeopleSync
 import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PeopleSync
 import com.example.rise.data.people.RouterPeopleRepositoryImpl
-import com.example.rise.helpers.Config
 import com.example.rise.briar.BriarRuntimeEnvironmentImpl
 import com.example.rise.briar.runtime.BriarComponentFactory
 import com.example.rise.briar.runtime.BriarRuntimeEnvironment
@@ -59,7 +56,6 @@ import com.example.rise.data.firestore.FirebaseUserRemoteDataSource
 import com.example.rise.data.firestore.ChatRemoteDataSource
 import com.example.rise.data.firestore.FirebaseChatRemoteDataSource
 import com.example.rise.ui.SplashActivityViewModel
-import com.example.rise.ui.alarm.ReminderViewModel
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
@@ -86,7 +82,6 @@ class App: Application() {
         single { FirebaseAuth.getInstance() }
         single { FirebaseFirestore.getInstance() }
         single { FirebaseMessaging.getInstance() }
-        single { Config.newInstance(androidContext()) }
         single<DataStore<Preferences>> { androidContext().transportModeDataStore }
         single<TransportModeProvider> { DataStoreTransportModeProviderImpl(get()) }
         single { TelegramAuthFlagProvider(get()) }
@@ -96,10 +91,16 @@ class App: Application() {
         single<TransportRuntimeBridge> { TransportRuntimeBridgeImpl(get(), get()) }
 
         single<AuthStateProvider> { FirebaseAuthStateProvider(get()) }
-        single<SignInRepository> { FirebaseSignInRepository(get(), get()) }
+        single<SignInRepository> {
+            FirebaseSignInRepository(
+                messaging = get(),
+                transportBridge = get(),
+                authService = get(),
+                userRemoteDataSource = get(),
+            )
+        }
         single { OkHttpClient.Builder().build() }
         single<TelegramAuthRepository> { DefaultTelegramAuthRepository(get()) }
-        single<ReminderPreferences> { ConfigReminderPreferences(get()) }
         single<AuthenticationService> { FirebaseAuthenticationService(get()) }
         single<UserRemoteDataSource> { FirebaseUserRemoteDataSource(get()) }
         single<ChatRemoteDataSource> { FirebaseChatRemoteDataSource(get()) }
@@ -147,20 +148,19 @@ class App: Application() {
         single<RouterPeopleRepository> { RouterPeopleRepositoryImpl(identityRegistry = get(), peopleSync = get()) }
         single<AlarmRepository> { FirestoreAlarmRepository(get(), get()) }
         single<MyAccountRepository> {
-            FirebaseMyAccountRepository(
+            RouterMyAccountRepository(
                 authService = get(),
-                userRemoteDataSource = get(),
                 peopleSync = get(),
                 transportRouter = get(),
-                ioDispatcher = Dispatchers.IO,
+                connectorRegistry = get(),
                 transportBridge = get(),
+                ioDispatcher = Dispatchers.IO,
             )
         }
         single { Clock.systemDefaultZone() }
         single<SignInViewModel.EmailValidator> { SignInViewModel.DefaultEmailValidator }
 
         viewModelOf(::SplashActivityViewModel)
-        viewModelOf(::ReminderViewModel)
         viewModelOf(::MyAccountViewModel)
         viewModelOf(::DashboardViewModel)
         viewModelOf(::ChatViewModel)

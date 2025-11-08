@@ -28,12 +28,6 @@
             android:exported="false"
             android:label="@string/feature_flags_title" />
         <activity
-            android:name=".ui.alarm.ReminderActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.alarm.SnoozeReminderActivity"
-            android:exported="false" />
-        <activity
             android:name=".ui.signInActivity.TelegramAuthActivity"
             android:exported="false"
             android:windowSoftInputMode="stateHidden" />
@@ -64,9 +58,6 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".ui.alarm.services.SnoozeService"
-            android:exported="false" />
         <service
             android:name=".services.MyFirebaseMessagingService"
             android:exported="false">

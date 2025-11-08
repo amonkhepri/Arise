@@ -2,34 +2,31 @@ package com.example.rise.transport.connectors
 
 import com.example.rise.auth.AuthStateHandle
 import com.example.rise.auth.AuthenticationService
+import com.example.rise.briar.runtime.BriarChatGateway
+import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.briar.runtime.BriarRuntimeEvent
+import com.example.rise.briar.runtime.BriarRuntimeStatus
 import com.example.rise.data.chat.CachedChatMessage
 import com.example.rise.data.chat.ChatLocalCache
 import com.example.rise.data.firestore.ChatRemoteDataSource
 import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.featureflags.BriarTransportMode
-import com.example.rise.models.User
 import com.example.rise.models.TextMessage
+import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.ConnectorInboundMessage
 import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportId
 import com.example.rise.util.MainDispatcherRule
-import com.example.rise.briar.runtime.BriarRuntimeEvent
-import com.example.rise.briar.runtime.BriarRuntimeStatus
-import com.example.rise.briar.runtime.BriarChatGateway
-import com.example.rise.briar.runtime.BriarContactService
-import java.util.Date
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.async
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -40,6 +37,8 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FirestoreConnectorTest {
@@ -351,7 +350,7 @@ class FirestoreConnectorTest {
             return messageFlows.getOrPut(conversationId) { MutableStateFlow(emptyList()) }
         }
 
-        suspend fun emit(conversationId: String, messages: List<ChatRemoteDataSource.RemoteMessage>) {
+        fun emit(conversationId: String, messages: List<ChatRemoteDataSource.RemoteMessage>) {
             messageFlows.getOrPut(conversationId) { MutableStateFlow(emptyList()) }.value = messages
         }
 
@@ -369,6 +368,10 @@ class FirestoreConnectorTest {
 
         override suspend fun updateUser(userId: String, updates: Map<String, Any>) {
             updateRequests += userId to updates
+        }
+
+        override suspend fun setUser(userId: String, user: User) {
+            users[userId] = user
         }
 
         override fun observeUsers(): Flow<List<UserRemoteDataSource.UserSnapshot>> = state

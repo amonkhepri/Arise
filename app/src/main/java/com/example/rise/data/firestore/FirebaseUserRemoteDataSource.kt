@@ -20,6 +20,10 @@ class FirebaseUserRemoteDataSource(
         firestore.collection("users").document(userId).update(updates).await()
     }
 
+    override suspend fun setUser(userId: String, user: User) {
+        firestore.collection("users").document(userId).set(user).await()
+    }
+
     override fun observeUsers(): Flow<List<UserRemoteDataSource.UserSnapshot>> = callbackFlow {
         val registration = firestore.collection("users").addSnapshotListener { snapshot, error ->
             if (error != null) {

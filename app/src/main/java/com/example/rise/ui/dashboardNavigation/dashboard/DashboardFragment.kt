@@ -5,12 +5,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.baseclasses.BaseFragment
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.databinding.FragmentDashboardBinding
-import com.example.rise.extensions.scheduleNextAlarm
+import com.example.rise.extensions.scheduleNextMessage
 import com.example.rise.helpers.CHAT_CHANNEL
 import com.example.rise.helpers.MESSAGE_CONTENT
 import com.example.rise.models.TextMessage
@@ -19,6 +21,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.launch
 
 class DashboardFragment : BaseFragment() {
 
@@ -67,20 +70,24 @@ class DashboardFragment : BaseFragment() {
     }
 
     private fun observeState() {
-        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
-            viewModel.uiState.collect { state ->
-                state.alarmQuery?.let { updateAdapter(it.asFirestoreQuery(), state.activeUserId) }
-                state.errorMessage?.let { showError(it) }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    state.alarmQuery?.let { updateAdapter(it.asFirestoreQuery(), state.activeUserId) }
+                    state.errorMessage?.let { showError(it) }
+                }
             }
         }
     }
 
     private fun observeEvents() {
-        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
-            viewModel.events.collect { event ->
-                when (event) {
-                    is DashboardViewModel.DashboardEvent.ScheduleDelayedMessage ->
-                        context?.scheduleNextAlarm(event.alarm, true)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.events.collect { event ->
+                    when (event) {
+                        is DashboardViewModel.DashboardEvent.ScheduleDelayedMessage ->
+                            context?.scheduleNextMessage(event.alarm)
+                    }
                 }
             }
         }

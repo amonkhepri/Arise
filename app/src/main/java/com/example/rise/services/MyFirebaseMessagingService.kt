@@ -1,33 +1,30 @@
 package com.example.rise.services
 
-import com.example.rise.util.FirestoreUtil
-import com.google.firebase.auth.FirebaseAuth
+import com.example.rise.data.auth.SignInRepository
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import timber.log.Timber
 
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
-    companion object {
-        fun addTokenToFirestore(newRegistrationToken: String?) {
-            if (newRegistrationToken == null) throw NullPointerException("FCM token is null.")
-
-            FirestoreUtil.getFCMRegistrationTokens { tokens ->
-                if (tokens.contains(newRegistrationToken))
-                    return@getFCMRegistrationTokens
-
-                tokens.add(newRegistrationToken)
-                FirestoreUtil.setFCMRegistrationTokens(tokens)
-            }
-        }
-    }
+    private val signInRepository: SignInRepository by inject()
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(serviceJob + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-
-        if (FirebaseAuth.getInstance().currentUser != null) {
-            addTokenToFirestore(token)
+        serviceScope.launch {
+            try {
+                signInRepository.storeMessagingToken(token)
+            } catch (error: Throwable) {
+                Timber.w(error, "Failed to store FCM token")
+            }
         }
     }
 
@@ -36,5 +33,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             //TODO: Show notification if we're not online
             Timber.tag("FCM").d(remoteMessage.data.toString())
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceJob.cancel()
     }
 }

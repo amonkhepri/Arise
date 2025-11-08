@@ -8,13 +8,14 @@ import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.CanonicalIdentity
-import com.example.rise.transport.router.IdentityProfile
 import com.example.rise.transport.router.ConnectorContact
 import com.example.rise.transport.router.ConnectorStatus
+import com.example.rise.transport.router.IdentityProfile
 import com.example.rise.transport.router.IdentityRecord
 import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.IdentityRegistryImpl
 import com.example.rise.transport.router.IdentityRegistryStore
+import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportId
 import com.example.rise.transport.router.TransportConnector
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
@@ -333,10 +334,12 @@ class FirestorePeopleSyncTest {
     val alice = FirestoreSnapshotEntry(
       canonicalId = "alice",
       user = User(name = "Alice", bio = "bio", profilePicturePath = null, registrationTokens = mutableListOf()),
+      presence = PresenceStatus.OFFLINE,
     )
     val bob = FirestoreSnapshotEntry(
       canonicalId = "bob",
       user = User(name = "Bob", bio = "bio", profilePicturePath = null, registrationTokens = mutableListOf()),
+      presence = PresenceStatus.ONLINE,
     )
 
     val firstSnapshot = launch {

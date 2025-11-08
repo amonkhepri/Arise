@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
  *
  * Production builds currently use [FirebaseUserRemoteDataSource], which maps these calls to the
  * `users/{id}` documents in Firestore. Tests provide fake in-memory implementations so higher
- * layers (e.g., `FirebaseMyAccountRepository`, `FirestoreConnectorTest`) can exercise the same API
+ * layers (e.g., `RouterMyAccountRepository`, `FirestoreConnectorTest`) can exercise the same API
  * without touching the network.
  *
  * Each method focuses on a single responsibility:
@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.Flow
  *   current user view.
  * - [updateUser] applies partial field updates (name, bio, etc.) without replacing the whole
  *   document.
+ * - [setUser] creates or replaces the full document when bootstrap flows need to establish the
+ *   initial profile scaffold for a freshly signed-in user.
  * - [observeUsers] streams roster changes for features that need to reflect contact updates in
  *   real time.
  */
@@ -36,6 +38,11 @@ interface UserRemoteDataSource {
      * no-op. Implementations may throw if the user does not exist.
      */
     suspend fun updateUser(userId: String, updates: Map<String, Any>)
+
+    /**
+     * Creates or replaces the entire user document.
+     */
+    suspend fun setUser(userId: String, user: User)
 
     /**
      * Observes the full set of remote user documents and emits the canonical roster whenever any

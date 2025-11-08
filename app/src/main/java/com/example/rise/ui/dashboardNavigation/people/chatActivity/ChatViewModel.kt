@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.rise.data.chat.ChatRepository
 import com.example.rise.data.chat.ChatUser
+import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.models.TextMessage
+import com.example.rise.transport.router.PresenceStatus
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,6 +21,7 @@ import java.util.*
 
 class ChatViewModel(
     private val chatRepository: ChatRepository,
+    private val routerPeopleRepository: RouterPeopleRepository,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
@@ -31,6 +34,7 @@ class ChatViewModel(
         val isLoading: Boolean = true,
         val inputEnabled: Boolean = false,
         val errorMessage: String? = null,
+        val presence: PresenceStatus = PresenceStatus.UNKNOWN,
     )
 
     sealed interface ChatEvent {
@@ -52,6 +56,7 @@ class ChatViewModel(
     val events = _events.asSharedFlow()
 
     private var messagesJob: Job? = null
+    private var presenceJob: Job? = null
 
     fun initialiseConversation(otherUserId: String, otherUserName: String) {
         val currentState = _uiState.value
@@ -59,6 +64,14 @@ class ChatViewModel(
             return
         }
         messagesJob?.cancel()
+        presenceJob?.cancel()
+        presenceJob = viewModelScope.launch {
+            routerPeopleRepository.observePerson(otherUserId).collect { summary ->
+                _uiState.update { state ->
+                    state.copy(presence = summary?.presence ?: PresenceStatus.UNKNOWN)
+                }
+            }
+        }
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -156,6 +169,7 @@ class ChatViewModel(
 
     override fun onCleared() {
         messagesJob?.cancel()
+        presenceJob?.cancel()
         super.onCleared()
     }
 }

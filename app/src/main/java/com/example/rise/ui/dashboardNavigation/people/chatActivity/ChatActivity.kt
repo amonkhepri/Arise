@@ -20,10 +20,12 @@ import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.databinding.ActivityChatBinding
-import com.example.rise.extensions.scheduleNextAlarm
+import com.example.rise.extensions.scheduleNextMessage
 import com.example.rise.helpers.AppConstants
 import com.example.rise.item.TextMessageItem
 import com.example.rise.ui.alarm.models.Alarm
+import com.example.rise.ui.common.toDisplayColor
+import com.example.rise.ui.common.toDisplayText
 import com.google.firebase.auth.FirebaseAuth
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
@@ -118,6 +120,8 @@ class ChatActivity : BaseActivity() {
     private fun renderState(state: ChatViewModel.ChatUiState) {
         supportActionBar?.title = state.title
         setTitleColor()
+        binding.toolbar.subtitle = state.presence.toDisplayText(this)
+        binding.toolbar.setSubtitleTextColor(state.presence.toDisplayColor(this))
         val items = state.messages.map { message -> TextMessageItem(message) }
 
         // Only update if the list actually changed
@@ -178,9 +182,7 @@ class ChatActivity : BaseActivity() {
                     messsage = event.message,
                 )
                 alarmRepository.saveAlarm(userId, alarm)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    scheduleNextAlarm(alarm, true)
-                }
+                scheduleNextMessage(alarm)
                 Toast.makeText(this@ChatActivity, "Message scheduled", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Toast.makeText(this@ChatActivity, "Failed to schedule: ${e.message}", Toast.LENGTH_LONG).show()

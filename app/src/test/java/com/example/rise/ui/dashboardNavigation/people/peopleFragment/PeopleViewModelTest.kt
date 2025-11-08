@@ -1,8 +1,9 @@
 package com.example.rise.ui.dashboardNavigation.people.peopleFragment
 
 import app.cash.turbine.test
-import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PersonSummary
+import com.example.rise.data.people.RouterPeopleRepository
+import com.example.rise.transport.router.PresenceStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -29,7 +30,7 @@ class PeopleViewModelTest {
         assertTrue("Expected loading before people emission", viewModel.uiState.value.isLoading)
 
         val entries = listOf(
-            PersonSummary(id = "a", name = "Alice", bio = "Bio", profilePicturePath = null)
+            PersonSummary(id = "a", name = "Alice", bio = "Bio", profilePicturePath = null, presence = PresenceStatus.ONLINE)
         )
         repository.emit(entries)
         advanceUntilIdle()
@@ -43,7 +44,7 @@ class PeopleViewModelTest {
     fun `onPersonSelected emits navigation event`() = runTest {
         val repository = FakeRouterPeopleRepository()
         val viewModel = PeopleViewModel(repository)
-        val summary = PersonSummary(id = "a", name = "Alice", bio = "Bio", profilePicturePath = null)
+        val summary = PersonSummary(id = "a", name = "Alice", bio = "Bio", profilePicturePath = null, presence = PresenceStatus.OFFLINE)
 
         viewModel.start()
         advanceUntilIdle()
