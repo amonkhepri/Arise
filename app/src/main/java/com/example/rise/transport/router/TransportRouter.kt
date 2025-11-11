@@ -35,7 +35,7 @@ interface TransportRouter {
     fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>>
 
     /** Dispatch an outbound message; router handles primary/mirror paths per mode. */
-    suspend fun send(message: ConnectorOutboundMessage)
+    suspend fun sendMessage(message: ConnectorOutboundMessage)
 
     /** Clears cached identities, conversations, and observation jobs (used on sign-out). */
     suspend fun reset()

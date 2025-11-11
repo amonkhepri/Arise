@@ -19,6 +19,9 @@ import com.example.rise.data.dashboard.FirestoreAlarmRepository
 import com.example.rise.data.myaccount.RouterMyAccountRepository
 import com.example.rise.data.myaccount.MyAccountRepository
 import com.example.rise.data.people.FirestorePeopleSync
+import com.example.rise.data.people.IdentityBackfillCoordinator
+import com.example.rise.data.people.IdentityBackfillScheduler
+import com.example.rise.data.people.IdentityBackfillStatusTracker
 import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PeopleSync
 import com.example.rise.data.people.RouterPeopleRepositoryImpl
@@ -35,14 +38,20 @@ import com.example.rise.featureflags.TelegramAuthFlagProvider
 import com.example.rise.featureflags.transportModeDataStore
 import com.example.rise.auth.AuthenticationService
 import com.example.rise.auth.FirebaseAuthenticationService
+import com.example.rise.transport.connectors.BriarConnector
 import com.example.rise.transport.connectors.FirestoreConnector
+import com.example.rise.transport.router.BridgeOrchestrator
+import com.example.rise.transport.router.ConnectorHealthProvider
+import com.example.rise.transport.router.ConnectorHealthRepository
 import com.example.rise.transport.router.ConnectorRegistry
 import com.example.rise.transport.router.DefaultConnectorRegistry
+import com.example.rise.transport.router.DefaultBridgeOrchestrator
 import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.IdentityRegistryImpl
 import com.example.rise.transport.router.IdentityRegistryStore
+import com.example.rise.transport.router.ObservableConnectorTelemetrySink
 import com.example.rise.transport.router.SharedPrefsIdentityRegistryStore
-import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.ConnectorTelemetrySink
 import com.example.rise.transport.router.TransportRouter
 import com.example.rise.transport.router.TransportRouterImpl
 import com.example.rise.transport.store.ConversationDatabase
@@ -83,12 +92,14 @@ class App: Application() {
         single { FirebaseFirestore.getInstance() }
         single { FirebaseMessaging.getInstance() }
         single<DataStore<Preferences>> { androidContext().transportModeDataStore }
+        single { IdentityBackfillStatusTracker(get()) }
         single<TransportModeProvider> { DataStoreTransportModeProviderImpl(get()) }
         single { TelegramAuthFlagProvider(get()) }
         single<BriarRuntimeEnvironment> { BriarRuntimeEnvironmentImpl(androidContext()) }
         single<BriarComponentFactory> { BriarComponentFactoryImpl() }
         single<BriarRuntimeManager> { BriarRuntimeManagerImpl(environment = get(), componentFactory = get()) }
-        single<TransportRuntimeBridge> { TransportRuntimeBridgeImpl(get(), get()) }
+        single { IdentityBackfillScheduler(androidContext(), get(), get()) }
+        single<TransportRuntimeBridge> { TransportRuntimeBridgeImpl(get(), get(), get()) }
 
         single<AuthStateProvider> { FirebaseAuthStateProvider(get()) }
         single<SignInRepository> {
@@ -116,17 +127,45 @@ class App: Application() {
         }
         single<IdentityRegistryStore> { SharedPrefsIdentityRegistryStore(androidContext()) }
         single<IdentityRegistry> { IdentityRegistryImpl(get()) }
-        single<TransportConnector> {
+        single { IdentityBackfillCoordinator(userRemoteDataSource = get(), identityRegistry = get()) }
+        single {
             FirestoreConnector(
                 authService = get(),
                 chatRemoteDataSource = get(),
                 userRemoteDataSource = get(),
                 transportBridge = get(),
                 localCache = get(),
+                telemetrySink = get(),
+            )
+        }
+        single {
+            BriarConnector(
+                transportBridge = get(),
+                telemetrySink = get(),
             )
         }
         single<ConnectorRegistry> {
-            DefaultConnectorRegistry(connectors = setOf(get<TransportConnector>()))
+            DefaultConnectorRegistry(
+                connectors = setOf(
+                    get<FirestoreConnector>(),
+                    get<BriarConnector>(),
+                )
+            )
+        }
+        single { ObservableConnectorTelemetrySink() }
+        single<ConnectorTelemetrySink> { get<ObservableConnectorTelemetrySink>() }
+        single<ConnectorHealthProvider> {
+            ConnectorHealthRepository(
+                connectorRegistry = get(),
+                telemetrySink = get(),
+            )
+        }
+        single<BridgeOrchestrator> {
+            DefaultBridgeOrchestrator(
+                transportBridge = get(),
+                connectorRegistry = get(),
+                telemetrySink = get(),
+            )
         }
         single<TransportRouter> {
             TransportRouterImpl(
@@ -134,13 +173,14 @@ class App: Application() {
                 connectorRegistry = get(),
                 conversationStore = get(),
                 identityRegistry = get(),
+                bridgeOrchestrator = get(),
             )
         }
         single<ChatRepository> { TransportBackedChatRepository(get()) }
         single<PeopleSync> {
             FirestorePeopleSync(
                 firebaseAuth = get(),
-                transportConnector = get(),
+                transportConnector = get<FirestoreConnector>(),
                 identityRegistry = get(),
                 transportBridge = get(),
             )

@@ -4,6 +4,9 @@ import app.cash.turbine.test
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.store.ConversationStore
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import java.util.ArrayDeque
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
@@ -11,24 +14,27 @@ import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,7 +48,7 @@ class TransportRouterImplTest {
     fun `ensureConversation delegates to primary connector`() = scope.runTest {
         val store = InMemoryConversationStore()
         val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
-        val connector: RecordingConnector = RecordingConnector(TransportId.FIRESTORE)
+        val connector = RecordingConnector(TransportId.FIRESTORE)
         val router = TransportRouterImpl(
             transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
             connectorRegistry = DefaultConnectorRegistry(setOf(connector)),
@@ -63,6 +69,115 @@ class TransportRouterImplTest {
         assertEquals("conversation-1", conversation.id)
         assertEquals(1, connector.ensureConversationCalls)
         assertEquals("conversation-1", store.getConversation("conversation-1")?.id)
+    }
+
+    @Test
+    fun `hybrid mode falls back to firestore when briar not ready`() = scope.runTest {
+        val store = InMemoryConversationStore()
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        identityRegistry.upsertIdentity(
+            identity = CanonicalIdentity(id = "self", displayName = "Self"),
+            aliases = mapOf(TransportId.FIRESTORE to "self"),
+            setAsCurrent = true,
+        )
+        val firestoreConnector = RecordingConnector(TransportId.FIRESTORE)
+        val briarConnector = RecordingConnector(TransportId.BRIAR).apply {
+            setLifecycle(ConnectorLifecycleState.AUTHENTICATING)
+        }
+        val orchestrator = RecordingBridgeOrchestrator()
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.HYBRID),
+            connectorRegistry = DefaultConnectorRegistry(setOf(firestoreConnector, briarConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            bridgeOrchestrator = orchestrator,
+            dispatcher = dispatcher,
+        )
+
+        router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
+        assertEquals(1, firestoreConnector.ensureConversationCalls)
+        assertEquals(0, briarConnector.ensureConversationCalls)
+        assertEquals(
+            listOf(FallbackEvent(TransportId.BRIAR, TransportId.FIRESTORE, ConnectorLifecycleState.AUTHENTICATING)),
+            orchestrator.fallbacks,
+        )
+    }
+
+    @Test
+    fun `firestore mode sticks with primary when no ready fallback exists`() = scope.runTest {
+        val store = InMemoryConversationStore()
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        identityRegistry.upsertIdentity(
+            identity = CanonicalIdentity(id = "self", displayName = "Self"),
+            aliases = mapOf(TransportId.FIRESTORE to "self"),
+            setAsCurrent = true,
+        )
+        val firestoreConnector = RecordingConnector(TransportId.FIRESTORE).apply {
+            setLifecycle(ConnectorLifecycleState.AUTHENTICATING)
+        }
+        val briarConnector = RecordingConnector(TransportId.BRIAR).apply {
+            setLifecycle(ConnectorLifecycleState.AUTHENTICATING)
+        }
+        val orchestrator = RecordingBridgeOrchestrator()
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
+            connectorRegistry = DefaultConnectorRegistry(setOf(firestoreConnector, briarConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            bridgeOrchestrator = orchestrator,
+            dispatcher = dispatcher,
+        )
+
+        router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
+        assertEquals(1, firestoreConnector.ensureConversationCalls)
+        assertEquals(0, briarConnector.ensureConversationCalls)
+        assertEquals(
+            emptyList<FallbackEvent>(),
+            orchestrator.fallbacks,
+        )
+    }
+
+    @Test
+    fun `hybrid fallback does not send duplicate mirror messages`() = scope.runTest {
+        val store = InMemoryConversationStore()
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore()).apply {
+            upsertIdentity(
+                identity = CanonicalIdentity(id = "self", displayName = "Self"),
+                aliases = mapOf(TransportId.FIRESTORE to "self"),
+                setAsCurrent = true,
+            )
+        }
+        val firestoreConnector = RecordingConnector(TransportId.FIRESTORE)
+        val briarConnector = RecordingConnector(TransportId.BRIAR).apply {
+            setLifecycle(ConnectorLifecycleState.AUTHENTICATING)
+        }
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.HYBRID),
+            connectorRegistry = DefaultConnectorRegistry(setOf(firestoreConnector, briarConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
+        val outbound = ConnectorOutboundMessage(
+            conversationId = conversation.id,
+            senderId = "self",
+            senderName = "Self",
+            recipientIds = setOf("other"),
+            body = "hi",
+            timestamp = Date(),
+        )
+        router.sendMessage(outbound)
+        advanceUntilIdle()
+
+        assertEquals(1, firestoreConnector.sentMessages.size)
+        assertEquals(0, briarConnector.sentMessages.size)
     }
 
     @Test
@@ -335,7 +450,7 @@ class TransportRouterImplTest {
     @Test
     fun `observeConversation surfaces messages persisted via connectors`() = scope.runTest {
         val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
-        val connector: RecordingConnector = RecordingConnector(TransportId.FIRESTORE)
+        val connector = RecordingConnector(TransportId.FIRESTORE)
         val router = TransportRouterImpl(
             transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
             connectorRegistry = DefaultConnectorRegistry(setOf(connector)),
@@ -459,7 +574,7 @@ class TransportRouterImplTest {
             timestamp = Date(0),
         )
 
-        router.send(message)
+        router.sendMessage(message)
         advanceUntilIdle()
 
         assertEquals(1, connector.sentMessages.size)
@@ -535,6 +650,37 @@ class TransportRouterImplTest {
             2,
             connector.observeCalls,
         )
+    }
+
+    @Test
+    fun `ensureObservation cancels stale jobs before creating a new one`() = scope.runTest {
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore()).apply {
+            upsertIdentity(
+                identity = CanonicalIdentity(id = "self", displayName = "Self"),
+                aliases = mapOf(TransportId.FIRESTORE to "self"),
+                setAsCurrent = true,
+            )
+        }
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
+            connectorRegistry = DefaultConnectorRegistry(setOf(RecordingConnector(TransportId.FIRESTORE))),
+            conversationStore = InMemoryConversationStore(),
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+        val conversationId = "stale-conversation"
+
+        val staleJob = mockk<Job>(relaxed = true)
+        every { staleJob.isActive } returns false
+        router.observationJobsMap()[conversationId] = staleJob
+
+        @Suppress("UNUSED_VARIABLE")
+        val flow = router.observeConversation(conversationId)
+
+        verify(exactly = 1) { staleJob.cancel(any()) }
+        val replacement = router.observationJobsMap()[conversationId]
+        assertTrue("Router should register a replacement job", replacement != null)
+        assertNotSame("Router should discard the stale observation job", staleJob, replacement)
     }
 
     @Test
@@ -621,6 +767,47 @@ class TransportRouterImplTest {
         }
     }
 
+    private data class FallbackEvent(
+        val from: TransportId,
+        val to: TransportId,
+        val reason: ConnectorLifecycleState,
+    )
+
+    private class RecordingBridgeOrchestrator : BridgeOrchestrator {
+        val fallbacks = mutableListOf<FallbackEvent>()
+        override val routingState: StateFlow<PrimaryRoutingSnapshot> =
+            MutableStateFlow(
+                PrimaryRoutingSnapshot(
+                    mode = BriarTransportMode.FIRESTORE,
+                    primary = TransportId.FIRESTORE,
+                    preferred = TransportId.FIRESTORE,
+                    fallbackTarget = null,
+                    reason = PrimaryRoutingReason.Initial,
+                    preferredLifecycle = ConnectorLifecycleState.READY,
+                    trigger = PrimarySelectionTrigger.INITIAL,
+                    timestampMs = 0L,
+                )
+            )
+        override suspend fun onMessagesReceived(
+            conversationId: String,
+            source: TransportId,
+            messages: List<ConnectorInboundMessage>,
+        ) = Unit
+
+        override suspend fun onConnectorLifecycleChanged(
+            transport: TransportId,
+            state: ConnectorLifecycleState,
+        ) = Unit
+
+        override suspend fun onPrimaryFallback(
+            fromTransport: TransportId,
+            toTransport: TransportId,
+            reason: ConnectorLifecycleState,
+        ) {
+            fallbacks += FallbackEvent(fromTransport, toTransport, reason)
+        }
+    }
+
     private class InMemoryConversationStore : ConversationStore {
         private val conversations = ConcurrentHashMap<String, CanonicalConversation>()
         private val messages = ConcurrentHashMap<String, MutableList<CanonicalMessage>>()
@@ -674,8 +861,12 @@ class TransportRouterImplTest {
     ) : TransportConnector {
 
         private val statusFlow = MutableStateFlow(ConnectorStatus.ACTIVE)
+        private val lifecycleFlow = MutableStateFlow(ConnectorLifecycleState.READY)
+        private val capabilityFlow = MutableStateFlow(ConnectorCapabilities.EMPTY)
 
-        override val status: Flow<ConnectorStatus> = statusFlow
+        override val status: StateFlow<ConnectorStatus> = statusFlow
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = lifecycleFlow
+        override val capabilities: StateFlow<ConnectorCapabilities> = capabilityFlow
 
         override suspend fun currentIdentity(): CanonicalIdentity =
             CanonicalIdentity(id = "self", displayName = "Self")
@@ -696,12 +887,16 @@ class TransportRouterImplTest {
     ) : TransportConnector {
 
         private val statusFlow = MutableStateFlow(ConnectorStatus.ACTIVE)
+        private val lifecycleFlow = MutableStateFlow(ConnectorLifecycleState.READY)
+        private val capabilityFlow = MutableStateFlow(ConnectorCapabilities.EMPTY)
         private val emissions = ArrayDeque<List<ConnectorInboundMessage>>()
 
         var observeCalls: Int = 0
             private set
 
-        override val status: Flow<ConnectorStatus> = statusFlow
+        override val status: StateFlow<ConnectorStatus> = statusFlow
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = lifecycleFlow
+        override val capabilities: StateFlow<ConnectorCapabilities> = capabilityFlow
 
         fun queueMessages(messages: List<ConnectorInboundMessage>) {
             emissions += messages
@@ -731,6 +926,8 @@ class TransportRouterImplTest {
     ) : TransportConnector {
 
         private val statusFlow = MutableStateFlow(ConnectorStatus.ACTIVE)
+        private val lifecycleFlow = MutableStateFlow(ConnectorLifecycleState.READY)
+        private val capabilityFlow = MutableStateFlow(ConnectorCapabilities.EMPTY)
         private val messagesFlow = MutableSharedFlow<List<ConnectorInboundMessage>>(replay = 1, extraBufferCapacity = 1)
 
         var ensureConversationCalls = 0
@@ -742,7 +939,13 @@ class TransportRouterImplTest {
             messagesFlow.tryEmit(messages)
         }
 
-        override val status: Flow<ConnectorStatus> = statusFlow
+        fun setLifecycle(state: ConnectorLifecycleState) {
+            lifecycleFlow.value = state
+        }
+
+        override val status: StateFlow<ConnectorStatus> = statusFlow
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = lifecycleFlow
+        override val capabilities: StateFlow<ConnectorCapabilities> = capabilityFlow
 
         override suspend fun currentIdentity(): CanonicalIdentity {
             identityError?.let { throw it }
@@ -779,15 +982,16 @@ class TransportRouterImplTest {
             state = IdentityRegistryStore.StoredState(snapshot, currentIdentityId)
         }
     }
+    private fun TransportRouterImpl.observationJobsMap(): MutableMap<String, Job> {
+        val field = TransportRouterImpl::class.java.getDeclaredField("observationJobs")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        return field.get(this) as MutableMap<String, Job>
+    }
+
     /**
      * Reflectively inspects the router to determine how many observation jobs are currently
      * registered. Used by tests that validate the sign-out/reset paths cancel existing watchers.
      */
-    private fun TransportRouterImpl.observationJobCount(): Int {
-        val field = TransportRouterImpl::class.java.getDeclaredField("observationJobs")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val map = field.get(this) as MutableMap<*, *>
-        return map.size
-    }
+    private fun TransportRouterImpl.observationJobCount(): Int = observationJobsMap().size
 }

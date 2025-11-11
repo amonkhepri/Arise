@@ -5,6 +5,7 @@ import com.example.rise.briar.runtime.BriarContactService
 import com.example.rise.briar.runtime.BriarRuntimeEvent
 import com.example.rise.briar.runtime.BriarRuntimeManager
 import com.example.rise.briar.runtime.BriarRuntimeStatus
+import com.example.rise.data.people.IdentityBackfillScheduler
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.featureflags.TransportModeProvider
 import kotlinx.coroutines.CoroutineDispatcher
@@ -26,6 +27,7 @@ import timber.log.Timber
 class TransportRuntimeBridgeImpl(
     private val transportModeProvider: TransportModeProvider,
     private val runtimeManager: BriarRuntimeManager,
+    private val identityBackfillScheduler: IdentityBackfillScheduler,
     dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
 ) : TransportRuntimeBridge {
 
@@ -56,6 +58,10 @@ class TransportRuntimeBridgeImpl(
                                 )
                             }
                     }
+                }
+                if (mode == BriarTransportMode.HYBRID || mode == BriarTransportMode.BRIAR_ONLY) {
+                    runCatching { identityBackfillScheduler.scheduleIfNeeded(mode) }
+                        .onFailure { Timber.tag(TAG).e(it, "Failed to schedule identity backfill") }
                 }
                 _currentMode.value = mode
             }

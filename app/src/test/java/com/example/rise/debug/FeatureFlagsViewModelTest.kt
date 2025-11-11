@@ -6,9 +6,22 @@ import androidx.datastore.preferences.core.Preferences
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.featureflags.DataStoreTransportModeProviderImpl
 import com.example.rise.featureflags.TelegramAuthFlagProvider
+import com.example.rise.transport.router.BridgeOrchestrator
+import com.example.rise.transport.router.ConnectorHealth
+import com.example.rise.transport.router.ConnectorHealthProvider
+import com.example.rise.transport.router.ConnectorInboundMessage
+import com.example.rise.transport.router.ConnectorLifecycleState
+import com.example.rise.transport.router.PrimaryRoutingReason
+import com.example.rise.transport.router.PrimaryRoutingSnapshot
+import com.example.rise.transport.router.PrimarySelectionTrigger
+import com.example.rise.transport.router.TransportId
+import com.example.rise.transport.router.ConnectorCapabilities
+import com.example.rise.transport.router.ConnectorStatus
 import com.example.rise.util.MainDispatcherRule
 import java.io.File
 import app.cash.turbine.test
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -33,6 +46,7 @@ class FeatureFlagsViewModelTest {
     private lateinit var dataStore: DataStore<Preferences>
     private lateinit var transportProvider: DataStoreTransportModeProviderImpl
     private lateinit var telegramProvider: TelegramAuthFlagProvider
+    private lateinit var healthProvider: FakeConnectorHealthProvider
 
     private fun drain() {
         // run queued work on both dispatcher contexts
@@ -46,7 +60,13 @@ class FeatureFlagsViewModelTest {
         dataStore = PreferenceDataStoreFactory.create(scope = scope, produceFile = { file })
         transportProvider = DataStoreTransportModeProviderImpl(dataStore)
         telegramProvider = TelegramAuthFlagProvider(dataStore)
-        return FeatureFlagsViewModel(transportProvider, telegramProvider)
+        healthProvider = FakeConnectorHealthProvider()
+        return FeatureFlagsViewModel(
+            transportModeProvider = transportProvider,
+            telegramAuthFlagProvider = telegramProvider,
+            bridgeOrchestrator = FakeBridgeOrchestrator(),
+            connectorHealthProvider = healthProvider,
+        )
     }
 
     @After
@@ -54,6 +74,25 @@ class FeatureFlagsViewModelTest {
         if (this::scope.isInitialized) {
             scope.cancel()
         }
+    }
+
+    private class FakeBridgeOrchestrator : BridgeOrchestrator {
+        private val snapshot = PrimaryRoutingSnapshot(
+            mode = BriarTransportMode.FIRESTORE,
+            primary = TransportId.FIRESTORE,
+            preferred = TransportId.FIRESTORE,
+            fallbackTarget = null,
+            reason = PrimaryRoutingReason.Initial,
+            preferredLifecycle = ConnectorLifecycleState.STOPPED,
+            trigger = PrimarySelectionTrigger.INITIAL,
+            timestampMs = 0L,
+        )
+        override val routingState: StateFlow<PrimaryRoutingSnapshot> = MutableStateFlow(snapshot)
+        override suspend fun onMessagesReceived(
+            conversationId: String,
+            source: TransportId,
+            messages: List<ConnectorInboundMessage>
+        ) = Unit
     }
 
     @Test
@@ -83,4 +122,18 @@ class FeatureFlagsViewModelTest {
         assertEquals(BriarTransportMode.FIRESTORE, state.mode)
     }
 
+}
+
+private class FakeConnectorHealthProvider : ConnectorHealthProvider {
+    override val health: MutableStateFlow<Map<TransportId, ConnectorHealth>> =
+        MutableStateFlow(
+            mapOf(
+                TransportId.FIRESTORE to ConnectorHealth(
+                    transport = TransportId.FIRESTORE,
+                    lifecycle = ConnectorLifecycleState.READY,
+                    status = ConnectorStatus.ACTIVE,
+                    capabilities = ConnectorCapabilities(emptyMap()),
+                )
+            )
+        )
 }

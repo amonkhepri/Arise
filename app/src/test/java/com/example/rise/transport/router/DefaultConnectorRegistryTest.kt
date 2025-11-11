@@ -3,6 +3,7 @@ package com.example.rise.transport.router
 import com.example.rise.featureflags.BriarTransportMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -12,7 +13,6 @@ class DefaultConnectorRegistryTest {
 
     private val firestoreConnector = StubConnector(TransportId.FIRESTORE)
     private val briarConnector = StubConnector(TransportId.BRIAR)
-    private val telegramConnector = StubConnector(TransportId.TELEGRAM)
 
     @Test
     fun `connectorFor returns connector matching transport`() {
@@ -76,7 +76,9 @@ class DefaultConnectorRegistryTest {
     }
 
     private class StubConnector(override val transport: TransportId) : TransportConnector {
-        override val status: Flow<ConnectorStatus> = MutableStateFlow(ConnectorStatus.ACTIVE)
+        override val status: StateFlow<ConnectorStatus> = MutableStateFlow(ConnectorStatus.ACTIVE)
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = MutableStateFlow(ConnectorLifecycleState.READY)
+        override val capabilities: StateFlow<ConnectorCapabilities> = MutableStateFlow(ConnectorCapabilities.EMPTY)
         override suspend fun currentIdentity(): CanonicalIdentity =
             error("Not used in this test")
         override suspend fun ensureConversation(conversation: CanonicalConversation): String =

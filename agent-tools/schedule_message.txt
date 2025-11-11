@@ -1,0 +1,10 @@
+# type and schedule message
+sleep 0.2
+# focus input
+tap 380 2100
+sleep 0.2
+text scheduled_test
+sleep 0.3
+# tap delay icon (left fab?)
+tap 120 2160
+sleep 0.5

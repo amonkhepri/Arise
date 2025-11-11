@@ -44,7 +44,7 @@ class TransportBackedChatRepository(
             body = message.text,
             timestamp = message.time,
         )
-        transportRouter.send(outbound)
+        transportRouter.sendMessage(outbound)
     }
 
     private fun CanonicalIdentity.toChatUser(): ChatUser {

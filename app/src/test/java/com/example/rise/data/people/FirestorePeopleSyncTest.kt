@@ -8,7 +8,9 @@ import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.ConnectorCapabilities
 import com.example.rise.transport.router.ConnectorContact
+import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorStatus
 import com.example.rise.transport.router.IdentityProfile
 import com.example.rise.transport.router.IdentityRecord
@@ -29,6 +31,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
@@ -105,12 +108,15 @@ class FirestorePeopleSyncTest {
     }
   }
 
-  private class FakeFirestoreConnector : TransportConnector {
+    private class FakeFirestoreConnector : TransportConnector {
     private val contacts = MutableSharedFlow<List<ConnectorContact>>(extraBufferCapacity = Int.MAX_VALUE)
     private val errors = MutableSharedFlow<Throwable>(extraBufferCapacity = Int.MAX_VALUE)
     private val _status = MutableStateFlow(ConnectorStatus.ACTIVE)
+    private val _lifecycle = MutableStateFlow(ConnectorLifecycleState.READY)
 
     override val status = _status
+    override val lifecycle: StateFlow<ConnectorLifecycleState> = _lifecycle
+    override val capabilities: StateFlow<ConnectorCapabilities> = MutableStateFlow(ConnectorCapabilities.EMPTY)
     override val transport: TransportId = TransportId.FIRESTORE
     var observeContactsCalls: Int = 0
 

@@ -7,6 +7,10 @@ import com.example.rise.R
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.featureflags.TelegramAuthFlagProvider
 import com.example.rise.featureflags.TransportModeProvider
+import com.example.rise.transport.router.BridgeOrchestrator
+import com.example.rise.transport.router.ConnectorHealth
+import com.example.rise.transport.router.ConnectorHealthProvider
+import com.example.rise.transport.router.PrimaryRoutingSnapshot
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,11 +22,15 @@ import kotlinx.coroutines.launch
 class FeatureFlagsViewModel(
     private val transportModeProvider: TransportModeProvider,
     private val telegramAuthFlagProvider: TelegramAuthFlagProvider,
+    private val bridgeOrchestrator: BridgeOrchestrator,
+    private val connectorHealthProvider: ConnectorHealthProvider,
 ) : ViewModel() {
 
     data class UiState(
         val mode: BriarTransportMode = BriarTransportMode.FIRESTORE,
         val telegramAuthEnabled: Boolean = false,
+        val routingSnapshot: PrimaryRoutingSnapshot? = null,
+        val connectorHealth: List<ConnectorHealth> = emptyList(),
     )
 
     sealed interface Event {
@@ -40,11 +48,16 @@ class FeatureFlagsViewModel(
             combine(
                 transportModeProvider.observeMode(),
                 telegramAuthFlagProvider.observeEnabled(),
-            ) { mode, telegramEnabled ->
-                UiState(mode = mode, telegramAuthEnabled = telegramEnabled)
-            }.collect { uiState ->
-                _state.value = uiState
-            }
+                bridgeOrchestrator.routingState,
+                connectorHealthProvider.health,
+            ) { mode, telegramEnabled, routing, health ->
+                UiState(
+                    mode = mode,
+                    telegramAuthEnabled = telegramEnabled,
+                    routingSnapshot = routing,
+                    connectorHealth = health.values.sortedBy { it.transport.name },
+                )
+            }.collect { uiState -> _state.value = uiState }
         }
     }
 

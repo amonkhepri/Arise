@@ -260,7 +260,8 @@ class FirestoreConnectorTest {
             userRemoteDataSource = userRemoteDataSource,
             transportBridge = transportBridge,
             localCache = localCache,
-                cacheDispatcher = dispatcher,
+            telemetrySink = { },
+            cacheDispatcher = dispatcher,
         )
 
         fun switchToUserB() {

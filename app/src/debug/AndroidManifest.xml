@@ -1,15 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
     <application>
         <receiver
-            android:name="com.example.rise.briar.work.BriarRuntimeDiagnosticsReceiver"
+            android:name="com.example.rise.debug.IdentityBackfillTriggerReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.DUMP">
             <intent-filter>
-                <action android:name="com.example.rise.debug.RUN_BRIAR_RUNTIME_DIAGNOSTIC" />
+                <action android:name="com.example.rise.debug.RUN_IDENTITY_BACKFILL" />
             </intent-filter>
         </receiver>
     </application>
-
 </manifest>

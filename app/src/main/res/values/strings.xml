@@ -70,12 +70,44 @@
     <string name="feature_flags_transport_mode_stage0_warning">Only the Firestore transport is available during Stage 0.</string>
     <string name="feature_flags_telegram_label">Telegram sign-in</string>
     <string name="feature_flags_telegram_description">Gate the experimental Telegram login button while the backend connector is incomplete.</string>
+    <string name="feature_flags_routing_label">Connector routing</string>
+    <string name="feature_flags_routing_description">Live BridgeOrchestrator snapshot. Each row explains the current primary decision (e.g., “Why this primary” shows the fallback reason).</string>
+    <string name="feature_flags_routing_primary">Primary</string>
+    <string name="feature_flags_routing_preferred">Preferred</string>
+    <string name="feature_flags_routing_fallback">Fallback</string>
+    <string name="feature_flags_routing_reason">Why this primary</string>
+    <string name="feature_flags_routing_lifecycle">Preferred lifecycle</string>
+    <string name="feature_flags_routing_trigger">Trigger</string>
+    <string name="feature_flags_routing_timestamp">Updated</string>
+    <string name="transport_briar">Briar</string>
+    <string name="transport_firestore">Firestore</string>
+    <string name="transport_telegram">Telegram</string>
+    <string name="routing_reason_preferred_ready">Preferred connector ready</string>
+    <string name="routing_reason_preferred_not_ready">Preferred connector not ready</string>
+    <string name="routing_reason_preferred_missing">Preferred connector missing</string>
+    <string name="routing_reason_flag_forces_firestore">Flag forces Firestore</string>
+    <string name="routing_reason_explicit_fallback">Explicit fallback triggered</string>
+    <string name="routing_reason_initial">Awaiting first routing decision</string>
+    <string name="routing_trigger_initial">Startup</string>
+    <string name="routing_trigger_mode_changed">Mode changed</string>
+    <string name="routing_trigger_lifecycle_changed">Connector lifecycle changed</string>
+    <string name="routing_trigger_explicit">Primary fallback</string>
+    <string name="lifecycle_initial">Initialising</string>
+    <string name="lifecycle_authenticating">Authenticating</string>
+    <string name="lifecycle_handshaking">Handshaking</string>
+    <string name="lifecycle_ready">Ready</string>
+    <string name="lifecycle_degraded">Degraded</string>
+    <string name="lifecycle_failed">Failed</string>
+    <string name="lifecycle_retiring">Retiring</string>
+    <string name="lifecycle_stopped">Stopped</string>
 
     <!-- Presence -->
     <string name="presence_online">Online</string>
     <string name="presence_offline">Offline</string>
     <string name="presence_unknown">Status unknown</string>
     <string name="person_avatar_content_description">Profile picture</string>
+    <string name="feature_flags_connector_health_title">Connector health</string>
+    <string name="feature_flags_connector_health_empty">No connectors registered.</string>
 
 
 </resources>

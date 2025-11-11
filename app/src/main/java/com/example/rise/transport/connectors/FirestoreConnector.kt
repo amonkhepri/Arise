@@ -10,10 +10,15 @@ import com.example.rise.models.TextMessage
 import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.CapabilityDescriptor
 import com.example.rise.transport.router.ConnectorContact
 import com.example.rise.transport.router.ConnectorInboundMessage
 import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.ConnectorStatus
+import com.example.rise.transport.router.ConnectorCapabilities
+import com.example.rise.transport.router.ConnectorLifecycleState
+import com.example.rise.transport.router.ConnectorTelemetryEvent
+import com.example.rise.transport.router.ConnectorTelemetrySink
 import com.example.rise.transport.router.AccountConnector
 import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportConnector
@@ -32,11 +37,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import timber.log.Timber
 
 class FirestoreConnector(
     private val authService: AuthenticationService,
@@ -44,11 +52,25 @@ class FirestoreConnector(
     private val userRemoteDataSource: UserRemoteDataSource,
     private val transportBridge: TransportRuntimeBridge,
     private val localCache: ChatLocalCache,
+    private val telemetrySink: ConnectorTelemetrySink,
     cacheDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : TransportConnector, AccountConnector {
 
-    private val _status = MutableStateFlow(ConnectorStatus.ACTIVE)
+    private val _status = MutableStateFlow(ConnectorStatus.STARTING)
     override val status: StateFlow<ConnectorStatus> = _status.asStateFlow()
+    private val _lifecycle = MutableStateFlow(ConnectorLifecycleState.INITIAL)
+    override val lifecycle: StateFlow<ConnectorLifecycleState> = _lifecycle.asStateFlow()
+    private val _capabilities = MutableStateFlow(
+        ConnectorCapabilities(
+            mapOf(
+                "messages" to CapabilityDescriptor(1, mapOf("supportsAttachments" to "false")),
+                "contacts" to CapabilityDescriptor(1, mapOf("presence" to PresenceStatus.UNKNOWN.name)),
+                "account" to CapabilityDescriptor(1, mapOf("editableFields" to "name,bio")),
+                "notifications" to CapabilityDescriptor(1, mapOf("push" to "true")),
+            )
+        )
+    )
+    override val capabilities: StateFlow<ConnectorCapabilities> = _capabilities.asStateFlow()
     override val transport: TransportId = TransportId.FIRESTORE
 
     private val channelCache = ConcurrentHashMap<String, String>()
@@ -64,20 +86,32 @@ class FirestoreConnector(
         authStateHandle = authService.addAuthStateListener { user ->
             val cachedIdentity = currentIdentity
             if (user == null) {
+                transition(ConnectorLifecycleState.AUTHENTICATING)
                 if (cachedIdentity != null || channelCache.isNotEmpty() || messagesCache.isNotEmpty()) {
                     clearUserCaches(cachedIdentity?.id)
                 }
-            } else if (cachedIdentity != null && cachedIdentity.id != user.id) {
-                clearUserCaches(cachedIdentity.id)
+            } else {
+                if (cachedIdentity != null && cachedIdentity.id != user.id) {
+                    clearUserCaches(cachedIdentity.id)
+                }
+                transition(ConnectorLifecycleState.READY)
             }
         }
+        transition(
+            if (authService.currentUser() == null) ConnectorLifecycleState.AUTHENTICATING
+            else ConnectorLifecycleState.READY
+        )
     }
 
     override suspend fun currentIdentity(): CanonicalIdentity {
         transportBridge.requireFirestore("FirestoreConnector#currentIdentity")
-        val authUser = authService.currentUser() ?: throw IllegalStateException("User must be signed in")
+        val authUser = authService.currentUser() ?: run {
+            transition(ConnectorLifecycleState.AUTHENTICATING)
+            throw IllegalStateException("User must be signed in")
+        }
         currentIdentity?.let { cached ->
             if (cached.id == authUser.id) {
+                transition(ConnectorLifecycleState.READY)
                 return cached
             }
             clearUserCaches(cached.id)
@@ -88,37 +122,41 @@ class FirestoreConnector(
         return CanonicalIdentity(
             id = authUser.id,
             displayName = displayName,
-        ).also { currentIdentity = it }
+        ).also {
+            currentIdentity = it
+            transition(ConnectorLifecycleState.READY)
+        }
     }
 
-    override suspend fun ensureConversation(conversation: com.example.rise.transport.router.CanonicalConversation): String {
-        transportBridge.requireFirestore("FirestoreConnector#ensureConversation")
-        val currentUser = currentIdentity()
-        val otherUserId = conversation.participants.firstOrNull { it != currentUser.id }
-            ?: throw IllegalArgumentException("Conversation participants must include other user")
-        channelCache[otherUserId]?.let { return it }
-        val currentUserId = authService.currentUser()?.id ?: throw IllegalStateException("User must be signed in")
-        withCacheAccess {
-            localCache.readChannelId(currentUserId, otherUserId)
-        }?.let { cached ->
-            channelCache[otherUserId] = cached
-            return cached
-        }
-        val existingId = chatRemoteDataSource.getExistingChannelId(currentUserId, otherUserId)
-        if (existingId != null) {
-            channelCache[otherUserId] = existingId
+    override suspend fun ensureConversation(conversation: com.example.rise.transport.router.CanonicalConversation): String =
+        runWithTelemetry("ensureConversation") {
+            transportBridge.requireFirestore("FirestoreConnector#ensureConversation")
+            val currentUser = currentIdentity()
+            val otherUserId = conversation.participants.firstOrNull { it != currentUser.id }
+                ?: throw IllegalArgumentException("Conversation participants must include other user")
+            channelCache[otherUserId]?.let { return@runWithTelemetry it }
+            val currentUserId = authService.currentUser()?.id ?: throw IllegalStateException("User must be signed in")
             withCacheAccess {
-                localCache.writeChannelId(currentUserId, otherUserId, existingId)
+                localCache.readChannelId(currentUserId, otherUserId)
+            }?.let { cached ->
+                channelCache[otherUserId] = cached
+                return@runWithTelemetry cached
             }
-            return existingId
-        }
-        return chatRemoteDataSource.createChannel(currentUserId, otherUserId).also {
-            channelCache[otherUserId] = it
-            withCacheAccess {
-                localCache.writeChannelId(currentUserId, otherUserId, it)
+            val existingId = chatRemoteDataSource.getExistingChannelId(currentUserId, otherUserId)
+            if (existingId != null) {
+                channelCache[otherUserId] = existingId
+                withCacheAccess {
+                    localCache.writeChannelId(currentUserId, otherUserId, existingId)
+                }
+                return@runWithTelemetry existingId
+            }
+            return@runWithTelemetry chatRemoteDataSource.createChannel(currentUserId, otherUserId).also {
+                channelCache[otherUserId] = it
+                withCacheAccess {
+                    localCache.writeChannelId(currentUserId, otherUserId, it)
+                }
             }
         }
-    }
 
     override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> = callbackFlow {
         transportBridge.requireFirestore("FirestoreConnector#observeMessages")
@@ -138,19 +176,25 @@ class FirestoreConnector(
             }
         }
         val job = cacheScope.launch {
-            chatRemoteDataSource.observeMessages(conversationId).collect { remoteMessages ->
-                val connectorMessages = remoteMessages.map { it.toConnectorMessage(conversationId) }
-                messagesCache[conversationId] = connectorMessages
-                if (userId != null ) {
-                    withCacheAccess {
-                        localCache.writeMessages(
-                            userId = userId,
-                            channelId = conversationId,
-                            messages = connectorMessages.map { it.toCachedMessage() },
-                        )
+            try {
+                chatRemoteDataSource.observeMessages(conversationId).collect { remoteMessages ->
+                    val connectorMessages = remoteMessages.map { it.toConnectorMessage(conversationId) }
+                    messagesCache[conversationId] = connectorMessages
+                    if (userId != null ) {
+                        withCacheAccess {
+                            localCache.writeMessages(
+                                userId = userId,
+                                channelId = conversationId,
+                                messages = connectorMessages.map { it.toCachedMessage() },
+                            )
+                        }
                     }
+                    transition(ConnectorLifecycleState.READY)
+                    trySend(connectorMessages)
                 }
-                trySend(connectorMessages)
+            } catch (error: Throwable) {
+                reportFailure("observeMessages", error)
+                throw error
             }
         }
         awaitClose { job.cancel() }
@@ -159,6 +203,11 @@ class FirestoreConnector(
     override fun observeContacts(): Flow<List<ConnectorContact>> {
         return userRemoteDataSource.observeUsers()
             .onStart { transportBridge.requireFirestore("FirestoreConnector#observeContacts") }
+            .onEach { transition(ConnectorLifecycleState.READY) }
+            .catch { error ->
+                reportFailure("observeContacts", error)
+                throw error
+            }
             .map { snapshots ->
                 snapshots.map { snapshot ->
                     ConnectorContact(
@@ -175,7 +224,7 @@ class FirestoreConnector(
             }
     }
 
-    override suspend fun sendMessage(message: ConnectorOutboundMessage) {
+    override suspend fun sendMessage(message: ConnectorOutboundMessage) = runWithTelemetry("sendMessage") {
         transportBridge.requireFirestore("FirestoreConnector#sendMessage")
         val textMessage = TextMessage(
             text = message.body,
@@ -187,20 +236,21 @@ class FirestoreConnector(
         chatRemoteDataSource.sendMessage(message.conversationId, textMessage)
     }
 
-    override suspend fun fetchAccountProfile(): User {
+    override suspend fun fetchAccountProfile(): User = runWithTelemetry("fetchAccountProfile") {
         transportBridge.requireFirestore("FirestoreConnector#fetchAccountProfile")
         val uid = authService.currentUser()?.id ?: throw IllegalStateException("User must be signed in")
-        return userRemoteDataSource.fetchUser(uid) ?: throw IllegalStateException("User not found")
+        return@runWithTelemetry userRemoteDataSource.fetchUser(uid)
+            ?: throw IllegalStateException("User not found")
     }
 
-    override suspend fun updateAccountProfile(update: AccountConnector.AccountProfileUpdate) {
+    override suspend fun updateAccountProfile(update: AccountConnector.AccountProfileUpdate) = runWithTelemetry("updateAccountProfile") {
         transportBridge.requireFirestore("FirestoreConnector#updateAccountProfile")
         val uid = authService.currentUser()?.id ?: throw IllegalStateException("User must be signed in")
         val patch = mutableMapOf<String, Any>()
         update.name?.let { patch["name"] = it }
         update.bio?.let { patch["bio"] = it }
         update.profilePicturePath?.let { patch["profilePicturePath"] = it }
-        if (patch.isEmpty()) return
+        if (patch.isEmpty()) return@runWithTelemetry
         userRemoteDataSource.updateUser(uid, patch)
     }
 
@@ -255,6 +305,10 @@ class FirestoreConnector(
             pendingClearJob = null
         }
         currentIdentity = null
+        transition(
+            if (authService.currentUser() == null) ConnectorLifecycleState.AUTHENTICATING
+            else ConnectorLifecycleState.READY
+        )
     }
 
     private suspend fun <T> withCacheAccess(block: suspend () -> T): T {
@@ -264,5 +318,49 @@ class FirestoreConnector(
             }
         }
         return cacheMutex.withLock { block() }
+    }
+
+    private fun transition(state: ConnectorLifecycleState) {
+        if (_lifecycle.value == state) {
+            return
+        }
+        _lifecycle.value = state
+        _status.value = when (state) {
+            ConnectorLifecycleState.READY -> ConnectorStatus.ACTIVE
+            ConnectorLifecycleState.DEGRADED,
+            ConnectorLifecycleState.FAILED -> ConnectorStatus.ERROR
+            ConnectorLifecycleState.AUTHENTICATING,
+            ConnectorLifecycleState.HANDSHAKING,
+            ConnectorLifecycleState.RETIRING -> ConnectorStatus.STARTING
+            ConnectorLifecycleState.INITIAL,
+            ConnectorLifecycleState.STOPPED -> ConnectorStatus.INACTIVE
+        }
+    }
+
+    private suspend fun <T> runWithTelemetry(operation: String, block: suspend () -> T): T {
+        return try {
+            val result = block()
+            transition(ConnectorLifecycleState.READY)
+            result
+        } catch (error: Throwable) {
+            reportFailure(operation, error)
+            throw error
+        }
+    }
+
+    private fun reportFailure(operation: String, error: Throwable) {
+        telemetrySink.emit(
+            ConnectorTelemetryEvent.Failure(
+                transport = transport,
+                state = _lifecycle.value,
+                error = error,
+            )
+        )
+        Timber.tag(TAG).w(error, "Firestore connector failure during %s", operation)
+        transition(ConnectorLifecycleState.DEGRADED)
+    }
+
+    companion object {
+        private const val TAG = "FirestoreConnector"
     }
 }

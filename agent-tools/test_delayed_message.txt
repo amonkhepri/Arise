@@ -1,0 +1,36 @@
+# Delayed Message UI Test Sequence
+# Use with ./agent-tools/click.sh --file agent-tools/test_delayed_message.txt
+
+# Step 1: Try to navigate to People tab (bottom left)
+tap 117 1476
+sleep 1
+
+# Step 2: If People screen loads, tap on first contact (approximate location)
+tap 540 400
+sleep 1
+
+# Step 3: If chat opens, tap on message input field
+tap 350 2250
+sleep 0.5
+
+# Step 4: Type test message
+text Test_delayed_message
+sleep 0.5
+
+# Step 5: Tap the "Send with Delay" button (should be near send button, left side)
+tap 60 2250
+sleep 1
+
+# Step 6: Time picker should appear - tap hour up to increase
+tap 215 920
+sleep 0.3
+
+# Step 7: Tap OK button in time picker dialog (center bottom of dialog)
+tap 540 1100
+sleep 1
+
+# Step 8: Navigate to Dashboard to verify
+tap 353 1476
+sleep 1
+
+# Test complete - dashboard should show the scheduled message

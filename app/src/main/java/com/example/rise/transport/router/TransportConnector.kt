@@ -1,6 +1,7 @@
 package com.example.rise.transport.router
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 
 /**
@@ -10,7 +11,9 @@ import kotlinx.coroutines.flow.emptyFlow
  */
 interface TransportConnector {
     val transport: TransportId
-    val status: Flow<ConnectorStatus>
+    val status: StateFlow<ConnectorStatus>
+    val lifecycle: StateFlow<ConnectorLifecycleState>
+    val capabilities: StateFlow<ConnectorCapabilities>
 
     /**
      * Returns the canonical identity representing the signed-in user for this connector.

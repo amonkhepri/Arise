@@ -3,8 +3,6 @@ package com.example.rise.transport.router
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.store.ConversationStore
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.locks.ReentrantLock
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -14,6 +12,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
 
 class TransportRouterImpl(
     private val transportBridge: TransportRuntimeBridge,
@@ -27,6 +27,14 @@ class TransportRouterImpl(
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val observationJobs = ConcurrentHashMap<String, Job>()
     private val observationLocks = ConcurrentHashMap<String, ReentrantLock>()
+    @Volatile
+    private var lastFallbackSnapshot: Pair<TransportId, ConnectorLifecycleState>? = null
+
+    init {
+        connectorRegistry.connectors.forEach { connector ->
+            observeConnectorLifecycle(connector)
+        }
+    }
 
     override val currentIdentity: Flow<CanonicalIdentity> = identityRegistry.currentIdentity
 
@@ -38,7 +46,7 @@ class TransportRouterImpl(
     override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
         val mode = transportBridge.currentMode.value
         val selfIdentity = resolveCurrentIdentity(mode)
-        val primary = connectorRegistry.primaryFor(mode)
+        val primary = selectPrimaryConnector(mode)
         identityRegistry.upsertIdentity(
             otherIdentity,
             aliases = mapOf(primary.transport to otherIdentity.id)
@@ -62,13 +70,16 @@ class TransportRouterImpl(
         return conversationStore.observeMessages(conversationId)
     }
 
-    override suspend fun send(message: ConnectorOutboundMessage) {
+    override suspend fun sendMessage(message: ConnectorOutboundMessage) {
         val mode = transportBridge.currentMode.value
-        val primaryConnector = connectorRegistry.primaryFor(mode)
+        val primaryConnector = selectPrimaryConnector(mode)
         primaryConnector.sendMessage(message)
-        connectorRegistry.mirrorsFor(mode).forEach { mirror ->
-            scope.launch { mirror.sendMessage(message) }
-        }
+        connectorRegistry
+            .mirrorsFor(mode)
+            .filter { mirror -> mirror.transport != primaryConnector.transport }
+            .forEach { mirror ->
+                scope.launch { mirror.sendMessage(message) }
+            }
     }
 
     override suspend fun reset() {
@@ -76,7 +87,7 @@ class TransportRouterImpl(
     }
 
     private suspend fun resolveCurrentIdentity(mode: BriarTransportMode): CanonicalIdentity {
-        val primaryConnector = connectorRegistry.primaryFor(mode)
+        val primaryConnector = selectPrimaryConnector(mode)
         val cachedIdentity = identityRegistry.currentIdentitySnapshot()
         val connectorIdentityResult = runCatching { primaryConnector.currentIdentity() }
         val connectorIdentity = connectorIdentityResult.getOrNull()
@@ -200,6 +211,48 @@ class TransportRouterImpl(
                 }
             }
         }
+
+    private fun observeConnectorLifecycle(connector: TransportConnector) {
+        scope.launch {
+            connector.lifecycle.collect { state ->
+                bridgeOrchestrator.onConnectorLifecycleChanged(connector.transport, state)
+            }
+        }
+    }
+
+    private suspend fun selectPrimaryConnector(briarTransportMode: BriarTransportMode): TransportConnector {
+        val preferredConnector = connectorRegistry.primaryFor(briarTransportMode)
+        val stateOfPreferredConnector = preferredConnector.lifecycle.value
+        if (stateOfPreferredConnector == ConnectorLifecycleState.READY) {
+            lastFallbackSnapshot = null
+            return preferredConnector
+        }
+        val priorityFallbackOrder = when (briarTransportMode) {
+            BriarTransportMode.FIRESTORE -> listOf(TransportId.FIRESTORE, TransportId.FIRESTORE)
+            BriarTransportMode.HYBRID -> listOf(TransportId.BRIAR, TransportId.FIRESTORE)
+            BriarTransportMode.BRIAR_ONLY -> listOf(TransportId.BRIAR, TransportId.FIRESTORE)
+        }
+        val fallbackConnector = priorityFallbackOrder
+            .mapNotNull { connectorRegistry.connectorFor(it) }
+            .firstOrNull { it.lifecycle.value == ConnectorLifecycleState.READY }
+            ?: preferredConnector
+
+        if (fallbackConnector != preferredConnector) {
+            val snapshotConnector = preferredConnector.transport to stateOfPreferredConnector
+            val cachedConnector = lastFallbackSnapshot
+            if (cachedConnector != snapshotConnector) {
+                lastFallbackSnapshot = snapshotConnector
+                bridgeOrchestrator.onPrimaryFallback(
+                    fromTransport = preferredConnector.transport,
+                    toTransport = fallbackConnector.transport,
+                    reason = stateOfPreferredConnector,
+                )
+            }
+        } else {
+            lastFallbackSnapshot = null
+        }
+        return fallbackConnector
+    }
 
     private fun ConnectorInboundMessage.toCanonical(): CanonicalMessage {
         val canonicalId = "${transport.name}:${messageId}"

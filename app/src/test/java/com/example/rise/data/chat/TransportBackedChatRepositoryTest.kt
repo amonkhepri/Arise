@@ -129,7 +129,7 @@ class TransportBackedChatRepositoryTest {
 
         override fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>> = observedMessages
 
-        override suspend fun send(message: ConnectorOutboundMessage) {
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) {
             sentMessages += message
         }
 

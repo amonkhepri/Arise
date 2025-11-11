@@ -15,8 +15,10 @@ import com.example.rise.transport.router.AccountConnector
 import com.example.rise.transport.router.CanonicalConversation
 import com.example.rise.transport.router.CanonicalIdentity
 import com.example.rise.transport.router.CanonicalMessage
+import com.example.rise.transport.router.ConnectorCapabilities
 import com.example.rise.transport.router.ConnectorContact
 import com.example.rise.transport.router.ConnectorInboundMessage
+import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.ConnectorRegistry
 import com.example.rise.transport.router.ConnectorStatus
@@ -120,6 +122,8 @@ class RouterMyAccountRepositoryTest {
     private class FakeAccountConnector : TransportConnector, AccountConnector {
         override val transport: TransportId = TransportId.FIRESTORE
         override val status: StateFlow<ConnectorStatus> = MutableStateFlow(ConnectorStatus.ACTIVE)
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = MutableStateFlow(ConnectorLifecycleState.READY)
+        override val capabilities: StateFlow<ConnectorCapabilities> = MutableStateFlow(ConnectorCapabilities.EMPTY)
         var profile: User = User(name = "Ada", bio = "Bio", profilePicturePath = null, registrationTokens = mutableListOf())
         val updates = mutableListOf<AccountConnector.AccountProfileUpdate>()
 
@@ -185,7 +189,7 @@ class RouterMyAccountRepositoryTest {
         override suspend fun ensureCurrentIdentity(): CanonicalIdentity = throw UnsupportedOperationException()
         override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation = throw UnsupportedOperationException()
         override fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>> = emptyFlow()
-        override suspend fun send(message: ConnectorOutboundMessage) = Unit
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
         override suspend fun reset() {
             resetCalls++
         }
