@@ -43,11 +43,11 @@ class DataStoreTransportModeProviderTest {
     }
 
     @Test
-    fun `defaults to Firestore when no value stored`() = runBlocking {
+    fun `defaults to Hybrid when no value stored`() = runBlocking {
         val provider = setUpDataStore()
         try {
             val mode = provider.getMode()
-            assertEquals(BriarTransportMode.FIRESTORE, mode)
+            assertEquals(BriarTransportMode.HYBRID, mode)
         } finally {
             scope.cancel()
         }
@@ -84,7 +84,7 @@ class DataStoreTransportModeProviderTest {
             job.join()
 
             assertEquals(
-                listOf(BriarTransportMode.FIRESTORE, BriarTransportMode.BRIAR_ONLY),
+                listOf(BriarTransportMode.HYBRID, BriarTransportMode.BRIAR_ONLY),
                 observed
             )
         } finally {

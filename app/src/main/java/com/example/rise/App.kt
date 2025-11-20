@@ -20,7 +20,10 @@ import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.data.dashboard.FirestoreAlarmRepository
 import com.example.rise.data.myaccount.FirebaseMyAccountRepository
 import com.example.rise.data.myaccount.MyAccountRepository
+import com.example.rise.data.people.BriarPeopleRepository
 import com.example.rise.data.people.FirestorePeopleRepository
+import com.example.rise.data.people.HybridPeopleRepository
+import com.example.rise.data.people.InMemoryBriarContactGateway
 import com.example.rise.data.people.PeopleRepository
 import com.example.rise.helpers.Config
 import com.example.rise.ui.SplashActivityViewModel
@@ -79,7 +82,15 @@ class App: Application() {
                 transportBridge = get(),
             )
         }
-        single<PeopleRepository> { FirestorePeopleRepository(get(), get(), get()) }
+        single { InMemoryBriarContactGateway() }
+        single { FirestorePeopleRepository(get(), get(), get()) }
+        single<PeopleRepository> {
+            HybridPeopleRepository(
+                transportBridge = get(),
+                firestoreRepository = get(),
+                briarRepository = BriarPeopleRepository(get()),
+            )
+        }
         single<AlarmRepository> { FirestoreAlarmRepository(get(), get()) }
         single<MyAccountRepository> { FirebaseMyAccountRepository(get(), get(), Dispatchers.IO, get()) }
         single { Clock.systemDefaultZone() }

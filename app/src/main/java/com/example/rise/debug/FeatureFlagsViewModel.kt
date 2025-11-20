@@ -21,7 +21,7 @@ class FeatureFlagsViewModel(
 ) : ViewModel() {
 
     data class UiState(
-        val mode: BriarTransportMode = BriarTransportMode.FIRESTORE,
+        val mode: BriarTransportMode = BriarTransportMode.HYBRID,
         val telegramAuthEnabled: Boolean = false,
     )
 
@@ -49,13 +49,8 @@ class FeatureFlagsViewModel(
     }
 
     fun setMode(mode: BriarTransportMode) {
-        if (mode == BriarTransportMode.FIRESTORE) {
-            if (mode != _state.value.mode) {
-                viewModelScope.launch { transportModeProvider.setMode(mode) }
-            }
-        } else {
-            _events.tryEmit(Event.ShowMessageRes(R.string.feature_flags_transport_mode_stage0_warning))
-        }
+        if (mode == _state.value.mode) return
+        viewModelScope.launch { transportModeProvider.setMode(mode) }
     }
 
     fun setTelegramEnabled(enabled: Boolean) {
