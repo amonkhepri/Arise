@@ -38,6 +38,7 @@ import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class TransportRouterImplTest {
 
@@ -181,6 +182,105 @@ class TransportRouterImplTest {
     }
 
     @Test
+    fun `sendMessage uses transport alias for mirrors`() = scope.runTest {
+        val store = InMemoryConversationStore()
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        val briarConnector = RecordingConnector(TransportId.BRIAR)
+        val firestoreConnector = RecordingConnector(TransportId.FIRESTORE).apply {
+            transportAliasGenerator = { canonical -> "firestore-$canonical" }
+        }
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.HYBRID),
+            connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
+        val outbound = ConnectorOutboundMessage(
+            conversationId = conversation.id,
+            senderId = "self",
+            senderName = "Self",
+            recipientIds = setOf("other"),
+            body = "hi",
+            timestamp = Date(),
+        )
+
+        router.sendMessage(outbound)
+        advanceUntilIdle()
+
+        assertEquals(conversation.id, briarConnector.sentMessages.single().conversationId)
+        assertEquals("firestore-${conversation.id}", firestoreConnector.sentMessages.single().conversationId)
+    }
+
+    @Test
+    fun `degraded mirrors still send messages`() = scope.runTest {
+        val store = InMemoryConversationStore()
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        val briarConnector = RecordingConnector(TransportId.BRIAR)
+        val firestoreConnector = RecordingConnector(TransportId.FIRESTORE).apply {
+            transportAliasGenerator = { canonical -> "firestore-$canonical" }
+            setLifecycle(ConnectorLifecycleState.DEGRADED)
+        }
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.HYBRID),
+            connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
+        val outbound = ConnectorOutboundMessage(
+            conversationId = conversation.id,
+            senderId = "self",
+            senderName = "Self",
+            recipientIds = setOf("other"),
+            body = "hi",
+            timestamp = Date(),
+        )
+
+        router.sendMessage(outbound)
+        advanceUntilIdle()
+
+        assertEquals("firestore-${conversation.id}", firestoreConnector.sentMessages.single().conversationId)
+    }
+
+    @Test
+    fun `observeConversation subscribes connectors using transport aliases`() = scope.runTest {
+        val store = InMemoryConversationStore()
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        val briarConnector = RecordingConnector(TransportId.BRIAR)
+        val firestoreConnector = RecordingConnector(TransportId.FIRESTORE).apply {
+            transportAliasGenerator = { canonical -> "firestore-$canonical" }
+        }
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.HYBRID),
+            connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
+        assertTrue(
+            "Primary connector should observe canonical conversation id",
+            briarConnector.observedConversationIds.contains(conversation.id),
+        )
+        assertTrue(
+            "Mirror connector should observe using its transport alias",
+            firestoreConnector.observedConversationIds.contains("firestore-${conversation.id}"),
+        )
+    }
+
+    @Test
     fun `ensureCurrentIdentity refreshes cached identity when connector reports different user`() = scope.runTest {
         val oldIdentity = IdentityRecord(
             canonicalIdentity = CanonicalIdentity(id = "old-user", displayName = "Old User"),
@@ -206,6 +306,13 @@ class TransportRouterImplTest {
             identityRegistry = IdentityRegistryImpl(store),
             bridgeOrchestrator = BridgeOrchestrator.NoOp,
             dispatcher = dispatcher,
+        )
+        conversationStore.upsertConversation(
+            CanonicalConversation(
+                id = "conversation-1",
+                participants = setOf("self", "other"),
+                title = "Other",
+            )
         )
         val observation = launch {
             router.observeConversation("conversation-1").collect { }
@@ -550,6 +657,326 @@ class TransportRouterImplTest {
     }
 
     @Test
+    fun `observeConversation merges snapshots from multiple connectors`() = scope.runTest {
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore()).apply {
+            upsertIdentity(
+                identity = CanonicalIdentity(id = "self", displayName = "Self"),
+                aliases = mapOf(TransportId.FIRESTORE to "self"),
+                setAsCurrent = true,
+            )
+        }
+        val store = InMemoryConversationStore()
+        val firestoreConnector = RecordingConnector(TransportId.FIRESTORE)
+        val briarConnector = RecordingConnector(TransportId.BRIAR)
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.HYBRID),
+            connectorRegistry = DefaultConnectorRegistry(setOf(firestoreConnector, briarConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            bridgeOrchestrator = BridgeOrchestrator.NoOp,
+            dispatcher = dispatcher,
+        )
+
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
+        router.observeConversation(conversation.id).test {
+            advanceUntilIdle()
+            assertTrue(awaitItem().isEmpty())
+
+            val firestoreMessage = ConnectorInboundMessage(
+                messageId = "firestore-msg",
+                conversationId = conversation.id,
+                senderId = "self",
+                recipientId = "other",
+                senderName = "Self",
+                body = "Via Firestore",
+                transport = TransportId.FIRESTORE,
+                timestamp = Date(0),
+            )
+            firestoreConnector.emitMessages(listOf(firestoreMessage))
+            advanceUntilIdle()
+
+            var snapshot = awaitItem()
+            assertEquals(listOf("Via Firestore"), snapshot.map { it.body })
+
+            briarConnector.emitMessages(emptyList())
+            advanceUntilIdle()
+
+            snapshot = awaitItem()
+            assertEquals(listOf("Via Firestore"), snapshot.map { it.body })
+
+            val briarMessage = ConnectorInboundMessage(
+                messageId = "briar-msg",
+                conversationId = conversation.id,
+                senderId = "self",
+                recipientId = "other",
+                senderName = "Self",
+                body = "Via Briar",
+                transport = TransportId.BRIAR,
+                timestamp = Date(1),
+            )
+            briarConnector.emitMessages(listOf(briarMessage))
+            advanceUntilIdle()
+
+            snapshot = awaitItem()
+            assertEquals(listOf("Via Firestore", "Via Briar"), snapshot.map { it.body })
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `briar connector observes when lifecycle degraded`() = scope.runTest {
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore()).apply {
+            upsertIdentity(
+                identity = CanonicalIdentity(id = "self", displayName = "Self"),
+                aliases = mapOf(TransportId.FIRESTORE to "self"),
+                setAsCurrent = true,
+            )
+        }
+        val store = InMemoryConversationStore()
+        val briarConnector = RecordingConnector(TransportId.BRIAR).apply {
+            setLifecycle(ConnectorLifecycleState.DEGRADED)
+        }
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.HYBRID),
+            connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+
+        router.observeConversation(conversation.id).test {
+            advanceUntilIdle()
+            assertTrue(awaitItem().isEmpty())
+
+            briarConnector.emitMessages(
+                listOf(
+                    ConnectorInboundMessage(
+                        messageId = "msg-1",
+                        conversationId = conversation.id,
+                        senderId = "self",
+                        recipientId = "other",
+                        senderName = "Self",
+                        body = "Via Briar",
+                        transport = TransportId.BRIAR,
+                        timestamp = Date(0),
+                    )
+                )
+            )
+            advanceUntilIdle()
+
+            val snapshot = awaitItem()
+            assertEquals(listOf("Via Briar"), snapshot.map { it.body })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `connector snapshot replaces previous entries instead of duplicating`() = scope.runTest {
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore()).apply {
+            upsertIdentity(
+                identity = CanonicalIdentity(id = "self", displayName = "Self"),
+                aliases = mapOf(TransportId.FIRESTORE to "self"),
+                setAsCurrent = true,
+            )
+        }
+        val store = InMemoryConversationStore()
+        val connector = RecordingConnector(TransportId.FIRESTORE)
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
+            connectorRegistry = DefaultConnectorRegistry(setOf(connector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+
+        router.observeConversation(conversation.id).test {
+            advanceUntilIdle()
+            assertTrue(awaitItem().isEmpty())
+
+            val first = ConnectorInboundMessage(
+                messageId = "msg-1",
+                conversationId = conversation.id,
+                senderId = "self",
+                recipientId = "other",
+                senderName = "Self",
+                body = "First",
+                transport = TransportId.FIRESTORE,
+                timestamp = Date(0),
+            )
+            connector.emitMessages(listOf(first))
+            advanceUntilIdle()
+            var snapshot = awaitItem()
+            assertEquals(listOf("First"), snapshot.map { it.body })
+
+            val second = ConnectorInboundMessage(
+                messageId = "msg-2",
+                conversationId = conversation.id,
+                senderId = "self",
+                recipientId = "other",
+                senderName = "Self",
+                body = "Second",
+                transport = TransportId.FIRESTORE,
+                timestamp = Date(1),
+            )
+            connector.emitMessages(listOf(first, second))
+            advanceUntilIdle()
+
+            snapshot = awaitItem()
+            assertEquals(listOf("First", "Second"), snapshot.map { it.body })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `observation clears snapshot cache when observation job completes`() = scope.runTest {
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore()).apply {
+            upsertIdentity(
+                identity = CanonicalIdentity(id = "self", displayName = "Self"),
+                aliases = mapOf(TransportId.FIRESTORE to "self"),
+                setAsCurrent = true,
+            )
+        }
+        val store = InMemoryConversationStore()
+        val connector = CompletingConnector(TransportId.FIRESTORE).apply {
+            queueMessages(
+                listOf(
+                    ConnectorInboundMessage(
+                        messageId = "msg-1",
+                        conversationId = "conversation-1",
+                        senderId = "self",
+                        recipientId = "other",
+                        senderName = "Self",
+                        body = "First",
+                        transport = TransportId.FIRESTORE,
+                        timestamp = Date(0),
+                    )
+                )
+            )
+        }
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
+            connectorRegistry = DefaultConnectorRegistry(setOf(connector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+
+        router.observeConversation(conversation.id).test {
+            advanceUntilIdle()
+            assertTrue(awaitItem().isEmpty())
+
+            advanceUntilIdle()
+            val snapshot = awaitItem()
+            assertEquals(listOf("First"), snapshot.map { it.body })
+
+            // Connector flow completes after emitting once, so the observation job should finish.
+            advanceUntilIdle()
+            assertEquals(0, router.observationJobCount())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        advanceUntilIdle()
+        assertTrue("Snapshot cache should be empty after observation job completes", router.messageSnapshotMap().isEmpty())
+    }
+
+    @Test
+    fun `observation restart rebuilds snapshot cache from new emissions`() = scope.runTest {
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore()).apply {
+            upsertIdentity(
+                identity = CanonicalIdentity(id = "self", displayName = "Self"),
+                aliases = mapOf(TransportId.FIRESTORE to "self"),
+                setAsCurrent = true,
+            )
+        }
+        val store = InMemoryConversationStore()
+        val connector = CompletingConnector(TransportId.FIRESTORE)
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
+            connectorRegistry = DefaultConnectorRegistry(setOf(connector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+
+        connector.queueMessages(
+            listOf(
+                ConnectorInboundMessage(
+                    messageId = "msg-1",
+                    conversationId = conversation.id,
+                    senderId = "self",
+                    recipientId = "other",
+                    senderName = "Self",
+                    body = "First",
+                    transport = TransportId.FIRESTORE,
+                    timestamp = Date(0),
+                )
+            )
+        )
+        router.observeConversation(conversation.id).test {
+            advanceUntilIdle()
+            assertTrue(awaitItem().isEmpty())
+            advanceUntilIdle()
+            awaitItem()
+            advanceUntilIdle()
+            assertEquals(0, router.observationJobCount())
+            cancelAndIgnoreRemainingEvents()
+        }
+        advanceUntilIdle()
+        assertTrue(router.messageSnapshotMap().isEmpty())
+
+        connector.queueMessages(
+            listOf(
+                ConnectorInboundMessage(
+                    messageId = "msg-1",
+                    conversationId = conversation.id,
+                    senderId = "self",
+                    recipientId = "other",
+                    senderName = "Self",
+                    body = "First",
+                    transport = TransportId.FIRESTORE,
+                    timestamp = Date(0),
+                ),
+                ConnectorInboundMessage(
+                    messageId = "msg-2",
+                    conversationId = conversation.id,
+                    senderId = "self",
+                    recipientId = "other",
+                    senderName = "Self",
+                    body = "Second",
+                    transport = TransportId.FIRESTORE,
+                    timestamp = Date(1),
+                ),
+            )
+        )
+        router.observeConversation(conversation.id).test {
+            advanceUntilIdle()
+            // Initial replay comes from the store, no connector emission yet
+            val initial = awaitItem()
+            assertEquals(listOf("First"), initial.map { it.body })
+            assertTrue("Snapshot cache should start empty before new emissions", router.messageSnapshotMap().isEmpty())
+            advanceUntilIdle()
+
+            val snapshot = awaitItem()
+            assertEquals(listOf("First", "Second"), snapshot.map { it.body })
+
+            advanceUntilIdle()
+            assertEquals(0, router.observationJobCount())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        advanceUntilIdle()
+        assertTrue("Snapshot cache should be empty after second observers cancel", router.messageSnapshotMap().isEmpty())
+    }
+
+    @Test
     fun `send only targets primary connector when hybrid mode falls back to firestore`() = scope.runTest {
         val bridge = fakeBridge(BriarTransportMode.HYBRID)
         val store = InMemoryConversationStore()
@@ -565,8 +992,11 @@ class TransportRouterImplTest {
             dispatcher = dispatcher,
         )
 
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
         val message = ConnectorOutboundMessage(
-            conversationId = "conversation-1",
+            conversationId = conversation.id,
             senderId = "self",
             senderName = "Self",
             recipientIds = setOf("other"),
@@ -661,14 +1091,22 @@ class TransportRouterImplTest {
                 setAsCurrent = true,
             )
         }
+        val store = InMemoryConversationStore()
         val router = TransportRouterImpl(
             transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
             connectorRegistry = DefaultConnectorRegistry(setOf(RecordingConnector(TransportId.FIRESTORE))),
-            conversationStore = InMemoryConversationStore(),
+            conversationStore = store,
             identityRegistry = identityRegistry,
             dispatcher = dispatcher,
         )
         val conversationId = "stale-conversation"
+        store.upsertConversation(
+            CanonicalConversation(
+                id = conversationId,
+                participants = setOf("self", "other"),
+                title = "Other",
+            )
+        )
 
         val staleJob = mockk<Job>(relaxed = true)
         every { staleJob.isActive } returns false
@@ -812,6 +1250,7 @@ class TransportRouterImplTest {
         private val conversations = ConcurrentHashMap<String, CanonicalConversation>()
         private val messages = ConcurrentHashMap<String, MutableList<CanonicalMessage>>()
         private val observers = ConcurrentHashMap<String, MutableSharedFlow<List<CanonicalMessage>>>()
+        private val aliases = ConcurrentHashMap<Pair<String, TransportId>, String>()
         var clearAllCalls = 0
 
         override suspend fun upsertConversation(conversation: CanonicalConversation) {
@@ -846,12 +1285,26 @@ class TransportRouterImplTest {
             return conversations[conversationId]
         }
 
+        override suspend fun upsertAlias(
+            conversationId: String,
+            transportId: TransportId,
+            alias: String,
+        ) {
+            aliases[conversationId to transportId] = alias
+        }
+
+        override suspend fun getAlias(
+            conversationId: String,
+            transportId: TransportId,
+        ): String? = aliases[conversationId to transportId]
+
         override suspend fun clearAll() {
             clearAllCalls += 1
             conversations.clear()
             messages.clear()
             observers.values.forEach { it.tryEmit(emptyList()) }
             observers.clear()
+            aliases.clear()
         }
     }
 
@@ -871,8 +1324,13 @@ class TransportRouterImplTest {
         override suspend fun currentIdentity(): CanonicalIdentity =
             CanonicalIdentity(id = "self", displayName = "Self")
 
-        override suspend fun ensureConversation(conversation: CanonicalConversation): String =
-            conversation.id.ifBlank { "conversation-1" }
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId {
+            val canonicalId = conversation.id.ifBlank { "conversation-1" }
+            return TransportConversationId(
+                canonicalId = canonicalId,
+                transportConversationId = "${transport.name.lowercase()}-$canonicalId"
+            )
+        }
 
         override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> = flow {
             counter.incrementAndGet()
@@ -905,8 +1363,10 @@ class TransportRouterImplTest {
         override suspend fun currentIdentity(): CanonicalIdentity =
             CanonicalIdentity(id = "self", displayName = "Self")
 
-        override suspend fun ensureConversation(conversation: CanonicalConversation): String =
-            conversation.id.ifBlank { "conversation-1" }
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId {
+            val canonical = conversation.id.ifBlank { "conversation-1" }
+            return TransportConversationId(canonicalId = canonical, transportConversationId = canonical)
+        }
 
         override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> {
             observeCalls += 1
@@ -932,8 +1392,10 @@ class TransportRouterImplTest {
 
         var ensureConversationCalls = 0
         val sentMessages = mutableListOf<ConnectorOutboundMessage>()
+        val observedConversationIds = mutableListOf<String>()
         var connectorIdentity: CanonicalIdentity = CanonicalIdentity(id = "self", displayName = "Self")
         var identityError: Throwable? = null
+        var transportAliasGenerator: ((String) -> String)? = null
 
         fun emitMessages(messages: List<ConnectorInboundMessage>) {
             messagesFlow.tryEmit(messages)
@@ -952,12 +1414,17 @@ class TransportRouterImplTest {
             return connectorIdentity
         }
 
-        override suspend fun ensureConversation(conversation: CanonicalConversation): String {
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId {
             ensureConversationCalls += 1
-            return conversation.id.ifBlank { "conversation-1" }
+            val canonical = conversation.id.ifBlank { "conversation-1" }
+            val alias = transportAliasGenerator?.invoke(canonical) ?: canonical
+            return TransportConversationId(canonicalId = canonical, transportConversationId = alias)
         }
 
-        override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> = messagesFlow
+        override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> {
+            observedConversationIds += conversationId
+            return messagesFlow
+        }
 
         override suspend fun sendMessage(message: ConnectorOutboundMessage) {
             sentMessages += message
@@ -987,6 +1454,13 @@ class TransportRouterImplTest {
         field.isAccessible = true
         @Suppress("UNCHECKED_CAST")
         return field.get(this) as MutableMap<String, Job>
+    }
+
+    private fun TransportRouterImpl.messageSnapshotMap(): MutableMap<String, MutableMap<TransportId, List<CanonicalMessage>>> {
+        val field = TransportRouterImpl::class.java.getDeclaredField("messageSnapshots")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        return field.get(this) as MutableMap<String, MutableMap<TransportId, List<CanonicalMessage>>>
     }
 
     /**

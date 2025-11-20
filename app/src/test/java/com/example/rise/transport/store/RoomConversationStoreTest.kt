@@ -48,12 +48,28 @@ class RoomConversationStoreTest {
 
     @Test
     fun `upsertConversation persists entity`() = scope.runTest {
-        val conversation = conversation("conversation-1", setOf("self", "other"))
+        val conversation = conversation(
+            id = "conversation-1",
+            participants = setOf("self", "other"),
+            primary = TransportId.BRIAR,
+            briarAlias = "briar-1"
+        )
 
         store.upsertConversation(conversation)
 
         val loaded = store.getConversation("conversation-1")
         assertEquals(conversation, loaded)
+    }
+
+    @Test
+    fun `alias helpers persist lookups`() = scope.runTest {
+        val conversation = conversation("conversation-1", setOf("self", "other"))
+        store.upsertConversation(conversation)
+
+        store.upsertAlias("conversation-1", TransportId.BRIAR, "briar-alias")
+
+        val restored = store.getAlias("conversation-1", TransportId.BRIAR)
+        assertEquals("briar-alias", restored)
     }
 
     @Test
@@ -104,6 +120,38 @@ class RoomConversationStoreTest {
     }
 
     @Test
+    fun `upsertMessages preserves connector metadata`() = scope.runTest {
+        val conversation = conversation("conversation-1", setOf("self", "other"))
+        store.upsertConversation(conversation)
+        val connectorMessage = CanonicalMessage(
+            canonicalMessageId = "CANON-1",
+            conversationId = "conversation-1",
+            senderId = "self",
+            recipientId = "other",
+            senderName = "Self",
+            body = "briar hello",
+            transport = TransportId.BRIAR,
+            transportMessageId = "BRIAR:42",
+            transportMetadata = """{"relay":"briar"}""",
+            timestamp = Date(3L),
+        )
+
+        store.upsertMessages("conversation-1", listOf(connectorMessage))
+
+        store.observeMessages("conversation-1").test {
+            var emission = awaitItem()
+            if (emission.isEmpty()) {
+                emission = awaitItem()
+            }
+            val stored = emission.single()
+            assertEquals(connectorMessage, stored)
+            assertEquals("BRIAR:42", stored.transportMessageId)
+            assertEquals("""{"relay":"briar"}""", stored.transportMetadata)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `upsertMessages clears persisted rows on empty snapshot`() = scope.runTest {
         val conversation = conversation("conversation-1", setOf("self", "other"))
         store.upsertConversation(conversation)
@@ -126,9 +174,12 @@ class RoomConversationStoreTest {
         store.upsertConversation(conversation)
         store.upsertMessages("conversation-1", messages)
 
+        store.upsertAlias("conversation-1", TransportId.FIRESTORE, "firestore")
+
         store.clearAll()
 
         assertNull(store.getConversation("conversation-1"))
+        assertNull(store.getAlias("conversation-1", TransportId.FIRESTORE))
         store.observeMessages("conversation-1").test {
             val emission = awaitItem()
             assertEquals(emptyList<CanonicalMessage>(), emission)
@@ -136,11 +187,18 @@ class RoomConversationStoreTest {
         }
     }
 
-    private fun conversation(id: String, participants: Set<String>): CanonicalConversation {
+    private fun conversation(
+        id: String,
+        participants: Set<String>,
+        primary: TransportId = TransportId.FIRESTORE,
+        briarAlias: String? = null,
+    ): CanonicalConversation {
         return CanonicalConversation(
             id = id,
             participants = participants,
             title = "Chat with ${participants.joinToString()}",
+            primaryTransportId = primary,
+            briarConversationId = briarAlias,
         )
     }
 
@@ -158,6 +216,7 @@ class RoomConversationStoreTest {
             senderName = "Self",
             body = body,
             transport = TransportId.FIRESTORE,
+            transportMessageId = messageId,
             timestamp = timestamp,
         )
     }

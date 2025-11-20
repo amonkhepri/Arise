@@ -4,6 +4,8 @@ import com.example.rise.briar.runtime.BriarRuntimePhase
 import com.example.rise.briar.runtime.BriarRuntimeStatus
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.briar.BriarChatAdapter
+import com.example.rise.transport.briar.BriarContactAdapter
 import com.example.rise.transport.router.CapabilityDescriptor
 import com.example.rise.transport.router.CanonicalConversation
 import com.example.rise.transport.router.CanonicalIdentity
@@ -17,6 +19,7 @@ import com.example.rise.transport.router.ConnectorTelemetryEvent
 import com.example.rise.transport.router.ConnectorTelemetrySink
 import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.TransportConversationId
 import com.example.rise.transport.router.TransportId
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineDispatcher
@@ -27,7 +30,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -39,6 +41,8 @@ import timber.log.Timber
 class BriarConnector(
     private val transportBridge: TransportRuntimeBridge,
     private val telemetrySink: ConnectorTelemetrySink,
+    private val briarChatAdapter: BriarChatAdapter,
+    private val briarContactAdapter: BriarContactAdapter,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : TransportConnector {
 
@@ -84,22 +88,18 @@ class BriarConnector(
         recomputeLifecycle()
     }
 
-    override suspend fun currentIdentity(): CanonicalIdentity {
-        throw IllegalStateException("Briar connector does not expose an identity yet")
-    }
+    override suspend fun currentIdentity(): CanonicalIdentity = briarChatAdapter.currentIdentity()
 
-    override suspend fun ensureConversation(conversation: CanonicalConversation): String {
-        throw IllegalStateException("Briar connector cannot create conversations yet")
-    }
+    override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId =
+        briarChatAdapter.ensureConversation(conversation)
 
     override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> =
-        emptyFlow()
+        briarChatAdapter.observeMessages(conversationId)
 
-    override suspend fun sendMessage(message: ConnectorOutboundMessage) {
-        throw IllegalStateException("Briar connector cannot send messages yet")
-    }
+    override suspend fun sendMessage(message: ConnectorOutboundMessage) =
+        briarChatAdapter.sendMessage(message)
 
-    override fun observeContacts(): Flow<List<ConnectorContact>> = emptyFlow()
+    override fun observeContacts(): Flow<List<ConnectorContact>> = briarContactAdapter.observeContacts()
 
     private fun recomputeLifecycle() {
         val mode = latestMode.get()

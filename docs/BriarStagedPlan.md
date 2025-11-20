@@ -1,4 +1,4 @@
-Staged Plan
+      Staged Plan
 
   - Stage 0 – Flag Infrastructure (status: Firestore only)
       - ~~Introduce a central feature toggle (e.g., BriarTransportMode) with enum values that model 
@@ -45,8 +45,8 @@ canonical identities, while delegating Firestore I/O to `FirestoreConnector`.~~
  changes.~~
   - ~~Rewire presence observers and caches to subscribe through the router, add regression 
 smoke tests, and keep a feature toggle to fall back to Firestore flows.~~
-      - ~~Script data backfill routines so Firestore-derived presence and contacts data hydrate
-`IdentityRegistry` on first launch.~~ (IdentityBackfillCoordinator/Worker + QA script landed 2025‑11‑08; worker now enqueues automatically when HYBRID/BRIAR_ONLY activates, even if the user signs in later.)
+      - Script data backfill routines so Firestore-derived presence and contacts data hydrate
+`IdentityRegistry` on first launch.
       - Formalise the connector onboarding lifecycle as a state machine (auth, handshake, 
 capabilities, failure isolation) and record it in shared docs.
       - Update each connector implementation to emit lifecycle state updates, persist capability 
@@ -56,13 +56,14 @@ settings UI layers with loading/error affordances.~~
       - Integrate the embedded Briar runtime’s chat/contact APIs so `BriarConnector` can resolve identities, create conversations, observe/send messages, and publish real capabilities (messages enabled, contacts with presence).
       - Implement an `AccountConnector` façade for Briar (or keep routing account requests to Firestore until Briar exposes that surface) so `RouterMyAccountRepository` works in HYBRID without crashes.
       - Update BridgeOrchestrator/TransportRouter tests to prove HYBRID mode routes through Briar when it’s ready and falls back gracefully otherwise.
-      - Expand the existing `BriarConnector` façade (already backed by `BriarRuntimeBridge`) so it can resolve identities, manage conversations, stream contacts/messages, and publish real capability/presence data; once complete, register it as the preferred connector whenever HYBRID is active.
+      - Implement the `BriarConnector` façade backed by `BriarRuntimeBridge`, publish its 
+capability map, and register it as the preferred connector when HYBRID is active.
       - Land BridgeOrchestrator hooks that prioritise the Briar connector yet gracefully fall back 
 to Firestore when peers lack Briar transport.
       - Refresh chat and settings surfaces to show unified conversations, transport badges, 
 connector health indicators, identity merge affordances, and live Briar availability.
-      - ~~Define the router telemetry event schema, craft a Flow exporter, and add logging hooks 
-across connector lifecycle and UI entry points.~~ (`ConnectorTelemetry` + `ObservableConnectorTelemetrySink` shipped 2025‑11‑05.)
+      - Define the router telemetry event schema, craft a Flow exporter, and add logging hooks 
+across connector lifecycle and UI entry points.
       - Use `agent-tools/run-and-log.sh` plus targeted click scripts to exercise connector 
 enable/disable and transient failure scenarios, capturing QA logs and screenshots.
   - Stage 4 – Telegram Connector Bridge (flag: targeted rollout)

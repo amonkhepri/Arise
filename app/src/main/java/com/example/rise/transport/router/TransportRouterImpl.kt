@@ -3,6 +3,7 @@ package com.example.rise.transport.router
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.store.ConversationStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -11,7 +12,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 
@@ -27,6 +33,9 @@ class TransportRouterImpl(
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val observationJobs = ConcurrentHashMap<String, Job>()
     private val observationLocks = ConcurrentHashMap<String, ReentrantLock>()
+    private val aliasLocks = ConcurrentHashMap<Pair<String, TransportId>, Mutex>()
+    private val messageSnapshots = ConcurrentHashMap<String, MutableMap<TransportId, MutableMap<String, CanonicalMessage>>>()
+    private val messageSnapshotLocks = ConcurrentHashMap<String, ReentrantLock>()
     @Volatile
     private var lastFallbackSnapshot: Pair<TransportId, ConnectorLifecycleState>? = null
 
@@ -39,28 +48,33 @@ class TransportRouterImpl(
     override val currentIdentity: Flow<CanonicalIdentity> = identityRegistry.currentIdentity
 
     override suspend fun ensureCurrentIdentity(): CanonicalIdentity {
-        val mode = transportBridge.currentMode.value
-        return resolveCurrentIdentity(mode)
+        val transportMode = transportBridge.currentMode.value
+        return resolveCurrentIdentity(transportMode)
     }
 
     override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
-        val mode = transportBridge.currentMode.value
-        val selfIdentity = resolveCurrentIdentity(mode)
-        val primary = selectPrimaryConnector(mode)
+        val transportMode = transportBridge.currentMode.value
+        val selfIdentity = resolveCurrentIdentity(transportMode)
+        val primary = selectPrimaryConnector(transportMode)
         identityRegistry.upsertIdentity(
             otherIdentity,
             aliases = mapOf(primary.transport to otherIdentity.id)
         )
 
         val participants = setOf(selfIdentity.id, otherIdentity.id)
-        val conversationId =
+        val ensuredConversation =
             ensureTransportConversation(primary, participants, otherIdentity.displayName)
+        val canonicalConversationId = ensuredConversation.canonicalId
+        val primaryAlias = ensuredConversation.transportConversationId
         val conversation = CanonicalConversation(
-            id = conversationId,
+            id = canonicalConversationId,
             participants = participants,
             title = otherIdentity.displayName,
+            primaryTransportId = primary.transport,
+            briarConversationId = primaryAlias.takeIf { primary.transport == TransportId.BRIAR },
         )
         conversationStore.upsertConversation(conversation)
+        conversationStore.upsertAlias(canonicalConversationId, primary.transport, primaryAlias)
         ensureObservation(conversation.id)
         return conversation
     }
@@ -71,14 +85,28 @@ class TransportRouterImpl(
     }
 
     override suspend fun sendMessage(message: ConnectorOutboundMessage) {
-        val mode = transportBridge.currentMode.value
-        val primaryConnector = selectPrimaryConnector(mode)
-        primaryConnector.sendMessage(message)
+        val transportMode = transportBridge.currentMode.value
+        val primaryConnector = selectPrimaryConnector(transportMode)
+        val canonicalConversationId = message.conversationId
+        val primaryAlias = resolveTransportAlias(canonicalConversationId, primaryConnector)
+        primaryConnector.sendMessage(message.copy(conversationId = primaryAlias))
         connectorRegistry
-            .mirrorsFor(mode)
+            .mirrorsFor(transportMode)
             .filter { mirror -> mirror.transport != primaryConnector.transport }
+            .filter { mirror -> mirror.lifecycle.value.isOperational() }
             .forEach { mirror ->
-                scope.launch { mirror.sendMessage(message) }
+                scope.launch {
+                    runCatching {
+                        val alias = resolveTransportAlias(canonicalConversationId, mirror)
+                        mirror.sendMessage(message.copy(conversationId = alias))
+                    }.onFailure { error ->
+                        Timber.tag(TAG).w(
+                            error,
+                            "Failed to mirror send for %s",
+                            mirror.transport,
+                        )
+                    }
+                }
             }
     }
 
@@ -151,13 +179,16 @@ class TransportRouterImpl(
         conversationStore.clearAll()
         observationJobs.values.forEach { it.cancel() }
         observationJobs.clear()
+        aliasLocks.clear()
+        messageSnapshots.clear()
+        messageSnapshotLocks.clear()
     }
 
     private suspend fun ensureTransportConversation(
         primary: TransportConnector,
         participants: Set<String>,
         title: String,
-    ): String {
+    ): TransportConversationId {
         val provisionalConversation = CanonicalConversation(
             id = "",
             participants = participants,
@@ -184,6 +215,7 @@ class TransportRouterImpl(
             lazyObservationJob.invokeOnCompletion {
                 observationJobs.remove(conversationId, lazyObservationJob)
                 observationLocks.remove(conversationId, conversationLock)
+                clearMessageSnapshots(conversationId)
             }
             lazyObservationJob.start()
         } finally {
@@ -197,20 +229,109 @@ class TransportRouterImpl(
         scope.launch(start = CoroutineStart.LAZY) {
             connectorRegistry.connectors.forEach { connector ->
                 launch {
-                    connector.observeMessages(conversationId).collectLatest { messages ->
-                        val canonicalMessages = messages.map { it.toCanonical() }
-                        conversationStore.upsertMessages(conversationId, canonicalMessages)
+                    val alias = try {
+                        awaitConnectorOperational(connector)
+                        resolveTransportAlias(conversationId, connector)
+                    } catch (error: Throwable) {
+                        if (error is CancellationException) throw error
+                        Timber.tag(TAG).w(
+                            error,
+                            "Skipping observation for %s; unable to resolve alias",
+                            connector.transport,
+                        )
+                        return@launch
+                    }
+                    connector.observeMessages(alias).collectLatest { messages ->
+                        val canonicalConnectorMessages = messages.map {
+                            it.copy(conversationId = conversationId)
+                        }
+                        val canonicalMessages = canonicalConnectorMessages.map { it.toCanonical() }
+                        persistMergedMessages(conversationId, connector.transport, canonicalMessages)
                         if (canonicalMessages.isNotEmpty()) {
                             bridgeOrchestrator.onMessagesReceived(
                                 conversationId = conversationId,
                                 source = connector.transport,
-                                messages = messages,
+                                messages = canonicalConnectorMessages,
                             )
                         }
                     }
                 }
             }
         }
+
+    private suspend fun awaitConnectorOperational(connector: TransportConnector) {
+        if (connector.lifecycle.value.isOperational()) {
+            return
+        }
+        connector.lifecycle
+            .filter { it.isOperational() }
+            .first()
+    }
+
+    private suspend fun resolveTransportAlias(
+        conversationId: String,
+        connector: TransportConnector,
+    ): String {
+        conversationStore.getAlias(conversationId, connector.transport)?.let { return it }
+        val lockKey = conversationId to connector.transport
+        val lock = aliasLocks.getOrPut(lockKey) { Mutex() }
+        return lock.withLock {
+            try {
+                conversationStore.getAlias(conversationId, connector.transport)?.let { return it }
+                val canonicalConversation = conversationStore.getConversation(conversationId)
+                    ?: error("Missing canonical conversation $conversationId")
+                val ensured = connector.ensureConversation(canonicalConversation)
+                val alias = ensured.transportConversationId
+                conversationStore.upsertAlias(conversationId, connector.transport, alias)
+                alias
+            } finally {
+                aliasLocks.remove(lockKey, lock)
+            }
+        }
+    }
+
+    private suspend fun persistMergedMessages(
+        conversationId: String,
+        transportId: TransportId,
+        messages: List<CanonicalMessage>,
+    ) {
+        val lock = messageSnapshotLocks.computeIfAbsent(conversationId) { ReentrantLock() }
+        lock.lock()
+        try {
+            val snapshots = messageSnapshots.getOrPut(conversationId) { mutableMapOf() }
+            val transportSnapshots = snapshots.getOrPut(transportId) { mutableMapOf() }
+            transportSnapshots.clear()
+            messages.forEach { transportSnapshots[it.canonicalMessageId] = it }
+            val merged = snapshots.values
+                .flatMap { it.values }
+                .sortedWith(
+                    compareBy<CanonicalMessage> { it.timestamp }
+                        .thenBy { it.canonicalMessageId }
+                )
+            conversationStore.upsertMessages(conversationId, merged)
+            if (merged.isEmpty()) {
+                messageSnapshots.remove(conversationId)
+                messageSnapshotLocks.remove(conversationId, lock)
+            }
+        } finally {
+            lock.unlock()
+        }
+    }
+
+    private fun clearMessageSnapshots(conversationId: String) {
+        val lock = messageSnapshotLocks[conversationId]
+        if (lock == null) {
+            messageSnapshots.remove(conversationId)
+            return
+        }
+        lock.lock()
+        try {
+            messageSnapshots.remove(conversationId)
+            messageSnapshotLocks.remove(conversationId, lock)
+        } finally {
+            lock.unlock()
+        }
+    }
 
     private fun observeConnectorLifecycle(connector: TransportConnector) {
         scope.launch {
@@ -255,9 +376,9 @@ class TransportRouterImpl(
     }
 
     private fun ConnectorInboundMessage.toCanonical(): CanonicalMessage {
-        val canonicalId = "${transport.name}:${messageId}"
+        val canonicalMessageId = "${transport.name}:${messageId}"
         return CanonicalMessage(
-            canonicalMessageId = canonicalId,
+            canonicalMessageId = canonicalMessageId,
             conversationId = conversationId,
             senderId = senderId,
             recipientId = recipientId,
@@ -266,5 +387,13 @@ class TransportRouterImpl(
             transport = transport,
             timestamp = timestamp,
         )
+    }
+
+    private fun ConnectorLifecycleState.isOperational(): Boolean {
+        return this == ConnectorLifecycleState.READY || this == ConnectorLifecycleState.DEGRADED
+    }
+
+    companion object {
+        private const val TAG = "TransportRouter"
     }
 }

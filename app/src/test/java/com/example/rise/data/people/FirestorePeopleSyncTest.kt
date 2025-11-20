@@ -1,7 +1,7 @@
 package com.example.rise.data.people
 
-import com.example.rise.briar.runtime.BriarChatGateway
-import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.testutil.stubBriarChatGateway
+import com.example.rise.testutil.stubBriarContactService
 import com.example.rise.briar.runtime.BriarRuntimeEvent
 import com.example.rise.briar.runtime.BriarRuntimeStatus
 import com.example.rise.featureflags.BriarTransportMode
@@ -18,8 +18,9 @@ import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.IdentityRegistryImpl
 import com.example.rise.transport.router.IdentityRegistryStore
 import com.example.rise.transport.router.PresenceStatus
-import com.example.rise.transport.router.TransportId
 import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.TransportConversationId
+import com.example.rise.transport.router.TransportId
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
 import com.example.rise.util.MainDispatcherRule
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -59,12 +60,8 @@ class FirestorePeopleSyncTest {
       override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
       override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
       override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(object : BriarChatGateway {
-        override val isAvailable: Boolean = false
-      })
-      override val briarContactService = MutableStateFlow(object : BriarContactService {
-        override val isAvailable: Boolean = false
-      })
+      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+      override val briarContactService = MutableStateFlow(stubBriarContactService())
 
       override fun requireFirestore(caller: String) = Unit
     }
@@ -124,7 +121,7 @@ class FirestorePeopleSyncTest {
       throw UnsupportedOperationException("Not needed in test")
     }
 
-    override suspend fun ensureConversation(conversation: com.example.rise.transport.router.CanonicalConversation): String {
+    override suspend fun ensureConversation(conversation: com.example.rise.transport.router.CanonicalConversation): TransportConversationId {
       throw UnsupportedOperationException("Not needed in test")
     }
 
@@ -171,12 +168,8 @@ class FirestorePeopleSyncTest {
       override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
       override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
       override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(object : BriarChatGateway {
-        override val isAvailable: Boolean = false
-      })
-      override val briarContactService = MutableStateFlow(object : BriarContactService {
-        override val isAvailable: Boolean = false
-      })
+      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+      override val briarContactService = MutableStateFlow(stubBriarContactService())
       override fun requireFirestore(caller: String) = Unit
     }
     val job = SupervisorJob()
@@ -230,12 +223,8 @@ class FirestorePeopleSyncTest {
       override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
       override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
       override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(object : BriarChatGateway {
-        override val isAvailable: Boolean = false
-      })
-      override val briarContactService = MutableStateFlow(object : BriarContactService {
-        override val isAvailable: Boolean = false
-      })
+      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+      override val briarContactService = MutableStateFlow(stubBriarContactService())
       override fun requireFirestore(caller: String) = Unit
     }
     val job = SupervisorJob()
@@ -288,12 +277,8 @@ class FirestorePeopleSyncTest {
       override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
       override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
       override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(object : BriarChatGateway {
-        override val isAvailable: Boolean = false
-      })
-      override val briarContactService = MutableStateFlow(object : BriarContactService {
-        override val isAvailable: Boolean = false
-      })
+      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+      override val briarContactService = MutableStateFlow(stubBriarContactService())
       override fun requireFirestore(caller: String) = Unit
     }
     val job = SupervisorJob()

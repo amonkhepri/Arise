@@ -44,3 +44,13 @@ data class ConnectorContact(
     val presence: PresenceStatus = PresenceStatus.UNKNOWN,
     val registrationTokens: List<String> = emptyList(),
 )
+
+/**
+ * Result returned by connectors when ensuring/creating a transport-specific conversation. Carries
+ * both the canonical conversation id used by the router and the connector's native alias so it can
+ * be persisted in the Room cache.
+ */
+data class TransportConversationId(
+    val canonicalId: String,
+    val transportConversationId: String,
+)

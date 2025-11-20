@@ -81,7 +81,7 @@ class DefaultConnectorRegistryTest {
         override val capabilities: StateFlow<ConnectorCapabilities> = MutableStateFlow(ConnectorCapabilities.EMPTY)
         override suspend fun currentIdentity(): CanonicalIdentity =
             error("Not used in this test")
-        override suspend fun ensureConversation(conversation: CanonicalConversation): String =
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId =
             error("Not used in this test")
         override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> =
             error("Not used in this test")

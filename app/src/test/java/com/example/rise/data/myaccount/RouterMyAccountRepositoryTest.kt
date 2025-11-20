@@ -5,6 +5,8 @@ import com.example.rise.auth.AuthStateHandle
 import com.example.rise.auth.AuthenticationService
 import com.example.rise.briar.runtime.BriarChatGateway
 import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.testutil.stubBriarChatGateway
+import com.example.rise.testutil.stubBriarContactService
 import com.example.rise.briar.runtime.BriarRuntimeEvent
 import com.example.rise.briar.runtime.BriarRuntimeStatus
 import com.example.rise.data.people.PeopleSync
@@ -23,6 +25,7 @@ import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.ConnectorRegistry
 import com.example.rise.transport.router.ConnectorStatus
 import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.TransportConversationId
 import com.example.rise.transport.router.TransportId
 import com.example.rise.transport.router.TransportRouter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -139,7 +142,7 @@ class RouterMyAccountRepositoryTest {
         override suspend fun currentIdentity(): CanonicalIdentity =
             throw UnsupportedOperationException("Not needed in test")
 
-        override suspend fun ensureConversation(conversation: CanonicalConversation): String =
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId =
             throw UnsupportedOperationException("Not needed in test")
 
         override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> = emptyFlow()
@@ -199,12 +202,8 @@ class RouterMyAccountRepositoryTest {
         override val currentMode: StateFlow<BriarTransportMode> = MutableStateFlow(BriarTransportMode.FIRESTORE)
         override val runtimeStatus: StateFlow<BriarRuntimeStatus> = MutableStateFlow(BriarRuntimeStatus.stopped)
         override val diagnostics: MutableSharedFlow<BriarRuntimeEvent> = MutableSharedFlow()
-        override val briarChatGateway: StateFlow<BriarChatGateway> = MutableStateFlow(object : BriarChatGateway {
-            override val isAvailable: Boolean = false
-        })
-        override val briarContactService: StateFlow<BriarContactService> = MutableStateFlow(object : BriarContactService {
-            override val isAvailable: Boolean = false
-        })
+        override val briarChatGateway: StateFlow<BriarChatGateway> = MutableStateFlow(stubBriarChatGateway())
+        override val briarContactService: StateFlow<BriarContactService> = MutableStateFlow(stubBriarContactService())
         override fun requireFirestore(caller: String) = Unit
     }
 }

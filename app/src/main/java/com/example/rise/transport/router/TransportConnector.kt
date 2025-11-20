@@ -27,7 +27,7 @@ interface TransportConnector {
      * identifier. Connectors should create transport-specific resources as needed and
      * return the canonical ID agreed upon by the identity registry.
      */
-    suspend fun ensureConversation(conversation: CanonicalConversation): String
+    suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId
 
     /**
      * Observe messages for the canonical conversation. Connectors emit transport-native

@@ -2,6 +2,7 @@ package com.example.rise.transport.store
 
 import com.example.rise.transport.router.CanonicalConversation
 import com.example.rise.transport.router.CanonicalMessage
+import com.example.rise.transport.router.TransportId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -31,6 +32,16 @@ interface ConversationStore {
      * Returns the stored conversation, or null when none exists.
      */
     suspend fun getConversation(conversationId: String): CanonicalConversation?
+
+    /**
+     * Persists the transport-specific alias for the given conversation.
+     */
+    suspend fun upsertAlias(conversationId: String, transportId: TransportId, alias: String)
+
+    /**
+     * Returns the persisted alias for the conversation + transport combo, or null if unknown.
+     */
+    suspend fun getAlias(conversationId: String, transportId: TransportId): String?
 
     /**
      * Removes every stored conversation and message entry.

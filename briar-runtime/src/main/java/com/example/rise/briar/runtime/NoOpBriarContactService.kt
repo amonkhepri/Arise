@@ -1,7 +1,9 @@
 package com.example.rise.briar.runtime
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * Mirrors [NoOpBriarChatGateway] for the contact surface so consumers can observe
@@ -13,6 +15,8 @@ object NoOpBriarContactService : BriarContactService {
 
     override val isAvailable: Boolean
         get() = readiness.value
+
+    override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
 
     fun reset() {
         readiness.value = false

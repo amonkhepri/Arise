@@ -76,7 +76,7 @@
     <string name="feature_flags_routing_preferred">Preferred</string>
     <string name="feature_flags_routing_fallback">Fallback</string>
     <string name="feature_flags_routing_reason">Why this primary</string>
-    <string name="feature_flags_routing_lifecycle">Preferred lifecycle</string>
+    <string name="feature_flags_routing_lifecycle">Preferred connector\'s lifecycle</string>
     <string name="feature_flags_routing_trigger">Trigger</string>
     <string name="feature_flags_routing_timestamp">Updated</string>
     <string name="transport_briar">Briar</string>

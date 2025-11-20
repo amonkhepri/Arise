@@ -10,10 +10,11 @@ import androidx.room.TypeConverters
     entities = [
         ConversationEntity::class,
         MessageEntity::class,
+        ConversationAliasEntity::class,
         CachedChatMessageEntity::class,
         CachedChatChannelEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(RoomConversationTypeConverters::class)
@@ -27,7 +28,8 @@ abstract class ConversationDatabase : RoomDatabase() {
                 context,
                 ConversationDatabase::class.java,
                 "transport_conversations.db"
-            ).fallbackToDestructiveMigration(true)
+            ).addMigrations(ConversationDatabaseMigrations.MIGRATION_2_3)
+                .fallbackToDestructiveMigration(true)
                 .build()
         }
     }

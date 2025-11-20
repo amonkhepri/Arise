@@ -1,6 +1,8 @@
 package com.example.rise.transport.store
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 import java.util.Date
@@ -11,6 +13,9 @@ data class ConversationEntity(
     @PrimaryKey val id: String,
     val title: String,
     val participants: List<String>,
+    @ColumnInfo(defaultValue = "'FIRESTORE'")
+    val primaryTransportId: String,
+    val briarConversationId: String?,
 )
 
 @Entity(tableName = "messages")
@@ -22,9 +27,21 @@ data class MessageEntity(
     val recipientId: String,
     val senderName: String,
     val body: String,
-    val transport: String,
+    val transportId: String,
     val transportMessageId: String,
+    val transportMetadata: String?,
     val timestamp: Date,
+)
+
+@Entity(
+    tableName = "conversation_aliases",
+    primaryKeys = ["conversationId", "transportId"],
+    indices = [Index(value = ["transportConversationId"])]
+)
+data class ConversationAliasEntity(
+    val conversationId: String,
+    val transportId: String,
+    val transportConversationId: String,
 )
 
 @Entity(

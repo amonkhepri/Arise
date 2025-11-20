@@ -1,6 +1,8 @@
 package com.example.rise.transport.store
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
@@ -35,9 +37,24 @@ interface ConversationDao {
     @Query("SELECT COUNT(*) FROM conversations")
     suspend fun conversationCount(): Int
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAlias(alias: ConversationAliasEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAliases(aliases: List<ConversationAliasEntity>)
+
+    @Query("SELECT transportConversationId FROM conversation_aliases WHERE conversationId = :conversationId AND transportId = :transportId")
+    suspend fun getAlias(conversationId: String, transportId: String): String?
+
+    @Query("DELETE FROM conversation_aliases WHERE conversationId = :conversationId")
+    suspend fun deleteAliasesForConversation(conversationId: String)
+
     @Query("DELETE FROM messages")
     suspend fun clearMessages()
 
     @Query("DELETE FROM conversations")
     suspend fun clearConversations()
+
+    @Query("DELETE FROM conversation_aliases")
+    suspend fun clearAliases()
 }

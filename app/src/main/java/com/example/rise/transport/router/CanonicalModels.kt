@@ -18,6 +18,8 @@ data class CanonicalConversation(
     val id: String,
     val participants: Set<String>,
     val title: String,
+    val primaryTransportId: TransportId = TransportId.FIRESTORE,
+    val briarConversationId: String? = null,
 )
 
 /**
@@ -32,6 +34,8 @@ data class CanonicalMessage(
     val senderName: String,
     val body: String,
     val transport: TransportId,
+    val transportMessageId: String? = null,
+    val transportMetadata: String? = null,
     val timestamp: Date,
 )
 

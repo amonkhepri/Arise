@@ -38,8 +38,8 @@ import com.example.rise.featureflags.TelegramAuthFlagProvider
 import com.example.rise.featureflags.transportModeDataStore
 import com.example.rise.auth.AuthenticationService
 import com.example.rise.auth.FirebaseAuthenticationService
-import com.example.rise.transport.connectors.BriarConnector
 import com.example.rise.transport.connectors.FirestoreConnector
+import com.example.rise.transport.connectors.BriarConnector
 import com.example.rise.transport.router.BridgeOrchestrator
 import com.example.rise.transport.router.ConnectorHealthProvider
 import com.example.rise.transport.router.ConnectorHealthRepository
@@ -54,6 +54,10 @@ import com.example.rise.transport.router.SharedPrefsIdentityRegistryStore
 import com.example.rise.transport.router.ConnectorTelemetrySink
 import com.example.rise.transport.router.TransportRouter
 import com.example.rise.transport.router.TransportRouterImpl
+import com.example.rise.transport.briar.BriarChatAdapter
+import com.example.rise.transport.briar.BriarContactAdapter
+import com.example.rise.transport.briar.DefaultBriarChatAdapter
+import com.example.rise.transport.briar.DefaultBriarContactAdapter
 import com.example.rise.transport.store.ConversationDatabase
 import com.example.rise.transport.store.ConversationStore
 import com.example.rise.transport.store.ChatCacheDao
@@ -128,6 +132,8 @@ class App: Application() {
         single<IdentityRegistryStore> { SharedPrefsIdentityRegistryStore(androidContext()) }
         single<IdentityRegistry> { IdentityRegistryImpl(get()) }
         single { IdentityBackfillCoordinator(userRemoteDataSource = get(), identityRegistry = get()) }
+        single<BriarChatAdapter> { DefaultBriarChatAdapter(get()) }
+        single<BriarContactAdapter> { DefaultBriarContactAdapter(get()) }
         single {
             FirestoreConnector(
                 authService = get(),
@@ -142,6 +148,8 @@ class App: Application() {
             BriarConnector(
                 transportBridge = get(),
                 telemetrySink = get(),
+                briarChatAdapter = get(),
+                briarContactAdapter = get(),
             )
         }
         single<ConnectorRegistry> {

@@ -9,7 +9,17 @@ import com.example.rise.briar.runtime.NoOpBriarChatGateway
 import com.example.rise.briar.runtime.NoOpBriarContactService
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.briar.BriarChatAdapter
+import com.example.rise.transport.briar.BriarContactAdapter
 import com.example.rise.transport.router.ConnectorLifecycleState
+import com.example.rise.transport.router.CanonicalConversation
+import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.ConnectorContact
+import com.example.rise.transport.router.ConnectorInboundMessage
+import com.example.rise.transport.router.ConnectorOutboundMessage
+import com.example.rise.transport.router.TransportConversationId
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +40,8 @@ class BriarConnectorTest {
         val connector = BriarConnector(
             transportBridge = bridge,
             telemetrySink = { },
+            briarChatAdapter = FakeChatAdapter(),
+            briarContactAdapter = FakeContactAdapter(),
             dispatcher = StandardTestDispatcher(testScheduler),
         )
 
@@ -43,6 +55,8 @@ class BriarConnectorTest {
         val connector = BriarConnector(
             transportBridge = bridge,
             telemetrySink = { },
+            briarChatAdapter = FakeChatAdapter(),
+            briarContactAdapter = FakeContactAdapter(),
             dispatcher = StandardTestDispatcher(testScheduler),
         )
 
@@ -72,5 +86,22 @@ class BriarConnectorTest {
         override val briarContactService: StateFlow<BriarContactService> =
             MutableStateFlow<BriarContactService>(NoOpBriarContactService).asStateFlow()
         override fun requireFirestore(caller: String) = Unit
+    }
+
+    private class FakeChatAdapter : BriarChatAdapter {
+        override suspend fun currentIdentity(): CanonicalIdentity =
+            CanonicalIdentity("id", "name")
+
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId =
+            TransportConversationId(conversation.id, "briar-${conversation.id}")
+
+        override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> =
+            flowOf(emptyList())
+
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
+    }
+
+    private class FakeContactAdapter : BriarContactAdapter {
+        override fun observeContacts(): Flow<List<ConnectorContact>> = flowOf(emptyList())
     }
 }

@@ -9,22 +9,21 @@ import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.models.TextMessage
 import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.router.AccountConnector
 import com.example.rise.transport.router.CanonicalIdentity
 import com.example.rise.transport.router.CapabilityDescriptor
+import com.example.rise.transport.router.ConnectorCapabilities
 import com.example.rise.transport.router.ConnectorContact
 import com.example.rise.transport.router.ConnectorInboundMessage
+import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.ConnectorStatus
-import com.example.rise.transport.router.ConnectorCapabilities
-import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorTelemetryEvent
 import com.example.rise.transport.router.ConnectorTelemetrySink
-import com.example.rise.transport.router.AccountConnector
 import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.TransportConversationId
 import com.example.rise.transport.router.TransportId
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.jvm.Volatile
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -45,6 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 
 class FirestoreConnector(
     private val authService: AuthenticationService,
@@ -128,19 +128,22 @@ class FirestoreConnector(
         }
     }
 
-    override suspend fun ensureConversation(conversation: com.example.rise.transport.router.CanonicalConversation): String =
+    override suspend fun ensureConversation(conversation: com.example.rise.transport.router.CanonicalConversation): TransportConversationId =
         runWithTelemetry("ensureConversation") {
             transportBridge.requireFirestore("FirestoreConnector#ensureConversation")
             val currentUser = currentIdentity()
             val otherUserId = conversation.participants.firstOrNull { it != currentUser.id }
                 ?: throw IllegalArgumentException("Conversation participants must include other user")
-            channelCache[otherUserId]?.let { return@runWithTelemetry it }
+            channelCache[otherUserId]?.let { cached ->
+                return@runWithTelemetry TransportConversationId(cached, cached)
+            }
             val currentUserId = authService.currentUser()?.id ?: throw IllegalStateException("User must be signed in")
-            withCacheAccess {
+            val cachedChannel = withCacheAccess {
                 localCache.readChannelId(currentUserId, otherUserId)
-            }?.let { cached ->
-                channelCache[otherUserId] = cached
-                return@runWithTelemetry cached
+            }
+            if (cachedChannel != null) {
+                channelCache[otherUserId] = cachedChannel
+                return@runWithTelemetry TransportConversationId(cachedChannel, cachedChannel)
             }
             val existingId = chatRemoteDataSource.getExistingChannelId(currentUserId, otherUserId)
             if (existingId != null) {
@@ -148,14 +151,20 @@ class FirestoreConnector(
                 withCacheAccess {
                     localCache.writeChannelId(currentUserId, otherUserId, existingId)
                 }
-                return@runWithTelemetry existingId
+                return@runWithTelemetry TransportConversationId(
+                    canonicalId = existingId,
+                    transportConversationId = existingId,
+                )
             }
-            return@runWithTelemetry chatRemoteDataSource.createChannel(currentUserId, otherUserId).also {
-                channelCache[otherUserId] = it
-                withCacheAccess {
-                    localCache.writeChannelId(currentUserId, otherUserId, it)
-                }
+            val createdId = chatRemoteDataSource.createChannel(currentUserId, otherUserId)
+            channelCache[otherUserId] = createdId
+            withCacheAccess {
+                localCache.writeChannelId(currentUserId, otherUserId, createdId)
             }
+            return@runWithTelemetry TransportConversationId(
+                canonicalId = createdId,
+                transportConversationId = createdId,
+            )
         }
 
     override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> = callbackFlow {

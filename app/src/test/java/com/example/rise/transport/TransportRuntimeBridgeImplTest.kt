@@ -1,7 +1,12 @@
 package com.example.rise.transport
 
 import com.example.rise.briar.runtime.BriarChatGateway
+import com.example.rise.briar.runtime.BriarContact
 import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.briar.runtime.BriarConversation
+import com.example.rise.briar.runtime.BriarConversationDescriptor
+import com.example.rise.briar.runtime.BriarMessage
+import com.example.rise.briar.runtime.BriarOutboundMessage
 import com.example.rise.briar.runtime.BriarRuntimeEvent
 import com.example.rise.briar.runtime.BriarRuntimeManager
 import com.example.rise.briar.runtime.BriarRuntimePhase
@@ -15,6 +20,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
@@ -111,10 +117,18 @@ class TransportRuntimeBridgeImplTest {
         private val _diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
         private val _chatGateway = MutableStateFlow<BriarChatGateway>(object : BriarChatGateway {
             override val isAvailable: Boolean = false
+            override suspend fun currentIdentity() = null
+            override suspend fun ensureConversation(descriptor: BriarConversationDescriptor) =
+                BriarConversation(descriptor.canonicalConversationId, descriptor.canonicalConversationId)
+
+            override fun observeMessages(conversationId: String) = flowOf(emptyList<BriarMessage>())
+
+            override suspend fun sendMessage(message: BriarOutboundMessage) = Unit
         })
         private val _contactService =
             MutableStateFlow<BriarContactService>(object : BriarContactService {
                 override val isAvailable: Boolean = false
+                override fun observeContacts() = flowOf(emptyList<BriarContact>())
             })
 
         var started = false

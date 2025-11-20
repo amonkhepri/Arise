@@ -14,6 +14,8 @@ import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.models.TextMessage
 import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.testutil.stubBriarChatGateway
+import com.example.rise.testutil.stubBriarContactService
 import com.example.rise.transport.router.ConnectorInboundMessage
 import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportId
@@ -187,7 +189,8 @@ class FirestoreConnectorTest {
 
         val conversationId = ensureJob.await()
 
-        assertEquals("new-channel", conversationId)
+        assertEquals("new-channel", conversationId.canonicalId)
+        assertEquals("new-channel", conversationId.transportConversationId)
         assertEquals(
             listOf(
                 "clear:uid-a",
@@ -430,12 +433,8 @@ class FirestoreConnectorTest {
         override val currentMode: StateFlow<BriarTransportMode> = MutableStateFlow(BriarTransportMode.FIRESTORE)
         override val runtimeStatus: StateFlow<BriarRuntimeStatus> = MutableStateFlow(BriarRuntimeStatus.stopped)
         override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-        override val briarChatGateway: StateFlow<BriarChatGateway> = MutableStateFlow(object : BriarChatGateway {
-            override val isAvailable: Boolean = false
-        })
-        override val briarContactService: StateFlow<BriarContactService> = MutableStateFlow(object : BriarContactService {
-            override val isAvailable: Boolean = false
-        })
+        override val briarChatGateway: StateFlow<BriarChatGateway> = MutableStateFlow(stubBriarChatGateway())
+        override val briarContactService: StateFlow<BriarContactService> = MutableStateFlow(stubBriarContactService())
         override fun requireFirestore(caller: String) = Unit
     }
 }

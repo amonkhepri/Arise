@@ -16,5 +16,8 @@ interface ChatLocalCache {
     suspend fun writeMessages(userId: String, channelId: String, messages: List<CachedChatMessage>)
     suspend fun readChannelId(userId: String, otherUserId: String): String?
     suspend fun writeChannelId(userId: String, otherUserId: String, channelId: String)
+    /**
+     * Clear all data (messages and channel IDs) for the given user.
+     */
     suspend fun clear(userId: String)
 }

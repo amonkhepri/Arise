@@ -2,6 +2,7 @@ package com.example.rise.briar.runtime
 
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
@@ -87,9 +88,17 @@ class BriarRuntimeManagerImplTest {
             private set
         val chatGateway = object : BriarChatGateway {
             override val isAvailable: Boolean = true
+            override suspend fun currentIdentity(): BriarIdentity? = null
+            override suspend fun ensureConversation(descriptor: BriarConversationDescriptor): BriarConversation {
+                return BriarConversation(descriptor.canonicalConversationId, descriptor.canonicalConversationId)
+            }
+
+            override fun observeMessages(conversationId: String) = flowOf(emptyList<BriarMessage>())
+            override suspend fun sendMessage(message: BriarOutboundMessage) = Unit
         }
         val contactService = object : BriarContactService {
             override val isAvailable: Boolean = true
+            override fun observeContacts() = flowOf(emptyList<BriarContact>())
         }
 
         override fun create(config: BriarRuntimeConfig): BriarRuntimeHandle {

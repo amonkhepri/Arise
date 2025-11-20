@@ -45,10 +45,36 @@ class RoomConversationStore(
         }
     }
 
+    override suspend fun upsertAlias(
+        conversationId: String,
+        transportId: TransportId,
+        alias: String,
+    ) {
+        withContext(dispatcher) {
+            dao.upsertAlias(
+                ConversationAliasEntity(
+                    conversationId = conversationId,
+                    transportId = transportId.name,
+                    transportConversationId = alias,
+                )
+            )
+        }
+    }
+
+    override suspend fun getAlias(
+        conversationId: String,
+        transportId: TransportId,
+    ): String? {
+        return withContext(dispatcher) {
+            dao.getAlias(conversationId, transportId.name)
+        }
+    }
+
     override suspend fun clearAll() {
         withContext(dispatcher) {
             dao.clearMessages()
             dao.clearConversations()
+            dao.clearAliases()
         }
     }
 
@@ -57,11 +83,14 @@ class RoomConversationStore(
             id = id,
             title = title,
             participants = participants.toList(),
+            primaryTransportId = primaryTransportId.name,
+            briarConversationId = briarConversationId,
         )
     }
 
     private fun CanonicalMessage.toEntity(): MessageEntity {
-        val transportMessageId = canonicalMessageId.substringAfter(":", canonicalMessageId)
+        val resolvedTransportMessageId = transportMessageId
+            ?: canonicalMessageId.substringAfter(":", canonicalMessageId)
         return MessageEntity(
             canonicalMessageId = canonicalMessageId,
             conversationId = conversationId,
@@ -69,8 +98,9 @@ class RoomConversationStore(
             recipientId = recipientId,
             senderName = senderName,
             body = body,
-            transport = transport.name,
-            transportMessageId = transportMessageId,
+            transportId = transport.name,
+            transportMessageId = resolvedTransportMessageId,
+            transportMetadata = transportMetadata,
             timestamp = timestamp,
         )
     }
@@ -80,11 +110,14 @@ class RoomConversationStore(
             id = id,
             participants = participants.toSet(),
             title = title,
+            primaryTransportId = runCatching { TransportId.valueOf(primaryTransportId) }
+                .getOrDefault(TransportId.FIRESTORE),
+            briarConversationId = briarConversationId,
         )
     }
 
     private fun MessageEntity.toModel(): CanonicalMessage {
-        val transportId = runCatching { TransportId.valueOf(transport) }
+        val transportId = runCatching { TransportId.valueOf(transportId) }
             .getOrDefault(TransportId.FIRESTORE)
         return CanonicalMessage(
             canonicalMessageId = canonicalMessageId,
@@ -94,6 +127,8 @@ class RoomConversationStore(
             senderName = senderName,
             body = body,
             transport = transportId,
+            transportMessageId = transportMessageId,
+            transportMetadata = transportMetadata,
             timestamp = timestamp,
         )
     }
