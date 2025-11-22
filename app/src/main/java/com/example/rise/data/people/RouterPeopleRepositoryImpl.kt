@@ -5,19 +5,18 @@ import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.CanonicalIdentity
 import com.example.rise.transport.router.ConnectorContact
 import com.example.rise.transport.router.IdentityProfile
-import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.IdentityRecord
+import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.PresenceStatus
-import com.example.rise.transport.router.TransportId
 import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.TransportId
 import com.google.firebase.auth.FirebaseAuth
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -30,6 +29,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicBoolean
 
 interface PeopleSync {
     /**
@@ -236,6 +236,129 @@ class FirestorePeopleSync(
     }
 }
 
+class BriarPeopleSync(
+    private val transportConnector: TransportConnector,
+    private val identityRegistry: IdentityRegistry,
+    private val transportBridge: TransportRuntimeBridge,
+    private val syncSupervisorJob: Job = SupervisorJob(),
+    private val scope: CoroutineScope = CoroutineScope(syncSupervisorJob + Dispatchers.IO),
+    private val initialRetryDelayMillis: Long = 250,
+    private val maxRetryDelayMillis: Long = 30_000,
+    private val backoffMultiplier: Double = 2.0,
+    private val delayProvider: suspend (Long) -> Unit = { delay(it) },
+) : PeopleSync {
+
+    private val syncActive = AtomicBoolean(false)
+    private var rosterJob: Job? = null
+    private var restartJob: Job? = null
+    private var retryDelayMillis: Long = initialRetryDelayMillis
+    private val _errors = MutableSharedFlow<Throwable>(extraBufferCapacity = 1)
+    private val currentUserIdState = MutableStateFlow<String?>(null)
+    private val snapshotProcessingMutex = Mutex()
+
+    init {
+        require(transportConnector.transport == TransportId.BRIAR) {
+            "BriarPeopleSync requires a Briar transport connector"
+        }
+    }
+
+    override val syncPeopleErrors: Flow<Throwable> = _errors.asSharedFlow()
+    override val currentUserCanonicalId: StateFlow<String?> = currentUserIdState.asStateFlow()
+
+    override fun ensureStarted() {
+        if (!syncActive.compareAndSet(false, true)) {
+            return
+        }
+        retryDelayMillis = initialRetryDelayMillis
+        restartJob?.cancel()
+        registerListener()
+    }
+
+    override fun stop() {
+        rosterJob?.cancel()
+        rosterJob = null
+        restartJob?.cancel()
+        restartJob = null
+        syncSupervisorJob.cancelChildren()
+        syncActive.set(false)
+        currentUserIdState.value = null
+        retryDelayMillis = initialRetryDelayMillis
+    }
+
+    private fun registerListener() {
+        if (!syncActive.get()) return
+        rosterJob?.cancel()
+        rosterJob = scope.launch {
+            try {
+                transportConnector.observeContacts().collect { contacts ->
+                    resetBackoff()
+                    val currentUserId = runCatching { transportConnector.currentIdentity().id }.getOrNull()
+                    currentUserIdState.value = currentUserId
+                    snapshotProcessingMutex.withLock {
+                        processBriarSnapshot(
+                            contacts = contacts,
+                            currentUserId = currentUserId,
+                            identityRegistry = identityRegistry,
+                        )
+                    }
+                }
+            } catch (error: Throwable) {
+                if (!syncActive.get()) return@launch
+                if (error is CancellationException) return@launch
+                handleListenerError(error)
+            }
+        }
+    }
+
+    private fun handleListenerError(error: Throwable) {
+        _errors.tryEmit(error)
+        rosterJob?.cancel()
+        rosterJob = null
+        scheduleRetry()
+    }
+
+    private fun scheduleRetry() {
+        if (!syncActive.get()) return
+        restartJob?.cancel()
+        val delayMillis = retryDelayMillis
+        restartJob = scope.launch {
+            delayProvider(delayMillis)
+            if (!syncActive.get()) return@launch
+            registerListener()
+        }
+        val nextDelay = (retryDelayMillis * backoffMultiplier).toLong()
+        retryDelayMillis = nextDelay.coerceAtMost(maxRetryDelayMillis)
+    }
+
+    private fun resetBackoff() {
+        retryDelayMillis = initialRetryDelayMillis
+        restartJob?.cancel()
+        restartJob = null
+    }
+}
+
+class CompositePeopleSync(
+    private val delegates: List<PeopleSync>,
+) : PeopleSync {
+    override val syncPeopleErrors: Flow<Throwable> = kotlinx.coroutines.flow.merge(
+        *delegates.map { it.syncPeopleErrors }.toTypedArray()
+    )
+
+    override val currentUserCanonicalId: Flow<String?> = combine(
+        delegates.map { it.currentUserCanonicalId }
+    ) { ids ->
+        ids.firstOrNull { it != null }
+    }
+
+    override fun ensureStarted() {
+        delegates.forEach { it.ensureStarted() }
+    }
+
+    override fun stop() {
+        delegates.forEach { it.stop() }
+    }
+}
+
 internal suspend fun processSnapshot(
     entries: List<FirestoreSnapshotEntry>,
     currentUserId: String?,
@@ -277,7 +400,47 @@ internal suspend fun processSnapshot(
         identityRegistry = identityRegistry,
         remoteIds = remoteIds,
         currentUserId = currentUserId,
-        knownIdsBeforeSnapshot = existingIds
+        knownIdsBeforeSnapshot = existingIds,
+        transportId = TransportId.FIRESTORE,
+    )
+}
+
+internal suspend fun processBriarSnapshot(
+    contacts: List<ConnectorContact>,
+    currentUserId: String?,
+    identityRegistry: IdentityRegistry,
+) {
+    val remoteIds = contacts.mapTo(mutableSetOf()) { it.canonicalId }
+    val existingIds = identityRegistry.identitiesSnapshot()
+        .filter { record ->
+            record.canonicalIdentity.id != currentUserId &&
+                record.aliases.containsKey(TransportId.BRIAR)
+        }
+        .mapTo(mutableSetOf()) { it.canonicalIdentity.id }
+
+    contacts.forEach { contact ->
+        val identity = CanonicalIdentity(
+            id = contact.canonicalId,
+            displayName = contact.displayName,
+        )
+        identityRegistry.upsertIdentity(
+            identity = identity,
+            aliases = mapOf(TransportId.BRIAR to contact.transportId),
+            profile = IdentityProfile(
+                bio = contact.bio,
+                profilePicturePath = contact.profilePicturePath,
+                presence = contact.presence,
+            ),
+            setAsCurrent = contact.canonicalId == currentUserId,
+        )
+    }
+
+    removeMissingContacts(
+        identityRegistry = identityRegistry,
+        remoteIds = remoteIds,
+        currentUserId = currentUserId,
+        knownIdsBeforeSnapshot = existingIds,
+        transportId = TransportId.BRIAR,
     )
 }
 
@@ -286,13 +449,14 @@ internal suspend fun removeMissingContacts(
     remoteIds: Set<String>,
     currentUserId: String?,
     knownIdsBeforeSnapshot: Set<String>,
+    transportId: TransportId = TransportId.FIRESTORE,
 ) {
     identityRegistry.identitiesSnapshot()
         .filter { record ->
             val canonicalId = record.canonicalIdentity.id
             if (canonicalId == currentUserId) return@filter false
             if (canonicalId !in knownIdsBeforeSnapshot) return@filter false
-            record.aliases.containsKey(TransportId.FIRESTORE) && canonicalId !in remoteIds
+            record.aliases.containsKey(transportId) && canonicalId !in remoteIds
         }
         .forEach { record ->
             identityRegistry.removeIdentity(record.canonicalIdentity.id)

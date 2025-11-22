@@ -46,7 +46,7 @@ The default is “call through the transport stack.” Anything that must stay F
 1. **Roster flow alignment**
 - ✅ `FirestorePeopleSync` now consumes the `TransportConnector.observeContacts()` feed exposed by `FirestoreConnector`, eliminating its direct Firestore dependency.
 - ✅ User bootstrap/token flows now route through `FirebaseSignInRepository` + `UserRemoteDataSource`, and `AlarmReceiver` dispatches via `ChatRepository` instead of writing directly to Firestore.
-- 🔄 `agent-tools/backfill-identities.sh` can be run after flipping HYBRID on to seed the router’s `IdentityRegistry` with all Firestore contacts (the script installs the latest debug build and broadcasts `com.example.rise.debug.RUN_IDENTITY_BACKFILL`, which enqueues the `IdentityBackfillWorker`). The worker is now enqueued whenever HYBRID/BRIAR_ONLY becomes active—even if no user is signed in yet—so QA can flip the flag before login and the backfill will run automatically once authentication completes.
+- ✅ `agent-tools/backfill-identities.sh` can be run after flipping HYBRID on to seed the router’s `IdentityRegistry` with all Firestore contacts (the script installs the latest debug build and broadcasts `com.example.rise.debug.RUN_IDENTITY_BACKFILL`, which enqueues the `IdentityBackfillWorker`). The worker is now enqueued whenever HYBRID/BRIAR_ONLY becomes active—even if no user is signed in yet—so QA can flip the flag before login and the backfill will run automatically once authentication completes.
 2. Define how `registrationTokens` migrate into router-friendly telemetry or remain Firestore-only.
 3. Decide whether `engagedChatChannels` remains a Firestore concern post Stage 5 or migrates into the Room-backed `ConversationStore`.
 

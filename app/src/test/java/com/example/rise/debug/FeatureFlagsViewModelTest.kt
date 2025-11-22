@@ -133,6 +133,7 @@ private class FakeConnectorHealthProvider : ConnectorHealthProvider {
                     lifecycle = ConnectorLifecycleState.READY,
                     status = ConnectorStatus.ACTIVE,
                     capabilities = ConnectorCapabilities(emptyMap()),
+                    messagingReady = true,
                 )
             )
         )

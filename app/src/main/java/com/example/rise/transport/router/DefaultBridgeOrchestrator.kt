@@ -56,7 +56,15 @@ class DefaultBridgeOrchestrator(
         conversationId: String,
         source: TransportId,
         messages: List<ConnectorInboundMessage>,
-    ) = Unit
+    ) {
+        telemetrySink.emit(
+            ConnectorTelemetryEvent.MessagesObserved(
+                transport = source,
+                conversationId = conversationId,
+                count = messages.size,
+            )
+        )
+    }
 
     override suspend fun onConnectorLifecycleChanged(
         transport: TransportId,

@@ -32,6 +32,29 @@ sealed interface ConnectorTelemetryEvent {
         val toTransport: TransportId,
         val reason: ConnectorLifecycleState,
     ) : ConnectorTelemetryEvent
+
+    data class ScheduledRetry(
+        val transport: TransportId,
+        val retryInMillis: Long,
+        val attempt: Int,
+    ) : ConnectorTelemetryEvent
+
+    data class Heartbeat(
+        val transport: TransportId,
+        val state: ConnectorLifecycleState,
+        val latencyMs: Long? = null,
+    ) : ConnectorTelemetryEvent
+
+    data class MessagesObserved(
+        val transport: TransportId,
+        val conversationId: String,
+        val count: Int,
+    ) : ConnectorTelemetryEvent
+
+    data class ReadinessChanged(
+        val transport: TransportId,
+        val ready: Boolean,
+    ) : ConnectorTelemetryEvent
 }
 
 fun interface ConnectorTelemetrySink {
@@ -64,6 +87,14 @@ class ObservableConnectorTelemetrySink(
                 "failure state=${event.state} transport=${event.transport} error=${event.error?.message}"
             is ConnectorTelemetryEvent.PrimaryFallback ->
                 "fallback from=${event.fromTransport} to=${event.toTransport} reason=${event.reason}"
+            is ConnectorTelemetryEvent.ScheduledRetry ->
+                "scheduledRetry transport=${event.transport} inMs=${event.retryInMillis} attempt=${event.attempt}"
+            is ConnectorTelemetryEvent.Heartbeat ->
+                "heartbeat transport=${event.transport} state=${event.state} latencyMs=${event.latencyMs}"
+            is ConnectorTelemetryEvent.MessagesObserved ->
+                "messages transport=${event.transport} conversation=${event.conversationId} count=${event.count}"
+            is ConnectorTelemetryEvent.ReadinessChanged ->
+                "readiness transport=${event.transport} ready=${event.ready}"
         }
         Timber.tag(tag).i(message)
     }

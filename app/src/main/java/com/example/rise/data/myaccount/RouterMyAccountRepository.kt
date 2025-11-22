@@ -46,7 +46,13 @@ class RouterMyAccountRepository(
     private fun accountConnector(): AccountConnector {
         val mode = transportBridge.currentMode.value
         val connector = connectorRegistry.primaryFor(mode)
-        return connector as? AccountConnector
-            ?: throw IllegalStateException("Connector ${connector.transport} does not support account profiles")
+        if (connector is AccountConnector) {
+            return connector
+        }
+        val fallback = connectorRegistry.connectors
+            .firstOrNull { it is AccountConnector }
+            ?.let { it as AccountConnector }
+        return fallback
+            ?: throw IllegalStateException("No connector supports account profiles for mode=$mode primary=${connector.transport}")
     }
 }

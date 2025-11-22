@@ -10,4 +10,5 @@ data class ConnectorHealth(
     val lifecycle: ConnectorLifecycleState,
     val status: ConnectorStatus,
     val capabilities: ConnectorCapabilities,
+    val messagingReady: Boolean,
 )

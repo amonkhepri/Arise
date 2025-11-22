@@ -19,11 +19,13 @@ import com.example.rise.data.dashboard.FirestoreAlarmRepository
 import com.example.rise.data.myaccount.RouterMyAccountRepository
 import com.example.rise.data.myaccount.MyAccountRepository
 import com.example.rise.data.people.FirestorePeopleSync
+import com.example.rise.data.people.BriarPeopleSync
 import com.example.rise.data.people.IdentityBackfillCoordinator
 import com.example.rise.data.people.IdentityBackfillScheduler
 import com.example.rise.data.people.IdentityBackfillStatusTracker
 import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PeopleSync
+import com.example.rise.data.people.CompositePeopleSync
 import com.example.rise.data.people.RouterPeopleRepositoryImpl
 import com.example.rise.briar.BriarRuntimeEnvironmentImpl
 import com.example.rise.briar.runtime.BriarComponentFactory
@@ -185,12 +187,27 @@ class App: Application() {
             )
         }
         single<ChatRepository> { TransportBackedChatRepository(get()) }
-        single<PeopleSync> {
+        single {
             FirestorePeopleSync(
                 firebaseAuth = get(),
                 transportConnector = get<FirestoreConnector>(),
                 identityRegistry = get(),
                 transportBridge = get(),
+            )
+        }
+        single {
+            BriarPeopleSync(
+                transportConnector = get<BriarConnector>(),
+                identityRegistry = get(),
+                transportBridge = get(),
+            )
+        }
+        single<PeopleSync> {
+            CompositePeopleSync(
+                delegates = listOf(
+                    get<FirestorePeopleSync>(),
+                    get<BriarPeopleSync>(),
+                )
             )
         }
         single<RouterPeopleRepository> { RouterPeopleRepositoryImpl(identityRegistry = get(), peopleSync = get()) }

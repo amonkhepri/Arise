@@ -41,7 +41,7 @@ if [ $? -eq 0 ]; then
     echo "----------------------------------------"
     
     # Capture for 10 seconds
-    LOG_FILTER="(BridgeOrchestrator|com.example.rise|AndroidRuntime.*FATAL|Error inflating|Caused by)"
+    LOG_FILTER="(BridgeOrchestrator|ConnectorTelemetry|com.example.rise|AndroidRuntime.*FATAL|Error inflating|Caused by)"
     perl -e 'alarm shift; exec @ARGV' 10 $ADB -s $DEVICE logcat -v time 2>&1 | grep -iE "$LOG_FILTER" | head -150
 
     echo "----------------------------------------"
