@@ -56,7 +56,15 @@ class DefaultBridgeOrchestrator(
         conversationId: String,
         source: TransportId,
         messages: List<ConnectorInboundMessage>,
-    ) = Unit
+    ) {
+        telemetrySink.emit(
+            ConnectorTelemetryEvent.MessagesObserved(
+                transport = source,
+                conversationId = conversationId,
+                count = messages.size,
+            )
+        )
+    }
 
     override suspend fun onConnectorLifecycleChanged(
         transport: TransportId,
@@ -161,10 +169,14 @@ class DefaultBridgeOrchestrator(
         private fun candidateOrder(mode: BriarTransportMode): List<TransportId> {
             val base = when (mode) {
                 BriarTransportMode.FIRESTORE -> listOf(TransportId.FIRESTORE, TransportId.BRIAR)
-                BriarTransportMode.HYBRID,
-                BriarTransportMode.BRIAR_ONLY -> listOf(TransportId.BRIAR, TransportId.FIRESTORE)
+                BriarTransportMode.HYBRID -> listOf(TransportId.BRIAR, TransportId.FIRESTORE)
+                BriarTransportMode.BRIAR_ONLY -> listOf(TransportId.BRIAR)
             }
-            val extras = TransportId.entries.filter { it !in base }
+            val extras = if (mode == BriarTransportMode.BRIAR_ONLY) {
+                emptyList()
+            } else {
+                TransportId.entries.filter { it !in base }
+            }
             return base + extras
         }
     }

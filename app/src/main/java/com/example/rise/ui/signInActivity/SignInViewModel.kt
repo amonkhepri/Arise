@@ -6,11 +6,14 @@ import androidx.credentials.Credential
 import androidx.credentials.PasswordCredential
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.rise.data.auth.BriarAccountRepository
 import com.example.rise.data.auth.SignInRepository
 import com.example.rise.data.auth.TelegramAuthData
 import com.example.rise.data.auth.TelegramAuthRepository
 import com.example.rise.data.auth.TelegramAuthResponse
 import com.example.rise.auth.AuthenticationService
+import com.example.rise.featureflags.BriarTransportMode
+import com.example.rise.transport.TransportRuntimeBridge
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
@@ -27,6 +30,8 @@ class SignInViewModel(
     private val authenticationService: AuthenticationService,
     private val repository: SignInRepository,
     private val telegramRepository: TelegramAuthRepository,
+    private val briarAccountRepository: BriarAccountRepository,
+    private val transportRuntimeBridge: TransportRuntimeBridge,
     private val emailValidator: EmailValidator = DefaultEmailValidator,
 ) : ViewModel() {
 
@@ -61,14 +66,22 @@ class SignInViewModel(
 
     fun submitPrimaryAction(name: String, email: String, password: String) {
         when (_uiState.value.mode) {
-            Mode.SignIn -> signInWithEmail(email, password)
+            Mode.SignIn -> signInWithEmail(name, email, password)
             Mode.Register -> register(name, email, password)
         }
     }
 
-    fun signInWithEmail(email: String, password: String) {
+    fun signInWithEmail(name: String, email: String, password: String) {
         val trimmedEmail = email.trim()
-        if (!isValidEmail(trimmedEmail)) {
+        val trimmedName = name.trim()
+        val briarOnly = transportRuntimeBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY
+        val usingBriarAccount = briarOnly && trimmedEmail.isBlank()
+
+        if (usingBriarAccount && trimmedName.isBlank()) {
+            emitMessage("Please enter your name")
+            return
+        }
+        if (!usingBriarAccount && !isValidEmail(trimmedEmail)) {
             emitMessage("Please enter a valid email")
             return
         }
@@ -79,11 +92,20 @@ class SignInViewModel(
         viewModelScope.launch {
             setLoading(true)
             try {
-                authenticationService.signInWithEmail(trimmedEmail, password)
-                _events.emit(Event.SaveCredentials(trimmedEmail, password))
-                finalizeSignIn()
+                if (usingBriarAccount) {
+                    briarAccountRepository.signIn(trimmedName, password)
+                    _events.emit(Event.NavigateToMain)
+                } else {
+                    authenticationService.signInWithEmail(trimmedEmail, password)
+                    _events.emit(Event.SaveCredentials(trimmedEmail, password))
+                    finalizeSignIn()
+                }
             } catch (error: Exception) {
-                handleAuthError(error)
+                if (usingBriarAccount) {
+                    emitMessage(error.message ?: "Failed to sign in")
+                } else {
+                    handleAuthError(error)
+                }
             } finally {
                 setLoading(false)
             }
@@ -97,7 +119,9 @@ class SignInViewModel(
             emitMessage("Please enter your name")
             return
         }
-        if (!isValidEmail(trimmedEmail)) {
+        val briarOnlyMode = transportRuntimeBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY
+        val usingBriarAccount = trimmedEmail.isBlank() && briarOnlyMode
+        if (!usingBriarAccount && !isValidEmail(trimmedEmail)) {
             emitMessage("Please enter a valid email")
             return
         }
@@ -108,12 +132,21 @@ class SignInViewModel(
         viewModelScope.launch {
             setLoading(true)
             try {
-                authenticationService.createUserWithEmail(trimmedEmail, password)
-                authenticationService.updateProfile(trimmedName, null)
-                _events.emit(Event.SaveCredentials(trimmedEmail, password))
-                finalizeSignIn()
+                if (usingBriarAccount) {
+                    briarAccountRepository.createAccount(trimmedName, password)
+                    _events.emit(Event.NavigateToMain)
+                } else {
+                    authenticationService.createUserWithEmail(trimmedEmail, password)
+                    authenticationService.updateProfile(trimmedName, null)
+                    _events.emit(Event.SaveCredentials(trimmedEmail, password))
+                    finalizeSignIn()
+                }
             } catch (error: Exception) {
-                handleAuthError(error)
+                if (usingBriarAccount) {
+                    emitMessage(error.message ?: "Failed to create account")
+                } else {
+                    handleAuthError(error)
+                }
             } finally {
                 setLoading(false)
             }

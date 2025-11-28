@@ -43,12 +43,14 @@ class TransportRuntimeBridgeImpl(
                 }
                 when (mode) {
                     BriarTransportMode.FIRESTORE -> {
+                        Timber.tag(TAG).i("Stopping Briar runtime (mode=%s)", mode)
                         runCatching { runtimeManager.stop() }
                             .onFailure { Timber.tag(TAG).e(it, "Failed to stop Briar runtime") }
                     }
 
                     BriarTransportMode.HYBRID,
                     BriarTransportMode.BRIAR_ONLY -> {
+                        Timber.tag(TAG).i("Starting Briar runtime (mode=%s)", mode)
                         runCatching { runtimeManager.ensureStarted() }
                             .onFailure {
                                 Timber.tag(TAG).e(
@@ -66,6 +68,15 @@ class TransportRuntimeBridgeImpl(
                 _currentMode.value = mode
             }
         }
+        scope.launch {
+            runtimeManager.status.collect { status ->
+                Timber.tag(TAG).d(
+                    "Briar runtime status -> phase=%s err=%s",
+                    status.phase,
+                    status.lastError?.message
+                )
+            }
+        }
     }
 
     override val currentMode: StateFlow<BriarTransportMode> = _currentMode.asStateFlow()
@@ -77,11 +88,7 @@ class TransportRuntimeBridgeImpl(
     override fun requireFirestore(caller: String) {
         val mode = _currentMode.value
         if (mode != BriarTransportMode.FIRESTORE) {
-            Timber.tag(TAG).w(
-                "Ignoring %s while transport mode is %s; Firestore remains the only production path until hybrid chat wiring lands.",
-                caller,
-                mode
-            )
+            throw IllegalStateException("Firestore path disabled in mode $mode (called from $caller)")
         }
     }
 

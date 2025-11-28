@@ -13,8 +13,21 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.example.rise.auth.AuthenticationService
 import com.example.rise.auth.AuthStateHandle
+import com.example.rise.briar.runtime.BriarChatGateway
+import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.briar.runtime.BriarRuntimeEvent
+import com.example.rise.briar.runtime.BriarRuntimeStatus
+import com.example.rise.data.auth.BriarAccountRepository
+import com.example.rise.featureflags.BriarTransportMode
+import com.example.rise.testutil.stubBriarChatGateway
+import com.example.rise.testutil.stubBriarContactService
+import com.example.rise.transport.TransportRuntimeBridge
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -33,18 +46,24 @@ class SignInViewModelTest {
     private lateinit var authService: FakeAuthenticationService
     private lateinit var repository: FakeSignInRepository
     private lateinit var telegramRepository: FakeTelegramAuthRepository
+    private lateinit var briarAccountRepository: FakeBriarAccountRepository
+    private lateinit var transportRuntimeBridge: FakeTransportRuntimeBridge
 
     private fun createViewModel(
         emailValidator: SignInViewModel.EmailValidator = SignInViewModel.EmailValidator { email ->
             email.isNotBlank() && EMAIL_REGEX.matcher(email).matches()
-        }
-    ) = SignInViewModel(authService, repository, telegramRepository, emailValidator)
+        },
+        briarRepo: FakeBriarAccountRepository = briarAccountRepository,
+        bridge: FakeTransportRuntimeBridge = transportRuntimeBridge,
+    ) = SignInViewModel(authService, repository, telegramRepository, briarRepo, bridge, emailValidator)
 
     @Before
     fun setUp() {
         authService = FakeAuthenticationService()
         repository = FakeSignInRepository()
         telegramRepository = FakeTelegramAuthRepository()
+        briarAccountRepository = FakeBriarAccountRepository()
+        transportRuntimeBridge = FakeTransportRuntimeBridge()
     }
 
     @Test
@@ -101,11 +120,96 @@ class SignInViewModelTest {
     }
 
     @Test
+    fun `register without email creates briar account and navigates`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        briarAccountRepository.result = Result.success(Unit)
+        val viewModel = createViewModel()
+        viewModel.toggleMode()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Briar User", "", "password123")
+            assertEquals(SignInViewModel.Event.NavigateToMain, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(authService.createdUsers.isEmpty())
+        assertEquals(listOf("Briar User" to "password123"), briarAccountRepository.createCalls)
+        assertEquals(0, repository.ensureUserInitializedCalls)
+        assertTrue(repository.storedTokens.isEmpty())
+    }
+
+    @Test
+    fun `register without email surfaces briar creation error`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        briarAccountRepository.result = Result.failure(IllegalStateException("briar failed"))
+        val viewModel = createViewModel()
+        viewModel.toggleMode()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Briar User", "", "password123")
+            val event = awaitItem() as SignInViewModel.Event.ShowMessage
+            assertEquals("briar failed", event.message)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(authService.createdUsers.isEmpty())
+        assertEquals(listOf("Briar User" to "password123"), briarAccountRepository.createCalls)
+        assertEquals(0, repository.ensureUserInitializedCalls)
+    }
+
+    @Test
+    fun `sign in without email uses briar account in briar only mode`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        briarAccountRepository.signInResult = Result.success(Unit)
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Briar User", "", "password123")
+            assertEquals(SignInViewModel.Event.NavigateToMain, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(authService.emailSignIns.isEmpty())
+        assertEquals(listOf("Briar User" to "password123"), briarAccountRepository.signInCalls)
+    }
+
+    @Test
+    fun `sign in without email requires name`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("", "", "password123")
+            val event = awaitItem() as SignInViewModel.Event.ShowMessage
+            assertEquals("Please enter your name", event.message)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(briarAccountRepository.signInCalls.isEmpty())
+    }
+
+    @Test
+    fun `sign in without email surfaces briar error`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        briarAccountRepository.signInResult = Result.failure(IllegalStateException("bad password"))
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Briar User", "", "wrong")
+            val event = awaitItem() as SignInViewModel.Event.ShowMessage
+            assertEquals("bad password", event.message)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(listOf("Briar User" to "wrong"), briarAccountRepository.signInCalls)
+    }
+
+    @Test
     fun `signInWithEmail validates email format`() = runTest {
         val viewModel = createViewModel()
 
         viewModel.events.test {
-            viewModel.signInWithEmail("invalid-email", "password123")
+            viewModel.signInWithEmail(name = "Test", email = "invalid-email", password = "password123")
             val event = awaitItem() as SignInViewModel.Event.ShowMessage
             assertEquals("Please enter a valid email", event.message)
             cancelAndIgnoreRemainingEvents()
@@ -117,7 +221,7 @@ class SignInViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.events.test {
-            viewModel.signInWithEmail("test@example.com", "")
+            viewModel.signInWithEmail(name = "Test", email = "test@example.com", password = "")
             val event = awaitItem() as SignInViewModel.Event.ShowMessage
             assertEquals("Please enter your password", event.message)
             cancelAndIgnoreRemainingEvents()
@@ -168,7 +272,7 @@ class SignInViewModelTest {
             val eventTurbine = viewModel.events.testIn(this)
 
             assertFalse(stateTurbine.awaitItem().isLoading)
-            viewModel.signInWithEmail("test@example.com", "password123")
+            viewModel.signInWithEmail(name = "Test", email = "test@example.com", password = "password123")
             assertTrue(stateTurbine.awaitItem().isLoading)
             assertFalse(stateTurbine.awaitItem().isLoading)
 
@@ -333,6 +437,40 @@ class SignInViewModelTest {
 }
 
 private val EMAIL_REGEX: Pattern = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")
+
+private class FakeBriarAccountRepository : BriarAccountRepository {
+    var result: Result<Unit> = Result.success(Unit)
+    var signInResult: Result<Unit> = Result.success(Unit)
+    val createCalls = mutableListOf<Pair<String, String>>()
+    val signInCalls = mutableListOf<Pair<String, String>>()
+
+    override suspend fun createAccount(name: String, password: String) {
+        createCalls += name to password
+        result.getOrThrow()
+    }
+
+    override suspend fun signIn(name: String, password: String) {
+        signInCalls += name to password
+        signInResult.getOrThrow()
+    }
+}
+
+private class FakeTransportRuntimeBridge(
+    initialMode: BriarTransportMode = BriarTransportMode.FIRESTORE,
+) : TransportRuntimeBridge {
+    private val modeState = MutableStateFlow(initialMode)
+    override val currentMode: StateFlow<BriarTransportMode> = modeState.asStateFlow()
+    override val runtimeStatus: StateFlow<BriarRuntimeStatus> = MutableStateFlow(BriarRuntimeStatus.stopped)
+    override val diagnostics: MutableSharedFlow<BriarRuntimeEvent> = MutableSharedFlow()
+    override val briarChatGateway: StateFlow<BriarChatGateway> = MutableStateFlow(stubBriarChatGateway(isAvailable = true))
+    override val briarContactService: StateFlow<BriarContactService> = MutableStateFlow(stubBriarContactService(isAvailable = true))
+
+    override fun requireFirestore(caller: String) = Unit
+
+    fun setMode(mode: BriarTransportMode) {
+        modeState.value = mode
+    }
+}
 
 private class FakeSignInRepository : SignInRepository {
     var ensureUserInitializedCalls: Int = 0

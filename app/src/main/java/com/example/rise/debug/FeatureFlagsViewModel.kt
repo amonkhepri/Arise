@@ -42,6 +42,7 @@ class FeatureFlagsViewModel(
 
     private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
+    private var pendingModeOverride: BriarTransportMode? = null
 
     init {
         viewModelScope.launch {
@@ -50,9 +51,13 @@ class FeatureFlagsViewModel(
                 telegramAuthFlagProvider.observeEnabled(),
                 bridgeOrchestrator.routingState,
                 connectorHealthProvider.health,
-            ) { mode, telegramEnabled, routing, health ->
+            ) { observedMode, telegramEnabled, routing, health ->
+                val effectiveMode = pendingModeOverride ?: observedMode
+                if (pendingModeOverride != null && observedMode == pendingModeOverride) {
+                    pendingModeOverride = null
+                }
                 UiState(
-                    mode = mode,
+                    mode = effectiveMode,
                     telegramAuthEnabled = telegramEnabled,
                     routingSnapshot = routing,
                     connectorHealth = health.values.sortedBy { it.transport.name },
@@ -65,6 +70,8 @@ class FeatureFlagsViewModel(
         if (mode == _state.value.mode) return
 
         if (mode == BriarTransportMode.FIRESTORE) {
+            pendingModeOverride = mode
+            _state.value = _state.value.copy(mode = mode)
             viewModelScope.launch { transportModeProvider.setMode(mode) }
             return
         }
@@ -72,6 +79,8 @@ class FeatureFlagsViewModel(
         // Stage 1 allows Hybrid/BRIAR_ONLY toggles, but we still surface a warning so testers
         // know the experience is experimental.
         _events.tryEmit(Event.ShowMessageRes(R.string.feature_flags_transport_mode_stage0_warning))
+        pendingModeOverride = mode
+        _state.value = _state.value.copy(mode = mode)
         viewModelScope.launch { transportModeProvider.setMode(mode) }
     }
 

@@ -46,7 +46,7 @@ class TransportRuntimeBridgeImplTest {
     }
 
     @Test
-    fun `requireFirestore does not throw on non Firestore modes`() {
+    fun `requireFirestore throws on non Firestore modes`() {
         runBlocking {
             val dispatcher = Dispatchers.Unconfined
             val provider = FakeTransportModeProvider(BriarTransportMode.FIRESTORE)
@@ -58,7 +58,8 @@ class TransportRuntimeBridgeImplTest {
             yield()
 
             assertTrue(runtimeManager.started)
-            bridge.requireFirestore("test call")
+            val error = runCatching { bridge.requireFirestore("test call") }.exceptionOrNull()
+            assertTrue(error is IllegalStateException)
             assertEquals(BriarTransportMode.HYBRID, bridge.currentMode.value)
         }
     }
@@ -128,6 +129,7 @@ class TransportRuntimeBridgeImplTest {
         private val _contactService =
             MutableStateFlow<BriarContactService>(object : BriarContactService {
                 override val isAvailable: Boolean = false
+                override suspend fun addContactByLink(link: String, alias: String?) = Unit
                 override fun observeContacts() = flowOf(emptyList<BriarContact>())
             })
 
@@ -145,6 +147,9 @@ class TransportRuntimeBridgeImplTest {
             started = true
             _status.value = BriarRuntimeStatus(BriarRuntimePhase.RUNNING)
         }
+
+        override suspend fun createAccount(name: String, password: String): Boolean = true
+        override suspend fun signIn(password: String): Boolean = true
 
         override suspend fun stop() {
             stopped = true

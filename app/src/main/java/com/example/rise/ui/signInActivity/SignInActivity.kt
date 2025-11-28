@@ -275,54 +275,51 @@ private fun SignInScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                AnimatedVisibility(visible = uiState.mode == SignInViewModel.Mode.Register) {
-                    Column {
-                        TextField(
-                            value = name,
-                            onValueChange = onNameChange,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag(SignInTestTags.NameInput),
-                            placeholder = { Text(text = stringResource(R.string.sign_in_name_hint)) },
-                            singleLine = true,
-                            enabled = !uiState.isLoading,
-                            trailingIcon = {
-                                if (name.isNotEmpty()) {
-                                    IconButton(onClick = { onNameChange("") }) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Close,
-                                            contentDescription = null,
-                                            tint = textColor
-                                        )
-                                    }
-                                }
-                            },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Text,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(onNext = {
-                                focusManager.moveFocus(FocusDirection.Down)
-                            }),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = fieldBackground,
-                                unfocusedContainerColor = fieldBackground,
-                                disabledContainerColor = fieldBackground,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent,
-                                cursorColor = textColor,
-                                focusedPlaceholderColor = textColor.copy(alpha = 0.6f),
-                                unfocusedPlaceholderColor = textColor.copy(alpha = 0.6f),
-                                focusedTextColor = textColor,
-                                unfocusedTextColor = textColor,
-                                disabledTextColor = textColor.copy(alpha = 0.5f)
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                }
+                TextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.NameInput),
+                    placeholder = { Text(text = stringResource(R.string.sign_in_name_hint)) },
+                    singleLine = true,
+                    enabled = !uiState.isLoading,
+                    trailingIcon = {
+                        if (name.isNotEmpty()) {
+                            IconButton(onClick = { onNameChange("") }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = null,
+                                    tint = textColor
+                                )
+                            }
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(onNext = {
+                        focusManager.moveFocus(FocusDirection.Down)
+                    }),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = fieldBackground,
+                        unfocusedContainerColor = fieldBackground,
+                        disabledContainerColor = fieldBackground,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        cursorColor = textColor,
+                        focusedPlaceholderColor = textColor.copy(alpha = 0.6f),
+                        unfocusedPlaceholderColor = textColor.copy(alpha = 0.6f),
+                        focusedTextColor = textColor,
+                        unfocusedTextColor = textColor,
+                        disabledTextColor = textColor.copy(alpha = 0.5f)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TextField(
                     value = email,
@@ -330,7 +327,7 @@ private fun SignInScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag(SignInTestTags.EmailInput),
-                    placeholder = { Text(text = stringResource(R.string.sign_in_email_hint)) },
+                    placeholder = { Text(text = stringResource(R.string.sign_in_email_optional_hint)) },
                     singleLine = true,
                     enabled = !uiState.isLoading,
                     keyboardOptions = KeyboardOptions(

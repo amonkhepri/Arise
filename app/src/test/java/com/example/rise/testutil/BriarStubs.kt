@@ -42,6 +42,7 @@ fun stubBriarContactService(
 ): BriarContactService {
     return object : BriarContactService {
         override val isAvailable: Boolean = isAvailable
+        override suspend fun addContactByLink(link: String, alias: String?) = Unit
 
         override fun observeContacts(): Flow<List<BriarContact>> = contactsFlow
     }

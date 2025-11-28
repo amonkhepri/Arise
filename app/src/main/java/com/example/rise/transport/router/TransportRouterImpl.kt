@@ -6,7 +6,6 @@ import com.example.rise.transport.store.ConversationStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -30,12 +29,12 @@ class TransportRouterImpl(
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : TransportRouter {
 
-    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher.canonicalize())
     private val observationJobs = ConcurrentHashMap<String, Job>()
     private val observationLocks = ConcurrentHashMap<String, ReentrantLock>()
     private val aliasLocks = ConcurrentHashMap<Pair<String, TransportId>, Mutex>()
     private val messageSnapshots = ConcurrentHashMap<String, MutableMap<TransportId, MutableMap<String, CanonicalMessage>>>()
-    private val messageSnapshotLocks = ConcurrentHashMap<String, ReentrantLock>()
+    private val messageSnapshotLocks = ConcurrentHashMap<String, Mutex>()
     @Volatile
     private var lastFallbackSnapshot: Pair<TransportId, ConnectorLifecycleState>? = null
 
@@ -43,7 +42,7 @@ class TransportRouterImpl(
         connectorRegistry.connectors.forEach { connector ->
             observeConnectorLifecycle(connector)
         }
-    }
+}
 
     override val currentIdentity: Flow<CanonicalIdentity> = identityRegistry.currentIdentity
 
@@ -55,26 +54,32 @@ class TransportRouterImpl(
     override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
         val transportMode = transportBridge.currentMode.value
         val selfIdentity = resolveCurrentIdentity(transportMode)
-        val primary = selectPrimaryConnector(transportMode)
+        val participants = setOf(selfIdentity.id, otherIdentity.id)
+        val (chosenConnector, ensuredConversation) = executeWithFallback(
+            mode = transportMode,
+            onFallback = bridgeOrchestrator::onPrimaryFallback,
+        ) { connector ->
+            connector to ensureTransportConversation(connector, participants, otherIdentity.displayName)
+        }
+        val canonicalConversationId = ensuredConversation.canonicalId
+        val existingConversation = conversationStore.getConversation(canonicalConversationId)
+        val primaryAlias = ensuredConversation.transportConversationId
         identityRegistry.upsertIdentity(
             otherIdentity,
-            aliases = mapOf(primary.transport to otherIdentity.id)
+            aliases = mapOf(chosenConnector.transport to otherIdentity.id)
         )
-
-        val participants = setOf(selfIdentity.id, otherIdentity.id)
-        val ensuredConversation =
-            ensureTransportConversation(primary, participants, otherIdentity.displayName)
-        val canonicalConversationId = ensuredConversation.canonicalId
-        val primaryAlias = ensuredConversation.transportConversationId
         val conversation = CanonicalConversation(
             id = canonicalConversationId,
             participants = participants,
             title = otherIdentity.displayName,
-            primaryTransportId = primary.transport,
-            briarConversationId = primaryAlias.takeIf { primary.transport == TransportId.BRIAR },
+            primaryTransportId = chosenConnector.transport,
+            briarConversationId = primaryAlias.takeIf { chosenConnector.transport == TransportId.BRIAR },
         )
         conversationStore.upsertConversation(conversation)
-        conversationStore.upsertAlias(canonicalConversationId, primary.transport, primaryAlias)
+        conversationStore.upsertAlias(canonicalConversationId, chosenConnector.transport, primaryAlias)
+        if (existingConversation == null) {
+            conversationStore.upsertMessages(canonicalConversationId, emptyList())
+        }
         ensureObservation(conversation.id)
         return conversation
     }
@@ -86,28 +91,32 @@ class TransportRouterImpl(
 
     override suspend fun sendMessage(message: ConnectorOutboundMessage) {
         val transportMode = transportBridge.currentMode.value
-        val primaryConnector = selectPrimaryConnector(transportMode)
         val canonicalConversationId = message.conversationId
-        val primaryAlias = resolveTransportAlias(canonicalConversationId, primaryConnector)
-        primaryConnector.sendMessage(message.copy(conversationId = primaryAlias))
-        connectorRegistry
-            .mirrorsFor(transportMode)
-            .filter { mirror -> mirror.transport != primaryConnector.transport }
-            .filter { mirror -> mirror.lifecycle.value.isOperational() }
-            .forEach { mirror ->
-                scope.launch {
-                    runCatching {
-                        val alias = resolveTransportAlias(canonicalConversationId, mirror)
-                        mirror.sendMessage(message.copy(conversationId = alias))
-                    }.onFailure { error ->
-                        Timber.tag(TAG).w(
-                            error,
-                            "Failed to mirror send for %s",
-                            mirror.transport,
-                        )
+        executeWithFallback(
+            mode = transportMode,
+            onFallback = bridgeOrchestrator::onPrimaryFallback,
+        ) { primaryConnector ->
+            val primaryAlias = resolveTransportAlias(canonicalConversationId, primaryConnector)
+            primaryConnector.sendMessage(message.copy(conversationId = primaryAlias))
+            connectorRegistry
+                .mirrorsFor(transportMode)
+                .filter { mirror -> mirror.transport != primaryConnector.transport }
+                .filter { mirror -> mirror.lifecycle.value.isOperational() && mirror.isMessagingReady() }
+                .forEach { mirror ->
+                    scope.launch {
+                        runCatching {
+                            val alias = resolveTransportAlias(canonicalConversationId, mirror)
+                            mirror.sendMessage(message.copy(conversationId = alias))
+                        }.onFailure { error ->
+                            Timber.tag(TAG).w(
+                                error,
+                                "Failed to mirror send for %s",
+                                mirror.transport,
+                            )
+                        }
                     }
                 }
-            }
+        }
     }
 
     override suspend fun reset() {
@@ -210,14 +219,13 @@ class TransportRouterImpl(
                 currentObservationJob.cancel()
             }
 
-            val lazyObservationJob = newObservationJob(conversationId)
-            observationJobs[conversationId] = lazyObservationJob
-            lazyObservationJob.invokeOnCompletion {
-                observationJobs.remove(conversationId, lazyObservationJob)
+            val observationJob = newObservationJob(conversationId)
+            observationJobs[conversationId] = observationJob
+            observationJob.invokeOnCompletion {
+                observationJobs.remove(conversationId, observationJob)
                 observationLocks.remove(conversationId, conversationLock)
-                clearMessageSnapshots(conversationId)
+                scope.launch { clearMessageSnapshots(conversationId) }
             }
-            lazyObservationJob.start()
         } finally {
             if (conversationLock.isHeldByCurrentThread) {
                 conversationLock.unlock()
@@ -226,7 +234,7 @@ class TransportRouterImpl(
     }
 
     private fun newObservationJob(conversationId: String): Job =
-        scope.launch(start = CoroutineStart.LAZY) {
+        scope.launch {
             connectorRegistry.connectors.forEach { connector ->
                 launch {
                     val alias = try {
@@ -295,9 +303,8 @@ class TransportRouterImpl(
         transportId: TransportId,
         messages: List<CanonicalMessage>,
     ) {
-        val lock = messageSnapshotLocks.computeIfAbsent(conversationId) { ReentrantLock() }
-        lock.lock()
-        try {
+        val lock = messageSnapshotLocks.computeIfAbsent(conversationId) { Mutex() }
+        lock.withLock {
             val snapshots = messageSnapshots.getOrPut(conversationId) { mutableMapOf() }
             val transportSnapshots = snapshots.getOrPut(transportId) { mutableMapOf() }
             transportSnapshots.clear()
@@ -313,23 +320,18 @@ class TransportRouterImpl(
                 messageSnapshots.remove(conversationId)
                 messageSnapshotLocks.remove(conversationId, lock)
             }
-        } finally {
-            lock.unlock()
         }
     }
 
-    private fun clearMessageSnapshots(conversationId: String) {
+    private suspend fun clearMessageSnapshots(conversationId: String) {
         val lock = messageSnapshotLocks[conversationId]
         if (lock == null) {
             messageSnapshots.remove(conversationId)
             return
         }
-        lock.lock()
-        try {
+        lock.withLock {
             messageSnapshots.remove(conversationId)
             messageSnapshotLocks.remove(conversationId, lock)
-        } finally {
-            lock.unlock()
         }
     }
 
@@ -344,7 +346,7 @@ class TransportRouterImpl(
     private suspend fun selectPrimaryConnector(briarTransportMode: BriarTransportMode): TransportConnector {
         val preferredConnector = connectorRegistry.primaryFor(briarTransportMode)
         val stateOfPreferredConnector = preferredConnector.lifecycle.value
-        if (stateOfPreferredConnector == ConnectorLifecycleState.READY) {
+        if (stateOfPreferredConnector == ConnectorLifecycleState.READY && preferredConnector.isMessagingReady()) {
             lastFallbackSnapshot = null
             return preferredConnector
         }
@@ -355,7 +357,7 @@ class TransportRouterImpl(
         }
         val fallbackConnector = priorityFallbackOrder
             .mapNotNull { connectorRegistry.connectorFor(it) }
-            .firstOrNull { it.lifecycle.value == ConnectorLifecycleState.READY }
+            .firstOrNull { it.lifecycle.value == ConnectorLifecycleState.READY && it.isMessagingReady() }
             ?: preferredConnector
 
         if (fallbackConnector != preferredConnector) {
@@ -393,7 +395,65 @@ class TransportRouterImpl(
         return this == ConnectorLifecycleState.READY || this == ConnectorLifecycleState.DEGRADED
     }
 
+    /**
+     * Normalizes the dispatcher to avoid Dispatchers.Unconfined for router coroutines.
+     *
+     * Unconfined dispatchers can resume on arbitrary threads, which makes thread-affine
+     * primitives (like ReentrantLock) risky when re-entrant callbacks hop threads. Using
+     * Default keeps work confined to a stable pool while still off the main thread.
+     */
+    private fun CoroutineDispatcher.canonicalize(): CoroutineDispatcher {
+        return if (this == Dispatchers.Unconfined) Dispatchers.Default else this
+    }
+
+    /**
+     * Returns true when the connector reports messaging capability enabled.
+     *
+     * Capability metadata is driven by connector state; we gate mirroring and sends on this
+     * to avoid attempting message flows when the connector cannot handle them yet.
+     */
+    private fun TransportConnector.isMessagingReady(): Boolean {
+        val messages = capabilities.value.entries["messages"] ?: return false
+        return messages.properties["enabled"]?.toBooleanStrictOrNull() == true
+    }
+
+    /**
+     * Runs a block against the primary connector, retrying with a ready fallback on failure.
+     *
+     * - Selects the primary for the current mode.
+     * - If the block throws, finds the first operational, messaging-ready alternate connector
+     *   and notifies the orchestrator via `onFallback`, then re-invokes the block with it.
+     * - Propagates the original error when no suitable fallback exists.
+     */
+    private suspend fun <T> executeWithFallback(
+        mode: BriarTransportMode,
+        onFallback: suspend (TransportId, TransportId, ConnectorLifecycleState) -> Unit,
+        block: suspend (TransportConnector) -> T,
+    ): T {
+        val primary = selectPrimaryConnector(mode)
+        return runCatching { block(primary) }.getOrElse { error ->
+
+            val allowedFallbackTransports = when (mode) {
+                BriarTransportMode.FIRESTORE -> emptyList()
+                BriarTransportMode.HYBRID -> listOf(TransportId.BRIAR, TransportId.FIRESTORE)
+                BriarTransportMode.BRIAR_ONLY -> listOf(TransportId.BRIAR)
+            }
+            val fallback = connectorRegistry.connectors
+                .filter { it.transport != primary.transport }
+                .filter { allowedFallbackTransports.contains(it.transport) }
+                .firstOrNull { it.lifecycle.value.isOperational() && it.isMessagingReady() }
+                ?: throw error
+            onFallback(primary.transport, fallback.transport, primary.lifecycle.value)
+            block(fallback)
+        }
+    }
+
     companion object {
         private const val TAG = "TransportRouter"
     }
 }
+
+class BriarOnlyOperationException(cause: Throwable) : IllegalStateException(
+    "Briar-only mode: operation failed and no fallback is permitted",
+    cause
+)

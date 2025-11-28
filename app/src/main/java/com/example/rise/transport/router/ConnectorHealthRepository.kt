@@ -40,6 +40,7 @@ class ConnectorHealthRepository(
             lifecycle: ConnectorLifecycleState = connector.lifecycle.value,
             status: ConnectorStatus = connector.status.value,
             capabilities: ConnectorCapabilities = connector.capabilities.value,
+            messagingReady: Boolean = connector.messagingReady(),
         ) {
             _health.update { existing ->
                 val copy = existing.toMutableMap()
@@ -48,6 +49,7 @@ class ConnectorHealthRepository(
                     lifecycle = lifecycle,
                     status = status,
                     capabilities = capabilities,
+                    messagingReady = messagingReady,
                 )
                 copy.toMap()
             }
@@ -70,8 +72,16 @@ class ConnectorHealthRepository(
                 telemetrySink.emit(
                     ConnectorTelemetryEvent.CapabilitiesPublished(transport, capabilities)
                 )
-                update(capabilities = capabilities)
+                val ready = connector.messagingReady()
+                update(capabilities = capabilities, messagingReady = ready)
+                telemetrySink.emit(ConnectorTelemetryEvent.ReadinessChanged(transport, ready))
             }
         }
+    }
+
+    private fun TransportConnector.messagingReady(): Boolean {
+        val messages = capabilities.value.entries["messages"] ?: return false
+        return lifecycle.value == ConnectorLifecycleState.READY &&
+            messages.properties["enabled"]?.toBooleanStrictOrNull() == true
     }
 }

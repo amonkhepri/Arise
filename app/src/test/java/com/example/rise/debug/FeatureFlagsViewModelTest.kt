@@ -106,7 +106,7 @@ class FeatureFlagsViewModelTest {
     }
 
     @Test
-    fun `non Firestore selection emits warning and keeps Firestore`() = runTest {
+    fun `non Firestore selection emits warning and switches mode`() = runTest {
         val viewModel = createViewModel()
         drain()
 
@@ -119,7 +119,18 @@ class FeatureFlagsViewModelTest {
         }
 
         val state = viewModel.state.value
-        assertEquals(BriarTransportMode.FIRESTORE, state.mode)
+        assertEquals(BriarTransportMode.HYBRID, state.mode)
+    }
+
+    @Test
+    fun `briar only selection updates mode`() = runTest {
+        val viewModel = createViewModel()
+        drain()
+
+        viewModel.setMode(BriarTransportMode.BRIAR_ONLY)
+        drain()
+
+        assertEquals(BriarTransportMode.BRIAR_ONLY, viewModel.state.value.mode)
     }
 
 }
@@ -133,6 +144,7 @@ private class FakeConnectorHealthProvider : ConnectorHealthProvider {
                     lifecycle = ConnectorLifecycleState.READY,
                     status = ConnectorStatus.ACTIVE,
                     capabilities = ConnectorCapabilities(emptyMap()),
+                    messagingReady = true,
                 )
             )
         )

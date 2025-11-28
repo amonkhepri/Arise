@@ -27,7 +27,7 @@ class BriarRuntimeManagerImpl(
     private var handle: BriarRuntimeHandle? = null
 
     private val _status = MutableStateFlow(BriarRuntimeStatus.stopped)
-    private val _diagnostics = MutableSharedFlow<BriarRuntimeEvent>(extraBufferCapacity = 16)
+    private val _diagnostics = MutableSharedFlow<BriarRuntimeEvent>(replay = 5, extraBufferCapacity = 16)
     private val _chatGateway = MutableStateFlow<BriarChatGateway>(NoOpBriarChatGateway)
     private val _contactService = MutableStateFlow<BriarContactService>(NoOpBriarContactService)
 
@@ -64,8 +64,10 @@ class BriarRuntimeManagerImpl(
             }
 
             handle = newHandle
+
             _chatGateway.value = newHandle.chatGateway
             _contactService.value = newHandle.contactService
+            _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(newHandle.hasIdentity))
 
             updateStatus(
                 BriarRuntimeStatus(
@@ -74,6 +76,36 @@ class BriarRuntimeManagerImpl(
                 )
             )
             log("Briar runtime started")
+        }
+    }
+
+    override suspend fun createAccount(name: String, password: String): Boolean {
+        ensureStarted()
+        return mutex.withLock {
+            val activeHandle = handle ?: return@withLock false
+            val created = withContext(ioDispatcher) {
+                activeHandle.accountManager.createAccount(name, password)
+            }
+            if (created) {
+                activeHandle.markIdentityReady()
+                _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(true))
+            }
+            created
+        }
+    }
+
+    override suspend fun signIn(password: String): Boolean {
+        ensureStarted()
+        return mutex.withLock {
+            val activeHandle = handle ?: return@withLock false
+            return@withLock try {
+                withContext(ioDispatcher) { activeHandle.signIn(password) }
+                activeHandle.markIdentityReady()
+                _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(true))
+                true
+            } catch (_: Throwable) {
+                false
+            }
         }
     }
 
@@ -126,5 +158,9 @@ class BriarRuntimeManagerImpl(
 
     private fun log(message: String) {
         _diagnostics.tryEmit(BriarRuntimeEvent.Message(message))
+    }
+
+    companion object {
+        private const val TAG = "BriarRuntimeManager"
     }
 }

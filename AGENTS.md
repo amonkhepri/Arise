@@ -1,5 +1,45 @@
 # Repository Guidelines
 
+
+You are a software engineer who strictly follows Test-Driven Development (TDD).
+
+For every task, follow this loop:
+
+1. Clarify the requirement
+    - Briefly restate what needs to be changed or implemented.
+    - Identify the observable behaviour that should change (inputs/outputs, side effects).
+
+2. Write or update tests first
+    - Inspect the existing test suite.
+    - If the requested behaviour is not fully covered, ADD or MODIFY tests to express it.
+    - Each new requirement or bugfix must be captured by at least one failing test.
+    - Do NOT change production code before there is a failing test that demonstrates the problem or missing behaviour.
+
+3. Run tests and confirm they fail for the right reason
+    - Show which new/updated test fails and why.
+    - If tests don’t fail, strengthen them until they do.
+
+4. Implement the minimal code to pass the tests
+    - Change only the production code necessary to make the failing tests pass.
+    - Keep changes small and focused on the current test.
+
+5. Run the full test suite again
+    - Confirm all tests pass.
+    - If anything fails, iterate by improving tests or implementation.
+
+6. Refactor with tests green
+    - Only refactor when all tests pass.
+    - After refactoring, re-run tests to ensure behaviour is unchanged.
+
+Additional rules:
+- Prefer adding tests over weakening or deleting existing ones; only relax tests if the specification itself has changed.
+- Make test names and descriptions explicit about the behaviour being validated.
+- When presenting your work, structure it as:
+    1) summary of requirement,
+    2) test changes (new/updated/removed),
+    3) production code changes,
+    4) commands to run the tests and expected outcome.
+
 ## Agent-Specific Tips
 - When implementing a feature or debugging in continuous mode, prefer the scripts in `agent-tools/` over ad-hoc terminal commands.
 - These utilities focus on building, logging, and capturing device screenshots—use them to validate that your solution works end to end.

@@ -7,15 +7,10 @@ import com.example.rise.transport.store.ConversationStore
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import java.util.ArrayDeque
-import java.util.Date
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CyclicBarrier
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
@@ -32,11 +27,21 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.*
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -70,6 +75,35 @@ class TransportRouterImplTest {
         assertEquals("conversation-1", conversation.id)
         assertEquals(1, connector.ensureConversationCalls)
         assertEquals("conversation-1", store.getConversation("conversation-1")?.id)
+    }
+
+    private class SilentConnector(
+        override val transport: TransportId,
+    ) : TransportConnector {
+
+        private val statusFlow = MutableStateFlow(ConnectorStatus.ACTIVE)
+        private val lifecycleFlow = MutableStateFlow(ConnectorLifecycleState.READY)
+        private val capabilityFlow = MutableStateFlow(ConnectorCapabilities.EMPTY)
+
+        override val status: StateFlow<ConnectorStatus> = statusFlow
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = lifecycleFlow
+        override val capabilities: StateFlow<ConnectorCapabilities> = capabilityFlow
+
+        override suspend fun currentIdentity(): CanonicalIdentity =
+            CanonicalIdentity(id = "self", displayName = "Self")
+
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId {
+            val canonicalId = conversation.id.ifBlank { "conversation-1" }
+            return TransportConversationId(
+                canonicalId = canonicalId,
+                transportConversationId = canonicalId,
+            )
+        }
+
+        override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> =
+            emptyFlow()
+
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
     }
 
     @Test
@@ -1123,7 +1157,6 @@ class TransportRouterImplTest {
 
     @Test
     fun `ensureObservation only installs one connector stream under contention`() = runBlocking {
-        // Arrange the registry and seed the default identity the router expects.
         val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore()).apply {
             upsertIdentity(
                 identity = CanonicalIdentity(id = "self", displayName = "Self"),
@@ -1132,14 +1165,12 @@ class TransportRouterImplTest {
             )
         }
 
-        // Simple connector that just counts how many times observeMessages is invoked.
         val observeCounter = AtomicInteger(0)
         val connector = CountingConnector(
             transport = TransportId.FIRESTORE,
             counter = observeCounter,
         )
 
-        // Router under test, using the default dispatcher so threads can run concurrently.
         val router = TransportRouterImpl(
             transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
             connectorRegistry = DefaultConnectorRegistry(setOf(connector)),
@@ -1149,9 +1180,6 @@ class TransportRouterImplTest {
         )
         router.ensureConversation(CanonicalIdentity("other", "Other"))
 
-        // Swap in a ConcurrentHashMap whose first put blocks until a second put happens.
-        // This forces two threads to race between compute-if-absent style logic.
-        // Kick off two observeConversation calls on separate threads so they overlap.
         val startBarrier = CyclicBarrier(3)
         val executor = Executors.newFixedThreadPool(2)
         try {
@@ -1171,20 +1199,102 @@ class TransportRouterImplTest {
             executor.shutdownNow()
         }
 
-        // Wait until the first observation job increments the counter.
         withTimeout(3_000) {
             while (observeCounter.get() < 1) {
                 delay(10)
             }
         }
-        // Give the second thread a moment to attempt its own registration.
         delay(100)
 
-        // If the implementation is correct, the counter stays at 1.
         assertEquals(
             "Only one connector observation should be started per conversation",
             1,
             observeCounter.get(),
+        )
+    }
+
+    @OptIn(InternalCoroutinesApi::class)
+    @Test
+    fun `persistMergedMessages should tolerate coroutine resuming on another thread`() = runBlocking {
+        var illegalMonitor: Throwable? = null
+        var failureThreadDump: Map<String, Set<String>>? = null
+        var failureStoreThreads: List<String>? = null
+
+        repeat(20) {
+            val dispatcher = AlternatingDispatcher()
+            val storeDispatcher = Dispatchers.Default
+            val uncaughtExceptions = Collections.synchronizedList(mutableListOf<Throwable>())
+            val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+            Thread.setDefaultUncaughtExceptionHandler { _, throwable -> uncaughtExceptions += throwable }
+
+            try {
+                val store = ThreadSwitchingConversationStore(storeDispatcher)
+                val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore()).apply {
+                    upsertIdentity(
+                        identity = CanonicalIdentity(id = "self", displayName = "Self"),
+                        aliases = mapOf(TransportId.FIRESTORE to "self"),
+                        setAsCurrent = true,
+                    )
+                }
+                val connector = SingleBurstConnector(
+                    transport = TransportId.FIRESTORE,
+                    messages = listOf(
+                        ConnectorInboundMessage(
+                            messageId = "msg-1",
+                            conversationId = "conversation-1",
+                            senderId = "self",
+                            recipientId = "other",
+                            senderName = "Self",
+                            body = "Hello",
+                            transport = TransportId.FIRESTORE,
+                            timestamp = Date(0),
+                        )
+                    ),
+                )
+                val router = TransportRouterImpl(
+                    transportBridge = fakeBridge(BriarTransportMode.FIRESTORE),
+                    connectorRegistry = DefaultConnectorRegistry(setOf(connector)),
+                    conversationStore = store,
+                    identityRegistry = identityRegistry,
+                    dispatcher = dispatcher,
+                )
+
+                router.ensureConversation(CanonicalIdentity("other", "Other"))
+
+                val observationJob: Job = withTimeout(1_000) {
+                    var job: Job? = null
+                    while (job == null) {
+                        job = router.observationJobsMap()["conversation-1"]
+                        if (job == null) delay(10)
+                    }
+                    job
+                }
+
+                withTimeout(2_000) {
+                    while (store.upsertCallCount.get() == 0 && uncaughtExceptions.isEmpty()) {
+                        delay(10)
+                    }
+                }
+                observationJob.cancel()
+
+                delay(50)
+
+                val crash = uncaughtExceptions.firstOrNull { it is IllegalMonitorStateException }
+                if (crash != null) {
+                    illegalMonitor = crash
+                    failureThreadDump = dispatcher.threadDump()
+                    failureStoreThreads = store.threadTransitions.toList()
+                    return@repeat
+                }
+            } finally {
+                Thread.setDefaultUncaughtExceptionHandler(previousHandler)
+                dispatcher.close()
+            }
+        }
+
+        assertTrue(
+            "persistMergedMessages crashed with IllegalMonitorStateException while coroutine hopped threads; threads=$failureThreadDump storeThreads=$failureStoreThreads",
+            illegalMonitor == null,
         )
     }
 
@@ -1308,6 +1418,139 @@ class TransportRouterImplTest {
         }
     }
 
+    /**
+     * ConversationStore that deliberately hops threads during upserts.
+     *
+     * It records the thread sequence for each call so tests can assert we exercised
+     * thread-affinity edge cases inside persistMergedMessages.
+     */
+    private class ThreadSwitchingConversationStore(
+        private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    ) : ConversationStore {
+
+        private val delegate = InMemoryConversationStore()
+        val upsertCallCount = AtomicInteger(0)
+        val threadTransitions = CopyOnWriteArrayList<String>()
+
+        override suspend fun upsertConversation(conversation: CanonicalConversation) {
+            delegate.upsertConversation(conversation)
+        }
+
+        override suspend fun upsertMessages(conversationId: String, messages: List<CanonicalMessage>) {
+            threadTransitions += "before:${Thread.currentThread().name}"
+            withContext(dispatcher) {
+                threadTransitions += "inside-start:${Thread.currentThread().name}"
+                delay(25)
+                threadTransitions += "inside-end:${Thread.currentThread().name}"
+            }
+            threadTransitions += "after:${Thread.currentThread().name}"
+            delegate.upsertMessages(conversationId, messages)
+            upsertCallCount.incrementAndGet()
+        }
+
+        override fun observeMessages(conversationId: String): Flow<List<CanonicalMessage>> {
+            return delegate.observeMessages(conversationId)
+        }
+
+        override suspend fun getConversation(conversationId: String): CanonicalConversation? {
+            return delegate.getConversation(conversationId)
+        }
+
+        override suspend fun upsertAlias(
+            conversationId: String,
+            transportId: TransportId,
+            alias: String,
+        ) {
+            delegate.upsertAlias(conversationId, transportId, alias)
+        }
+
+        override suspend fun getAlias(
+            conversationId: String,
+            transportId: TransportId,
+        ): String? = delegate.getAlias(conversationId, transportId)
+
+        override suspend fun clearAll() {
+            delegate.clearAll()
+        }
+    }
+
+    /**
+     * Dispatcher that alternates every dispatch between two single-thread executors.
+     *
+     * When a coroutine resumes after suspension it likely runs on a different thread,
+     * making it easy to surface thread-affine locking bugs.
+     */
+    private class AlternatingDispatcher : CoroutineDispatcher() {
+        private val first = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "alt-first") }
+        private val second = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "alt-second") }
+        private val jobThreads = ConcurrentHashMap<Job, MutableSet<String>>()
+        private val jobDispatchCounts = ConcurrentHashMap<Job, AtomicInteger>()
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            val executor = context[Job]?.let { job ->
+                val count = jobDispatchCounts.getOrPut(job) { AtomicInteger(0) }.incrementAndGet()
+                if (count % 2 == 1) first else second
+            } ?: first
+            executor.execute {
+                context[Job]?.let { job ->
+                    val threads = jobThreads.getOrPut(job) { ConcurrentHashMap.newKeySet() }
+                    threads += Thread.currentThread().name
+                }
+                block.run()
+            }
+        }
+
+        fun close() {
+            first.shutdownNow()
+            second.shutdownNow()
+        }
+
+        fun maxThreadsSeen(): Int = jobThreads.values.maxOfOrNull { it.size } ?: 0
+
+        fun threadDump(): Map<String, Set<String>> = jobThreads
+            .mapKeys { (job, _) -> job.toString() }
+            .mapValues { (_, threads) -> threads.toSet() }
+    }
+
+    /**
+     * Connector that emits a single snapshot once, then completes.
+     *
+     * Useful for stressing how the router behaves when connector flows finish quickly.
+     */
+    private class SingleBurstConnector(
+        override val transport: TransportId,
+        private val messages: List<ConnectorInboundMessage>,
+    ) : TransportConnector {
+
+        private val statusFlow = MutableStateFlow(ConnectorStatus.ACTIVE)
+        private val lifecycleFlow = MutableStateFlow(ConnectorLifecycleState.READY)
+        private val capabilityFlow = MutableStateFlow(ConnectorCapabilities.EMPTY)
+        private val emitted = AtomicBoolean(false)
+
+        override val status: StateFlow<ConnectorStatus> = statusFlow
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = lifecycleFlow
+        override val capabilities: StateFlow<ConnectorCapabilities> = capabilityFlow
+
+        override suspend fun currentIdentity(): CanonicalIdentity =
+            CanonicalIdentity(id = "self", displayName = "Self")
+
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId {
+            val canonicalId = conversation.id.ifBlank { "conversation-1" }
+            return TransportConversationId(
+                canonicalId = canonicalId,
+                transportConversationId = canonicalId,
+            )
+        }
+
+        override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> = flow {
+            if (emitted.compareAndSet(false, true)) {
+                emit(messages)
+            }
+        }
+
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
+    }
+
     private class CountingConnector(
         override val transport: TransportId,
         private val counter: AtomicInteger,
@@ -1387,7 +1630,11 @@ class TransportRouterImplTest {
 
         private val statusFlow = MutableStateFlow(ConnectorStatus.ACTIVE)
         private val lifecycleFlow = MutableStateFlow(ConnectorLifecycleState.READY)
-        private val capabilityFlow = MutableStateFlow(ConnectorCapabilities.EMPTY)
+        internal val capabilityFlow = MutableStateFlow(
+            ConnectorCapabilities(
+                mapOf("messages" to CapabilityDescriptor(1, mapOf("enabled" to "true")))
+            )
+        )
         private val messagesFlow = MutableSharedFlow<List<ConnectorInboundMessage>>(replay = 1, extraBufferCapacity = 1)
 
         var ensureConversationCalls = 0
@@ -1396,6 +1643,7 @@ class TransportRouterImplTest {
         var connectorIdentity: CanonicalIdentity = CanonicalIdentity(id = "self", displayName = "Self")
         var identityError: Throwable? = null
         var transportAliasGenerator: ((String) -> String)? = null
+        var sendError: Throwable? = null
 
         fun emitMessages(messages: List<ConnectorInboundMessage>) {
             messagesFlow.tryEmit(messages)
@@ -1427,6 +1675,7 @@ class TransportRouterImplTest {
         }
 
         override suspend fun sendMessage(message: ConnectorOutboundMessage) {
+            sendError?.let { throw it }
             sentMessages += message
         }
 

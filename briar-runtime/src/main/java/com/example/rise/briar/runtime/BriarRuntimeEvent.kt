@@ -7,6 +7,6 @@ package com.example.rise.briar.runtime
 sealed interface BriarRuntimeEvent {
 
     data class StatusChanged(val status: BriarRuntimeStatus) : BriarRuntimeEvent
-
     data class Message(val value: String) : BriarRuntimeEvent
+    data class IdentityStatus(val exists: Boolean) : BriarRuntimeEvent
 }

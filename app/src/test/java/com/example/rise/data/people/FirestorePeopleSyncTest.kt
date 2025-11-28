@@ -95,6 +95,37 @@ class FirestorePeopleSyncTest {
     assertEquals("Permission denied", viewModel.uiState.value.errorMessage)
   }
 
+  @Test
+  fun `briar only mode skips firestore sync`() = runTest {
+    val connector = FakeFirestoreConnector()
+    val transportBridge = object : TransportRuntimeBridge {
+      override val currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
+      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
+      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
+      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+      override val briarContactService = MutableStateFlow(stubBriarContactService())
+      override fun requireFirestore(caller: String) = error("should not be called")
+    }
+    val job = SupervisorJob()
+    val dispatcher = StandardTestDispatcher(testScheduler)
+    val scope = CoroutineScope(job + dispatcher)
+    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+    val sync = FirestorePeopleSync(
+      firebaseAuth = null,
+      transportConnector = connector,
+      identityRegistry = identityRegistry,
+      transportBridge = transportBridge,
+      syncSupervisorJob = job,
+      scope = scope,
+      currentUserIdProvider = { null },
+    )
+
+    sync.ensureStarted()
+    advanceUntilIdle()
+
+    assertEquals(0, connector.observeContactsCalls)
+  }
+
   private class InMemoryIdentityRegistryStore : IdentityRegistryStore {
     private var state = IdentityRegistryStore.StoredState(emptyMap(), null)
 

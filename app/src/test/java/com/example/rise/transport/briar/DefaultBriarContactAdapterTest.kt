@@ -35,6 +35,7 @@ class DefaultBriarContactAdapterTest {
         )
         val service = object : BriarContactService {
             override val isAvailable: Boolean = true
+            override suspend fun addContactByLink(link: String, alias: String?) = Unit
             override fun observeContacts(): Flow<List<BriarContact>> = flowOf(listOf(contact))
         }
         val adapter = DefaultBriarContactAdapter(fakeBridge(service))

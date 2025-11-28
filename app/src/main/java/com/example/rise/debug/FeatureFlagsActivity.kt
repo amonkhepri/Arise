@@ -331,6 +331,7 @@ private fun ConnectorHealthSection(
                         append(" (")
                         append(snapshot.status.name)
                         append(")")
+                        append(if (snapshot.messagingReady) " [ready]" else " [not-ready]")
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = textColor,

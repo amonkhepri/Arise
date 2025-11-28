@@ -44,8 +44,9 @@
     <string name="sign_in_mode_register">Need an account? Sign up</string>
     <string name="sign_in_mode_sign_in">Already have an account? Sign in</string>
     <string name="sign_in_email_hint">Email</string>
+    <string name="sign_in_email_optional_hint">Email (optional for Briar)</string>
     <string name="sign_in_password_hint">Password</string>
-    <string name="sign_in_name_hint">Full name</string>
+    <string name="sign_in_name_hint">Name / Nickname</string>
     <string name="sign_out">Sign Out</string>
     <string name="my_bio">My Bio</string>
     <string name="my_name">My Name</string>

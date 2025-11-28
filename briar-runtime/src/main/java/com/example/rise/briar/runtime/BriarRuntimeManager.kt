@@ -14,5 +14,7 @@ interface BriarRuntimeManager {
     val contactService: StateFlow<BriarContactService>
 
     suspend fun ensureStarted()
+    suspend fun createAccount(name: String, password: String): Boolean
+    suspend fun signIn(password: String): Boolean
     suspend fun stop()
 }

@@ -1,0 +1,109 @@
+package com.example.rise.transport.briar
+
+import com.example.rise.briar.runtime.BriarChatGateway
+import com.example.rise.briar.runtime.BriarContact
+import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.briar.runtime.BriarPresenceStatus
+import com.example.rise.briar.runtime.BriarRuntimeEvent
+import com.example.rise.briar.runtime.BriarRuntimePhase
+import com.example.rise.briar.runtime.BriarRuntimeStatus
+import com.example.rise.briar.runtime.NoOpBriarChatGateway
+import com.example.rise.featureflags.BriarTransportMode
+import com.example.rise.transport.TransportRuntimeBridge
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class BriarContactRepositoryTest {
+
+    @Test
+    fun `addContactByLink delegates to contact service when available`() = runTest {
+        val service = RecordingContactService(isAvailable = true)
+        val repository = BriarContactRepository(fakeBridge(service))
+        val link = validLink()
+
+        repository.addContactByLink(link, "Alias")
+
+        assertEquals(listOf(link to "Alias"), service.calls)
+    }
+
+    @Test
+    fun `addContactByLink throws when runtime not ready`() = runTest {
+        val service = RecordingContactService(isAvailable = false)
+        val repository = BriarContactRepository(fakeBridge(service))
+
+        val error = try {
+            repository.addContactByLink(validLink(), "Alias")
+            null
+        } catch (t: Throwable) {
+            t
+        }
+        assertTrue(error is IllegalStateException)
+        assertEquals(emptyList<Pair<String, String?>>(), service.calls)
+    }
+
+    @Test
+    fun `addContactByLink propagates service errors`() = runTest {
+        val service = object : BriarContactService {
+            override val isAvailable: Boolean = true
+            override suspend fun addContactByLink(link: String, alias: String?) {
+                throw IllegalArgumentException("invalid link")
+            }
+            override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
+        }
+        val repository = BriarContactRepository(fakeBridge(service))
+
+        val error = try {
+            repository.addContactByLink("invalid", "Alias")
+            null
+        } catch (t: Throwable) {
+            t
+        }
+        assertTrue(error is IllegalArgumentException)
+    }
+
+    private fun validLink(): String = "briar://${"b".repeat(53)}" // handshake link length
+
+    private fun fakeBridge(service: BriarContactService): TransportRuntimeBridge {
+        val mode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
+        val status = MutableStateFlow(BriarRuntimeStatus(BriarRuntimePhase.RUNNING))
+        val chat = MutableStateFlow<BriarChatGateway>(NoOpBriarChatGateway)
+        val contacts = MutableStateFlow(service)
+        return object : TransportRuntimeBridge {
+            override val currentMode: StateFlow<BriarTransportMode> = mode
+            override val runtimeStatus: StateFlow<BriarRuntimeStatus> = status
+            override val diagnostics: MutableSharedFlow<BriarRuntimeEvent> = MutableSharedFlow()
+            override val briarChatGateway: StateFlow<BriarChatGateway> = chat
+            override val briarContactService: StateFlow<BriarContactService> = contacts
+            override fun requireFirestore(caller: String) = Unit
+        }
+    }
+
+    private class RecordingContactService(
+        override val isAvailable: Boolean,
+    ) : BriarContactService {
+        val calls = mutableListOf<Pair<String, String?>>()
+        override suspend fun addContactByLink(link: String, alias: String?) {
+            calls += link to alias
+        }
+
+        override fun observeContacts(): Flow<List<BriarContact>> = flowOf(
+            listOf(
+                BriarContact(
+                    canonicalId = "id",
+                    transportAlias = "alias",
+                    displayName = "Alias",
+                    presence = BriarPresenceStatus.UNKNOWN,
+                )
+            )
+        )
+    }
+}

@@ -16,6 +16,12 @@ object NoOpBriarContactService : BriarContactService {
     override val isAvailable: Boolean
         get() = readiness.value
 
+    override fun availability(): StateFlow<Boolean> = readinessFlow
+
+    override suspend fun addContactByLink(link: String, alias: String?) {
+        throw IllegalStateException("Briar runtime is not ready")
+    }
+
     override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
 
     fun reset() {

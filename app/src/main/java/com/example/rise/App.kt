@@ -8,6 +8,8 @@ import com.example.rise.data.auth.AuthStateProvider
 import com.example.rise.data.auth.DefaultTelegramAuthRepository
 import com.example.rise.data.auth.FirebaseAuthStateProvider
 import com.example.rise.data.auth.FirebaseSignInRepository
+import com.example.rise.data.auth.BriarAccountRepository
+import com.example.rise.data.auth.RuntimeBriarAccountRepository
 import com.example.rise.data.auth.SignInRepository
 import com.example.rise.data.auth.TelegramAuthRepository
 import com.example.rise.data.chat.ChatLocalCache
@@ -19,11 +21,13 @@ import com.example.rise.data.dashboard.FirestoreAlarmRepository
 import com.example.rise.data.myaccount.RouterMyAccountRepository
 import com.example.rise.data.myaccount.MyAccountRepository
 import com.example.rise.data.people.FirestorePeopleSync
+import com.example.rise.data.people.BriarPeopleSync
 import com.example.rise.data.people.IdentityBackfillCoordinator
 import com.example.rise.data.people.IdentityBackfillScheduler
 import com.example.rise.data.people.IdentityBackfillStatusTracker
 import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PeopleSync
+import com.example.rise.data.people.CompositePeopleSync
 import com.example.rise.data.people.RouterPeopleRepositoryImpl
 import com.example.rise.briar.BriarRuntimeEnvironmentImpl
 import com.example.rise.briar.runtime.BriarComponentFactory
@@ -58,6 +62,7 @@ import com.example.rise.transport.briar.BriarChatAdapter
 import com.example.rise.transport.briar.BriarContactAdapter
 import com.example.rise.transport.briar.DefaultBriarChatAdapter
 import com.example.rise.transport.briar.DefaultBriarContactAdapter
+import com.example.rise.transport.briar.BriarContactRepository
 import com.example.rise.transport.store.ConversationDatabase
 import com.example.rise.transport.store.ConversationStore
 import com.example.rise.transport.store.ChatCacheDao
@@ -114,6 +119,13 @@ class App: Application() {
                 userRemoteDataSource = get(),
             )
         }
+        single<BriarAccountRepository> {
+            RuntimeBriarAccountRepository(
+                runtimeManager = get(),
+                transportRouter = get(),
+                ioDispatcher = Dispatchers.IO,
+            )
+        }
         single { OkHttpClient.Builder().build() }
         single<TelegramAuthRepository> { DefaultTelegramAuthRepository(get()) }
         single<AuthenticationService> { FirebaseAuthenticationService(get()) }
@@ -134,6 +146,7 @@ class App: Application() {
         single { IdentityBackfillCoordinator(userRemoteDataSource = get(), identityRegistry = get()) }
         single<BriarChatAdapter> { DefaultBriarChatAdapter(get()) }
         single<BriarContactAdapter> { DefaultBriarContactAdapter(get()) }
+        single { BriarContactRepository(get()) }
         single {
             FirestoreConnector(
                 authService = get(),
@@ -185,12 +198,29 @@ class App: Application() {
             )
         }
         single<ChatRepository> { TransportBackedChatRepository(get()) }
-        single<PeopleSync> {
+        single {
             FirestorePeopleSync(
                 firebaseAuth = get(),
                 transportConnector = get<FirestoreConnector>(),
                 identityRegistry = get(),
                 transportBridge = get(),
+            )
+        }
+        single {
+            BriarPeopleSync(
+                transportConnector = get<BriarConnector>(),
+                identityRegistry = get(),
+                transportBridge = get(),
+            )
+        }
+        single<PeopleSync> {
+            CompositePeopleSync(
+                delegates = listOf(
+                    get<FirestorePeopleSync>(),
+                    get<BriarPeopleSync>(),
+                ),
+                transportMode = get<TransportRuntimeBridge>().currentMode,
+                briarDelegateIndex = 1,
             )
         }
         single<RouterPeopleRepository> { RouterPeopleRepositoryImpl(identityRegistry = get(), peopleSync = get()) }
@@ -202,6 +232,8 @@ class App: Application() {
                 transportRouter = get(),
                 connectorRegistry = get(),
                 transportBridge = get(),
+                identityRegistry = get(),
+                briarRuntimeManager = get(),
                 ioDispatcher = Dispatchers.IO,
             )
         }

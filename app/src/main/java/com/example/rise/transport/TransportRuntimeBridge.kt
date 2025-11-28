@@ -22,8 +22,6 @@ interface TransportRuntimeBridge {
 
     /** Live status of the embedded Briar runtime. */
     val runtimeStatus: StateFlow<BriarRuntimeStatus>
-
-    /** High signal diagnostics for instrumentation and QA automation. */
     val diagnostics: SharedFlow<BriarRuntimeEvent>
 
     /** Bridge handle for Briar-backed chat flows (Stage 2 will expand this contract). */

@@ -16,19 +16,21 @@ object NoOpBriarChatGateway : BriarChatGateway {
     override val isAvailable: Boolean
         get() = readiness.value
 
+    override fun availability(): StateFlow<Boolean> = readinessFlow
+
     override suspend fun currentIdentity(): BriarIdentity? = null
 
     override suspend fun ensureConversation(
         descriptor: BriarConversationDescriptor
     ): BriarConversation {
-        throw IllegalStateException("Briar chat gateway is not available")
+        throw IllegalStateException("Briar chat gateway is not available(NoOp)")
     }
 
     override fun observeMessages(conversationId: String): Flow<List<BriarMessage>> =
         flowOf(emptyList())
 
     override suspend fun sendMessage(message: BriarOutboundMessage) {
-        throw IllegalStateException("Briar chat gateway is not available")
+        throw IllegalStateException("Briar chat gateway is not available(NoOp)")
     }
 
     fun reset() {

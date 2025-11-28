@@ -5,6 +5,7 @@ import com.example.rise.auth.AuthStateHandle
 import com.example.rise.auth.AuthenticationService
 import com.example.rise.briar.runtime.BriarChatGateway
 import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.briar.runtime.BriarRuntimeManager
 import com.example.rise.testutil.stubBriarChatGateway
 import com.example.rise.testutil.stubBriarContactService
 import com.example.rise.briar.runtime.BriarRuntimeEvent
@@ -24,6 +25,11 @@ import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.ConnectorRegistry
 import com.example.rise.transport.router.ConnectorStatus
+import com.example.rise.transport.router.IdentityProfile
+import com.example.rise.transport.router.IdentityRecord
+import com.example.rise.transport.router.IdentityRegistry
+import com.example.rise.transport.router.IdentityRegistryImpl
+import com.example.rise.transport.router.IdentityRegistryStore
 import com.example.rise.transport.router.TransportConnector
 import com.example.rise.transport.router.TransportConversationId
 import com.example.rise.transport.router.TransportId
@@ -31,8 +37,10 @@ import com.example.rise.transport.router.TransportRouter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -46,13 +54,19 @@ class RouterMyAccountRepositoryTest {
 
     private val authService = RecordingAuthenticationService()
     private val transportBridge = FakeTransportRuntimeBridge()
+    private val runtimeManager = RecordingBriarRuntimeManager()
 
-    private fun TestScope.repository(connector: FakeAccountConnector = FakeAccountConnector()) = RouterMyAccountRepository(
+    private fun TestScope.repository(
+        connector: FakeAccountConnector = FakeAccountConnector(),
+        identityRegistry: IdentityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+    ) = RouterMyAccountRepository(
         authService = authService,
         peopleSync = RecordingPeopleSync(),
         transportRouter = RecordingTransportRouter(),
         connectorRegistry = FakeConnectorRegistry(connector),
         transportBridge = transportBridge,
+        identityRegistry = identityRegistry,
+        briarRuntimeManager = runtimeManager,
         ioDispatcher = StandardTestDispatcher(testScheduler),
     ) to connector
 
@@ -99,6 +113,8 @@ class RouterMyAccountRepositoryTest {
             transportRouter = router,
             connectorRegistry = FakeConnectorRegistry(FakeAccountConnector()),
             transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
             ioDispatcher = StandardTestDispatcher(testScheduler),
         )
 
@@ -107,6 +123,62 @@ class RouterMyAccountRepositoryTest {
         assertTrue(authService.signOutCalled)
         assertEquals(1, peopleSync.stopCalls)
         assertEquals(1, router.resetCalls)
+        assertEquals(1, runtimeManager.stopCalls)
+    }
+
+    @Test
+    fun `hybrid mode falls back to account-capable connector`() = runTest {
+        val accountConnector = FakeAccountConnector().apply {
+            profile = profile.copy(name = "Profile From Account Connector")
+        }
+        val briarLikeConnector = NonAccountConnector(TransportId.BRIAR)
+        val registry = DualConnectorRegistry(primary = briarLikeConnector, fallback = accountConnector)
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.HYBRID)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val result = repository.fetchCurrentUser()
+
+        assertEquals(accountConnector.profile, result)
+    }
+
+    @Test
+    fun `briar only mode returns identity registry profile`() = runTest {
+        val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Briar User")
+        val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+        identityRegistry.upsertIdentity(
+            identity = canonicalIdentity,
+            aliases = mapOf(TransportId.BRIAR to canonicalIdentity.id),
+            profile = IdentityProfile(bio = "Briar bio"),
+            setAsCurrent = true,
+        )
+        val bridge = FakeTransportRuntimeBridge().apply { setMode(BriarTransportMode.BRIAR_ONLY) }
+        val router = IdentityAwareTransportRouter(canonicalIdentity)
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = router,
+            connectorRegistry = FakeConnectorRegistry(FakeAccountConnector()),
+            transportBridge = bridge,
+            identityRegistry = identityRegistry,
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val result = repository.fetchCurrentUser()
+
+        assertEquals("Briar User", result.name)
+        assertEquals("Briar bio", result.bio)
     }
 
     private class FakeConnectorRegistry(
@@ -198,12 +270,100 @@ class RouterMyAccountRepositoryTest {
         }
     }
 
+    private class RecordingBriarRuntimeManager : BriarRuntimeManager {
+        var stopCalls = 0
+        override val status: StateFlow<BriarRuntimeStatus> = MutableStateFlow(BriarRuntimeStatus.stopped)
+        override val diagnostics: SharedFlow<BriarRuntimeEvent> = MutableSharedFlow()
+        override val chatGateway: StateFlow<BriarChatGateway> = MutableStateFlow(stubBriarChatGateway())
+        override val contactService: StateFlow<BriarContactService> = MutableStateFlow(stubBriarContactService())
+        override suspend fun ensureStarted() = Unit
+        override suspend fun createAccount(name: String, password: String): Boolean = true
+        override suspend fun signIn(password: String): Boolean = true
+        override suspend fun stop() { stopCalls += 1 }
+    }
+
     private class FakeTransportRuntimeBridge : TransportRuntimeBridge {
-        override val currentMode: StateFlow<BriarTransportMode> = MutableStateFlow(BriarTransportMode.FIRESTORE)
+        private val modeState = MutableStateFlow(BriarTransportMode.FIRESTORE)
+        override val currentMode: StateFlow<BriarTransportMode> = modeState.asStateFlow()
         override val runtimeStatus: StateFlow<BriarRuntimeStatus> = MutableStateFlow(BriarRuntimeStatus.stopped)
         override val diagnostics: MutableSharedFlow<BriarRuntimeEvent> = MutableSharedFlow()
         override val briarChatGateway: StateFlow<BriarChatGateway> = MutableStateFlow(stubBriarChatGateway())
         override val briarContactService: StateFlow<BriarContactService> = MutableStateFlow(stubBriarContactService())
         override fun requireFirestore(caller: String) = Unit
+
+        fun setMode(mode: BriarTransportMode) {
+            modeState.value = mode
+        }
+    }
+
+    private class IdentityAwareTransportRouter(
+        private val identity: CanonicalIdentity,
+    ) : TransportRouter {
+        override val currentIdentity: Flow<CanonicalIdentity> = MutableStateFlow(identity)
+        override suspend fun ensureCurrentIdentity(): CanonicalIdentity = identity
+        override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation =
+            throw UnsupportedOperationException()
+
+        override fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>> = emptyFlow()
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
+        override suspend fun reset() = Unit
+    }
+
+    private class InMemoryIdentityRegistryStore(
+        initialState: IdentityRegistryStore.StoredState = IdentityRegistryStore.StoredState(emptyMap(), null)
+    ) : IdentityRegistryStore {
+        private var state: IdentityRegistryStore.StoredState = initialState
+
+        override fun load(): IdentityRegistryStore.StoredState = state
+
+        override fun persist(records: Map<String, IdentityRecord>, currentIdentityId: String?) {
+            state = IdentityRegistryStore.StoredState(records.toMap(), currentIdentityId)
+        }
+    }
+
+    private class DualConnectorRegistry(
+        private val primary: TransportConnector,
+        private val fallback: TransportConnector,
+    ) : ConnectorRegistry {
+        override val connectors: Set<TransportConnector> = setOf(primary, fallback)
+
+        override fun connectorFor(transportId: TransportId): TransportConnector? {
+            return connectors.firstOrNull { it.transport == transportId }
+        }
+
+        override fun primaryFor(mode: BriarTransportMode): TransportConnector {
+            return if (mode == BriarTransportMode.HYBRID || mode == BriarTransportMode.BRIAR_ONLY) {
+                primary
+            } else {
+                fallback
+            }
+        }
+
+        override fun mirrorsFor(mode: BriarTransportMode): List<TransportConnector> = emptyList()
+    }
+
+    private class NonAccountConnector(
+        override val transport: TransportId,
+    ) : TransportConnector {
+        private val statusFlow = MutableStateFlow(ConnectorStatus.ACTIVE)
+        private val lifecycleFlow = MutableStateFlow(ConnectorLifecycleState.READY)
+        private val capabilityFlow = MutableStateFlow(ConnectorCapabilities.EMPTY)
+
+        override val status: StateFlow<ConnectorStatus> = statusFlow
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = lifecycleFlow
+        override val capabilities: StateFlow<ConnectorCapabilities> = capabilityFlow
+
+        override suspend fun currentIdentity(): CanonicalIdentity =
+            CanonicalIdentity(id = "self", displayName = "Self")
+
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId {
+            return TransportConversationId(conversation.id, conversation.id)
+        }
+
+        override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> = emptyFlow()
+
+        override fun observeContacts(): Flow<List<ConnectorContact>> = emptyFlow()
+
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
     }
 }

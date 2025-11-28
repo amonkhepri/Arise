@@ -63,7 +63,7 @@ class FirestoreConnector(
     private val _capabilities = MutableStateFlow(
         ConnectorCapabilities(
             mapOf(
-                "messages" to CapabilityDescriptor(1, mapOf("supportsAttachments" to "false")),
+                "messages" to CapabilityDescriptor(1, mapOf("supportsAttachments" to "false", "enabled" to "true")),
                 "contacts" to CapabilityDescriptor(1, mapOf("presence" to PresenceStatus.UNKNOWN.name)),
                 "account" to CapabilityDescriptor(1, mapOf("editableFields" to "name,bio")),
                 "notifications" to CapabilityDescriptor(1, mapOf("push" to "true")),

@@ -6,6 +6,9 @@ import com.example.rise.auth.AuthenticationService
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.ui.alarm.models.Alarm
 import com.example.rise.models.TextMessage
+import com.example.rise.featureflags.BriarTransportMode
+import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.router.TransportRouter
 import java.time.Clock
 import java.time.Instant
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,10 +17,13 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class DashboardViewModel(
     private val repository: AlarmRepository,
     private val authService: AuthenticationService,
+    private val transportRouter: TransportRouter,
+    private val transportBridge: TransportRuntimeBridge,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
@@ -46,20 +52,37 @@ class DashboardViewModel(
         chatChannel: String?,
         message: TextMessage?,
     ) {
-        val resolvedUserId = if (!byBottomNavigation && !explicitUserId.isNullOrBlank()) {
-            explicitUserId
-        } else {
-            authService.currentUser()?.id ?: throw IllegalStateException("User must be signed in")
+        val resolvedUserId = when {
+            !byBottomNavigation && !explicitUserId.isNullOrBlank() -> explicitUserId
+            else -> authService.currentUser()?.id ?: run {
+                if (transportBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY) {
+                    runBlocking { transportRouter.ensureCurrentIdentity().id }
+                } else {
+                    throw IllegalStateException("User must be signed in")
+                }
+            }
         }
-        val query = repository.alarmsQuery(resolvedUserId)
-        _uiState.value = DashboardUiState(
-            alarmQuery = query,
-            activeUserId = resolvedUserId,
-            chatChannel = chatChannel.orEmpty(),
-            pendingMessage = message,
-            isLoading = false,
-            errorMessage = null,
-        )
+        runCatching {
+            val query = repository.alarmsQuery(resolvedUserId)
+            _uiState.value = DashboardUiState(
+                alarmQuery = query,
+                activeUserId = resolvedUserId,
+                chatChannel = chatChannel.orEmpty(),
+                pendingMessage = message,
+                isLoading = false,
+                errorMessage = null,
+            )
+        }.onFailure { error ->
+            _uiState.update {
+                it.copy(
+                    activeUserId = resolvedUserId,
+                    chatChannel = chatChannel.orEmpty(),
+                    pendingMessage = message,
+                    isLoading = false,
+                    errorMessage = error.message,
+                )
+            }
+        }
     }
 
     fun createAlarm(timeInMillis: Long, messageOverride: TextMessage? = null) {

@@ -7,6 +7,7 @@ import com.example.rise.data.chat.ChatUser
 import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.models.TextMessage
 import com.example.rise.transport.router.PresenceStatus
+import com.example.rise.transport.router.BriarOnlyOperationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -104,6 +105,9 @@ class ChatViewModel(
                     )
                 }
             } catch (error: Throwable) {
+                if (error is BriarOnlyOperationException) {
+                    throw error
+                }
                 _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
             }
         }

@@ -1,6 +1,7 @@
 package com.example.rise.briar.runtime
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * Contract the embedded Briar runtime exposes for chat-specific operations. The transport router
@@ -10,6 +11,12 @@ import kotlinx.coroutines.flow.Flow
 interface BriarChatGateway {
     /** True when the underlying Briar runtime is initialized and ready for chat traffic. */
     val isAvailable: Boolean
+
+    /**
+     * Emits availability changes so connectors can react when readiness toggles without the
+     * gateway instance being replaced.
+     */
+    fun availability(): Flow<Boolean> = flowOf(isAvailable)
 
     /** Returns the active Briar identity, or null if the user has not finished provisioning. */
     suspend fun currentIdentity(): BriarIdentity?

@@ -3,6 +3,7 @@ package com.example.rise.data.people
 import app.cash.turbine.test
 import com.example.rise.models.User
 import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.ConnectorContact
 import com.example.rise.transport.router.IdentityProfile
 import com.example.rise.transport.router.IdentityRecord
 import com.example.rise.transport.router.IdentityRegistry
@@ -311,6 +312,48 @@ class RouterPeopleRepositoryTest {
         assertEquals("Bio", self.profile.bio)
         assertEquals(PresenceStatus.ONLINE, self.profile.presence)
         assertEquals("self", registry.currentIdentitySnapshot()?.id)
+    }
+
+    @Test
+    fun `processBriarSnapshot updates registry from contacts and removes missing`() = runTest {
+        val registry = FakeIdentityRegistry().apply {
+            setIdentities(
+                listOf(
+                    IdentityRecord(
+                        canonicalIdentity = CanonicalIdentity("stale", "Stale Friend"),
+                        aliases = mapOf(TransportId.BRIAR to "stale-alias"),
+                        profile = IdentityProfile(),
+                    )
+                )
+            )
+        }
+        val contacts = listOf(
+            ConnectorContact(
+                transport = TransportId.BRIAR,
+                transportId = "briar-alias",
+                displayName = "Briar Friend",
+                canonicalId = "friend",
+                bio = "bio",
+                profilePicturePath = "avatar",
+                presence = PresenceStatus.ONLINE,
+                registrationTokens = emptyList(),
+            )
+        )
+
+        processBriarSnapshot(
+            contacts = contacts,
+            currentUserId = null,
+            identityRegistry = registry,
+        )
+
+        val snapshot = registry.identitiesSnapshot().associateBy { it.canonicalIdentity.id }
+        assertEquals(setOf("friend"), snapshot.keys)
+        val friend = snapshot.getValue("friend")
+        assertEquals("Briar Friend", friend.canonicalIdentity.displayName)
+        assertEquals("bio", friend.profile.bio)
+        assertEquals("avatar", friend.profile.profilePicturePath)
+        assertEquals(PresenceStatus.ONLINE, friend.profile.presence)
+        assertEquals("briar-alias", friend.aliases[TransportId.BRIAR])
     }
 }
 

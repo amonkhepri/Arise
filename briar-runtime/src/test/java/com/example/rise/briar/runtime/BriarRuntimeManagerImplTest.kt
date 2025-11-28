@@ -2,6 +2,7 @@ package com.example.rise.briar.runtime
 
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -72,6 +73,22 @@ class BriarRuntimeManagerImplTest {
         assertTrue(manager.status.value.lastError is IllegalStateException)
     }
 
+    @Test
+    fun `diagnostics emit identity status`() = runTest {
+        val env = environment()
+        val factory = RecordingFactory(identityExists = false)
+        val manager = BriarRuntimeManagerImpl(
+            environment = env,
+            componentFactory = factory,
+            ioDispatcher = StandardTestDispatcher(testScheduler)
+        )
+
+        manager.ensureStarted()
+
+        val identityEvent = manager.diagnostics.first { it is BriarRuntimeEvent.IdentityStatus } as BriarRuntimeEvent.IdentityStatus
+        assertEquals(false, identityEvent.exists)
+    }
+
     private fun environment(): BriarRuntimeEnvironment {
         return BriarRuntimeEnvironment {
             val storage = temporaryFolder.newFolder("briar")
@@ -79,7 +96,9 @@ class BriarRuntimeManagerImplTest {
         }
     }
 
-    private class RecordingFactory : BriarComponentFactory {
+    private class RecordingFactory(
+        private val identityExists: Boolean = true,
+    ) : BriarComponentFactory {
         var created: Boolean = false
             private set
         var handleClosed: Boolean = false
@@ -98,6 +117,7 @@ class BriarRuntimeManagerImplTest {
         }
         val contactService = object : BriarContactService {
             override val isAvailable: Boolean = true
+            override suspend fun addContactByLink(link: String, alias: String?) = Unit
             override fun observeContacts() = flowOf(emptyList<BriarContact>())
         }
 
@@ -106,6 +126,7 @@ class BriarRuntimeManagerImplTest {
             val handle = object : BriarRuntimeHandle {
                 override val chatGateway: BriarChatGateway = this@RecordingFactory.chatGateway
                 override val contactService: BriarContactService = this@RecordingFactory.contactService
+                override val hasIdentity: Boolean = identityExists
 
                 override fun close() {
                     handleClosed = true
