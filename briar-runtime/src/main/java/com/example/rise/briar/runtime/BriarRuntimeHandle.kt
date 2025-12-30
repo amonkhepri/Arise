@@ -14,5 +14,9 @@ interface BriarRuntimeHandle : AutoCloseable {
 
     fun markIdentityReady()
     fun signIn(password: String)
+    /**
+     * Starts services using the currently loaded database key, returning true when running.
+     */
+    fun startServicesWithCurrentKey(): Boolean
     override fun close()
 }

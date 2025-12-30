@@ -76,12 +76,17 @@ class MyAccountViewModel(
 
     fun signOut() {
         viewModelScope.launch {
+            var errorMessage: String?
             try {
+                _uiState.update { it.copy(isLoading = true) }
+                _events.tryEmit(Event.ShowMessage("Signing out..."))
                 repository.signOut()
-                _uiState.update { UiState() }
-                _events.emit(Event.NavigateToSignIn)
+                _events.tryEmit(Event.NavigateToSignIn)
             } catch (error: Exception) {
-                _events.emit(Event.ShowMessage(error.message ?: "Failed to sign out"))
+                errorMessage = error.message ?: "Failed to sign out"
+                _events.tryEmit(Event.ShowMessage(errorMessage))
+            } finally {
+                _uiState.update { UiState() }
             }
         }
     }

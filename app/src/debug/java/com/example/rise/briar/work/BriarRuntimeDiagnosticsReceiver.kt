@@ -16,10 +16,13 @@ import timber.log.Timber
  *      --el start_timeout_ms 20000
  * ```
  */
+const val ACTION_RUN_DIAGNOSTIC = "com.example.rise.debug.RUN_BRIAR_RUNTIME_DIAGNOSTIC"
+
 class BriarRuntimeDiagnosticsReceiver : BroadcastReceiver() {
 
+
     override fun onReceive(context: Context?, intent: Intent?) {
-        if (context == null || intent?.action != BriarRuntimeWorker.ACTION_RUN_DIAGNOSTIC) return
+        if (context == null || intent?.action != ACTION_RUN_DIAGNOSTIC) return
 
         val stop = intent.getBooleanExtra(EXTRA_STOP_ON_COMPLETION, true)
         val timeout = intent.getLongExtra(EXTRA_START_TIMEOUT_MS, BriarRuntimeWorker.DEFAULT_START_TIMEOUT_MS)

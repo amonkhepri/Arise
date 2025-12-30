@@ -106,7 +106,7 @@ class App: Application() {
         single { TelegramAuthFlagProvider(get()) }
         single<BriarRuntimeEnvironment> { BriarRuntimeEnvironmentImpl(androidContext()) }
         single<BriarComponentFactory> { BriarComponentFactoryImpl() }
-        single<BriarRuntimeManager> { BriarRuntimeManagerImpl(environment = get(), componentFactory = get()) }
+        single<BriarRuntimeManager> { BriarRuntimeManagerImpl(briarRuntimeEnvironment = get(), componentFactory = get()) }
         single { IdentityBackfillScheduler(androidContext(), get(), get()) }
         single<TransportRuntimeBridge> { TransportRuntimeBridgeImpl(get(), get(), get()) }
 

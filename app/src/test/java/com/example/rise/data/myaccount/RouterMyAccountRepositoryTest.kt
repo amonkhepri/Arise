@@ -5,14 +5,14 @@ import com.example.rise.auth.AuthStateHandle
 import com.example.rise.auth.AuthenticationService
 import com.example.rise.briar.runtime.BriarChatGateway
 import com.example.rise.briar.runtime.BriarContactService
-import com.example.rise.briar.runtime.BriarRuntimeManager
-import com.example.rise.testutil.stubBriarChatGateway
-import com.example.rise.testutil.stubBriarContactService
 import com.example.rise.briar.runtime.BriarRuntimeEvent
+import com.example.rise.briar.runtime.BriarRuntimeManager
 import com.example.rise.briar.runtime.BriarRuntimeStatus
 import com.example.rise.data.people.PeopleSync
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.models.User
+import com.example.rise.testutil.stubBriarChatGateway
+import com.example.rise.testutil.stubBriarContactService
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.AccountConnector
 import com.example.rise.transport.router.CanonicalConversation
@@ -37,8 +37,8 @@ import com.example.rise.transport.router.TransportRouter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -124,6 +124,42 @@ class RouterMyAccountRepositoryTest {
         assertEquals(1, peopleSync.stopCalls)
         assertEquals(1, router.resetCalls)
         assertEquals(1, runtimeManager.stopCalls)
+        assertTrue(authService.signOutCalled)
+    }
+
+    @Test
+    fun `signOut clears identity and stops runtime in briar only mode`() = runTest {
+        val peopleSync = RecordingPeopleSync()
+        val router = RecordingTransportRouter()
+        val transportBridge = FakeTransportRuntimeBridge().apply { setMode(BriarTransportMode.BRIAR_ONLY) }
+        val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+        val canonicalIdentity = CanonicalIdentity(id = "briar-self", displayName = "Briar User")
+        identityRegistry.upsertIdentity(
+            identity = canonicalIdentity,
+            aliases = mapOf(TransportId.BRIAR to canonicalIdentity.id),
+            profile = IdentityProfile(bio = "bio"),
+            setAsCurrent = true,
+        )
+        val runtimeManager = RecordingBriarRuntimeManager()
+
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = peopleSync,
+            transportRouter = router,
+            connectorRegistry = FakeConnectorRegistry(FakeAccountConnector()),
+            transportBridge = transportBridge,
+            identityRegistry = identityRegistry,
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        repository.signOut()
+
+        assertEquals(1, router.resetCalls)
+        assertEquals(1, runtimeManager.stopCalls)
+        assertTrue(identityRegistry.identitiesSnapshot().isEmpty())
+        assertEquals(null, identityRegistry.currentIdentitySnapshot())
+        assertTrue(authService.signOutCalled)
     }
 
     @Test

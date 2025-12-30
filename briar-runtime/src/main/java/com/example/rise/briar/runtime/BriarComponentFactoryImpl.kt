@@ -114,6 +114,16 @@ class BriarComponentFactoryImpl : BriarComponentFactory {
             runtimeAccountManager.signIn(password)
         }
 
+        override fun startServicesWithCurrentKey(): Boolean {
+            val key = runtimeAccountManager.databaseKey ?: return false
+            val result = runCatching { lifecycleManager.startServices(key) }.getOrNull()
+            if (result == LifecycleManager.StartResult.SUCCESS || result == LifecycleManager.StartResult.ALREADY_RUNNING) {
+                runCatching { lifecycleManager.waitForStartup() }
+                return true
+            }
+            return false
+        }
+
         init {
             eventBus.addListener(lifecycleListener)
             // If lifecycle is already running and identity exists, mark readiness; otherwise wait for events.

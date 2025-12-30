@@ -43,11 +43,11 @@ class DataStoreTransportModeProviderImplTest {
     }
 
     @Test
-    fun `defaults to Firestore when no value stored`() = runBlocking {
+    fun `defaults to Briar-only when no value stored`() = runBlocking {
         val provider = setUpDataStore()
         try {
             val mode = provider.getMode()
-            assertEquals(BriarTransportMode.FIRESTORE, mode)
+            assertEquals(BriarTransportMode.BRIAR_ONLY, mode)
         } finally {
             scope.cancel()
         }
@@ -76,15 +76,13 @@ class DataStoreTransportModeProviderImplTest {
                     observed.add(mode)
                 }
             }
-
             // ensure the collector is active before we update the flag
             yield()
-            provider.setMode(BriarTransportMode.BRIAR_ONLY)
+            provider.setMode(BriarTransportMode.FIRESTORE)
             yield()
             job.join()
-
             assertEquals(
-                listOf(BriarTransportMode.FIRESTORE, BriarTransportMode.BRIAR_ONLY),
+                listOf(BriarTransportMode.BRIAR_ONLY, BriarTransportMode.FIRESTORE),
                 observed
             )
         } finally {

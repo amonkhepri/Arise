@@ -94,8 +94,6 @@ class BriarRuntimeWorker(
         private const val TAG = "BriarRuntimeWorker"
         private const val KEY_STOP_ON_COMPLETION = "stop_on_completion"
         private const val KEY_START_TIMEOUT_MS = "start_timeout_ms"
-
-        const val ACTION_RUN_DIAGNOSTIC = "com.example.rise.debug.RUN_BRIAR_RUNTIME_DIAGNOSTIC"
         const val UNIQUE_WORK_NAME = "briar-runtime-diagnostic"
         const val DEFAULT_START_TIMEOUT_MS = 20_000L
 

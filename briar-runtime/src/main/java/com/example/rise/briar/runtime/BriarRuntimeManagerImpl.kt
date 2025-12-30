@@ -2,6 +2,7 @@ package com.example.rise.briar.runtime
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -18,7 +19,7 @@ import kotlinx.coroutines.withContext
  * flag watcher.
  */
 class BriarRuntimeManagerImpl(
-    private val environment: BriarRuntimeEnvironment,
+    private val briarRuntimeEnvironment: BriarRuntimeEnvironment,
     private val componentFactory: BriarComponentFactory,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : BriarRuntimeManager {
@@ -40,14 +41,12 @@ class BriarRuntimeManagerImpl(
         mutex.withLock {
             if (_status.value.phase == BriarRuntimePhase.RUNNING) return
 
-            val config = environment.createConfig()
+            val config = briarRuntimeEnvironment.createConfig()
             val startingStatus = BriarRuntimeStatus(
                 phase = BriarRuntimePhase.STARTING,
                 storageDir = config.storageDir
             )
             updateStatus(startingStatus)
-            log("Initialising Briar runtime in ${config.storageDir.absolutePath}")
-
             val newHandle = try {
                 withContext(ioDispatcher) {
                     componentFactory.create(config)
@@ -67,7 +66,21 @@ class BriarRuntimeManagerImpl(
 
             _chatGateway.value = newHandle.chatGateway
             _contactService.value = newHandle.contactService
-            _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(newHandle.hasIdentity))
+            // If a database key already exists, start services immediately so identity is available.
+            if (newHandle.accountManager.hasDatabaseKey()) {
+                val servicesStarted = newHandle.startServicesWithCurrentKey()
+                if (servicesStarted) {
+                    val identityExists = newHandle.hasIdentity
+                    if (identityExists) {
+                        newHandle.markIdentityReady()
+                    }
+                    _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(identityExists))
+                } else {
+                    _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(newHandle.hasIdentity))
+                }
+            } else {
+                _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(newHandle.hasIdentity))
+            }
 
             updateStatus(
                 BriarRuntimeStatus(
@@ -83,14 +96,26 @@ class BriarRuntimeManagerImpl(
         ensureStarted()
         return mutex.withLock {
             val activeHandle = handle ?: return@withLock false
-            val created = withContext(ioDispatcher) {
-                activeHandle.accountManager.createAccount(name, password)
+            val created: Boolean = if(activeHandle.accountManager.accountExists()) {
+                val msg = "Account already exists. Please sign in."
+                log(msg)
+                throw IllegalStateException(msg)
+            }else{
+                withContext(ioDispatcher) { activeHandle.accountManager.createAccount(name, password) }
             }
-            if (created) {
-                activeHandle.markIdentityReady()
-                _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(true))
+            if (!created) return@withLock false
+            val servicesStarted = activeHandle.startServicesWithCurrentKey()
+            if (!servicesStarted) {
+                log("Failed to start services after account creation")
+                return@withLock false
             }
-            created
+            if (!waitForIdentity(activeHandle)) {
+                log("Briar identity not available after account creation")
+                return@withLock false
+            }
+            activeHandle.markIdentityReady()
+            _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(true))
+            true
         }
     }
 
@@ -100,9 +125,20 @@ class BriarRuntimeManagerImpl(
             val activeHandle = handle ?: return@withLock false
             return@withLock try {
                 withContext(ioDispatcher) { activeHandle.signIn(password) }
-                activeHandle.markIdentityReady()
-                _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(true))
-                true
+                val servicesStarted = activeHandle.startServicesWithCurrentKey()
+                if (!servicesStarted) {
+                    log("Failed to start services after sign-in")
+                    return@withLock false
+                }
+                if (waitForIdentity(activeHandle)) {
+                    log("Briar identity available after sign-in")
+                    activeHandle.markIdentityReady()
+                    _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(true))
+                    true
+                } else {
+                    log("Briar identity not available after sign-in")
+                    false
+                }
             } catch (_: Throwable) {
                 false
             }
@@ -160,7 +196,16 @@ class BriarRuntimeManagerImpl(
         _diagnostics.tryEmit(BriarRuntimeEvent.Message(message))
     }
 
+    private suspend fun waitForIdentity(handle: BriarRuntimeHandle): Boolean {
+        repeat(IDENTITY_WAIT_ATTEMPTS) {
+            if (handle.hasIdentity) return true
+            delay(IDENTITY_WAIT_DELAY_MS)
+        }
+        return handle.hasIdentity
+    }
+
     companion object {
-        private const val TAG = "BriarRuntimeManager"
+        private const val IDENTITY_WAIT_ATTEMPTS = 25
+        private const val IDENTITY_WAIT_DELAY_MS = 200L
     }
 }

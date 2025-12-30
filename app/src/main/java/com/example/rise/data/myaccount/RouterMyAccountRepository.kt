@@ -12,6 +12,8 @@ import com.example.rise.transport.router.TransportRouter
 import com.example.rise.transport.router.IdentityProfile
 import com.example.rise.transport.router.TransportId
 import com.example.rise.featureflags.BriarTransportMode
+import kotlinx.coroutines.withTimeoutOrNull
+import timber.log.Timber
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -81,10 +83,23 @@ class RouterMyAccountRepository(
 
     override suspend fun signOut() {
         withContext(ioDispatcher) {
+            Timber.tag(TAG).i("Sign-out requested (mode=%s)", transportBridge.currentMode.value)
             peopleSync.stop()
             transportRouter.reset()
-            runCatching { briarRuntimeManager.stop() }
+            if (transportBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY) {
+                Timber.tag(TAG).i("Clearing identity registry for Briar-only sign-out")
+                identityRegistry.clear()
+            }
+            val stopped = withTimeoutOrNull(5_000) {
+                runCatching { briarRuntimeManager.stop() }
+                    .onFailure { Timber.tag(TAG).w(it, "Failed to stop Briar runtime during sign-out") }
+                true
+            } ?: false
+            if (!stopped) {
+                Timber.tag(TAG).w("Timed out stopping Briar runtime during sign-out")
+            }
             authService.signOut()
+            Timber.tag(TAG).i("Sign-out completed")
         }
     }
 
@@ -99,5 +114,9 @@ class RouterMyAccountRepository(
             ?.let { it as AccountConnector }
         return fallback
             ?: throw IllegalStateException("No connector supports account profiles for mode=$mode primary=${connector.transport}")
+    }
+
+    companion object {
+        private const val TAG = "RouterMyAccountRepo"
     }
 }

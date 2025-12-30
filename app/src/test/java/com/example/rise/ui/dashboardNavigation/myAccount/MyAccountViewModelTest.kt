@@ -63,8 +63,10 @@ class MyAccountViewModelTest {
             viewModel.signOut()
             advanceUntilIdle()
 
-            val event = awaitItem()
-            assertTrue(event is MyAccountViewModel.Event.NavigateToSignIn)
+            val first = awaitItem()
+            assertTrue(first is MyAccountViewModel.Event.ShowMessage)
+            val second = awaitItem()
+            assertTrue(second is MyAccountViewModel.Event.NavigateToSignIn)
             assertEquals(1, repository.signOutCalls)
             cancelAndIgnoreRemainingEvents()
         }

@@ -32,16 +32,16 @@ import io.mockk.mockk
 class TransportRuntimeBridgeImplTest {
 
     @Test
-    fun `requireFirestore allows default mode`() {
+    fun `requireFirestore throws in default briar-only mode`() {
         runBlocking {
             val dispatcher = Dispatchers.Unconfined
-            val provider = FakeTransportModeProvider(BriarTransportMode.FIRESTORE)
+            val provider = FakeTransportModeProvider(BriarTransportMode.BRIAR_ONLY)
             val runtimeManager = FakeRuntimeManager()
             val scheduler = mockk<IdentityBackfillScheduler>(relaxed = true)
-            TransportRuntimeBridgeImpl(provider, runtimeManager, scheduler, dispatcher).apply {
-                yield()
-                requireFirestore("test call") // should not throw
-            }
+            val bridge = TransportRuntimeBridgeImpl(provider, runtimeManager, scheduler, dispatcher)
+            yield()
+            val error = runCatching { bridge.requireFirestore("test call") }.exceptionOrNull()
+            assertTrue(error is IllegalStateException)
         }
     }
 
@@ -49,7 +49,7 @@ class TransportRuntimeBridgeImplTest {
     fun `requireFirestore throws on non Firestore modes`() {
         runBlocking {
             val dispatcher = Dispatchers.Unconfined
-            val provider = FakeTransportModeProvider(BriarTransportMode.FIRESTORE)
+            val provider = FakeTransportModeProvider(BriarTransportMode.BRIAR_ONLY)
             val runtimeManager = FakeRuntimeManager()
             val scheduler = mockk<IdentityBackfillScheduler>(relaxed = true)
             val bridge = TransportRuntimeBridgeImpl(provider, runtimeManager, scheduler, dispatcher)
@@ -68,7 +68,7 @@ class TransportRuntimeBridgeImplTest {
     fun `switching back to Firestore stops runtime`() {
         runBlocking {
             val dispatcher = Dispatchers.Unconfined
-            val provider = FakeTransportModeProvider(BriarTransportMode.FIRESTORE)
+            val provider = FakeTransportModeProvider(BriarTransportMode.BRIAR_ONLY)
             val runtimeManager = FakeRuntimeManager()
             val scheduler = mockk<IdentityBackfillScheduler>(relaxed = true)
             TransportRuntimeBridgeImpl(provider, runtimeManager, scheduler, dispatcher)
@@ -86,7 +86,7 @@ class TransportRuntimeBridgeImplTest {
     fun `identity backfill scheduled when entering hybrid`() {
         runBlocking {
             val dispatcher = Dispatchers.Unconfined
-            val provider = FakeTransportModeProvider(BriarTransportMode.FIRESTORE)
+            val provider = FakeTransportModeProvider(BriarTransportMode.BRIAR_ONLY)
             val runtimeManager = FakeRuntimeManager()
             val scheduler = mockk<IdentityBackfillScheduler>(relaxed = true)
             TransportRuntimeBridgeImpl(provider, runtimeManager, scheduler, dispatcher)
@@ -101,15 +101,11 @@ class TransportRuntimeBridgeImplTest {
     private class FakeTransportModeProvider(
         initialMode: BriarTransportMode
     ) : TransportModeProvider {
-
         private val state = MutableStateFlow(initialMode)
-
         override fun observeMode(): Flow<BriarTransportMode> = state
-
         override suspend fun setMode(mode: BriarTransportMode) {
             state.value = mode
         }
-
         override suspend fun getMode(): BriarTransportMode = state.value
     }
 

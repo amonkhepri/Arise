@@ -18,6 +18,7 @@ import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import timber.log.Timber
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -37,6 +38,7 @@ class SignInViewModel(
 
     companion object {
         private const val MIN_PASSWORD_LENGTH = 6
+        private const val TAG = "SignInViewModel"
     }
     enum class Mode { SignIn, Register }
 
@@ -76,6 +78,13 @@ class SignInViewModel(
         val trimmedName = name.trim()
         val briarOnly = transportRuntimeBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY
         val usingBriarAccount = briarOnly && trimmedEmail.isBlank()
+        Timber.tag(TAG).i(
+            "signInWithEmail: mode=%s usingBriar=%s name=%s emailBlank=%s",
+            transportRuntimeBridge.currentMode.value,
+            usingBriarAccount,
+            trimmedName,
+            trimmedEmail.isBlank()
+        )
 
         if (usingBriarAccount && trimmedName.isBlank()) {
             emitMessage("Please enter your name")
@@ -95,15 +104,19 @@ class SignInViewModel(
                 if (usingBriarAccount) {
                     briarAccountRepository.signIn(trimmedName, password)
                     _events.emit(Event.NavigateToMain)
+                    Timber.tag(TAG).i("signInWithEmail: briar sign-in succeeded")
                 } else {
                     authenticationService.signInWithEmail(trimmedEmail, password)
                     _events.emit(Event.SaveCredentials(trimmedEmail, password))
+                    Timber.tag(TAG).i("signInWithEmail: firebase sign-in succeeded")
                     finalizeSignIn()
                 }
             } catch (error: Exception) {
                 if (usingBriarAccount) {
+                    Timber.tag(TAG).w(error, "signInWithEmail: briar sign-in failed")
                     emitMessage(error.message ?: "Failed to sign in")
                 } else {
+                    Timber.tag(TAG).w(error, "signInWithEmail: firebase sign-in failed")
                     handleAuthError(error)
                 }
             } finally {
@@ -121,6 +134,13 @@ class SignInViewModel(
         }
         val briarOnlyMode = transportRuntimeBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY
         val usingBriarAccount = trimmedEmail.isBlank() && briarOnlyMode
+        Timber.tag(TAG).i(
+            "register: mode=%s usingBriar=%s name=%s emailBlank=%s",
+            transportRuntimeBridge.currentMode.value,
+            usingBriarAccount,
+            trimmedName,
+            trimmedEmail.isBlank()
+        )
         if (!usingBriarAccount && !isValidEmail(trimmedEmail)) {
             emitMessage("Please enter a valid email")
             return
@@ -135,16 +155,20 @@ class SignInViewModel(
                 if (usingBriarAccount) {
                     briarAccountRepository.createAccount(trimmedName, password)
                     _events.emit(Event.NavigateToMain)
+                    Timber.tag(TAG).i("register: briar account created")
                 } else {
                     authenticationService.createUserWithEmail(trimmedEmail, password)
                     authenticationService.updateProfile(trimmedName, null)
                     _events.emit(Event.SaveCredentials(trimmedEmail, password))
+                    Timber.tag(TAG).i("register: firebase user created, finalizing sign-in")
                     finalizeSignIn()
                 }
             } catch (error: Exception) {
                 if (usingBriarAccount) {
+                    Timber.tag(TAG).w(error, "register: briar create failed")
                     emitMessage(error.message ?: "Failed to create account")
                 } else {
+                    Timber.tag(TAG).w(error, "register: firebase create failed")
                     handleAuthError(error)
                 }
             } finally {
@@ -269,6 +293,7 @@ class SignInViewModel(
     }
 
     private fun setLoading(loading: Boolean) {
+        Timber.tag(TAG).d("setLoading=%s", loading)
         _uiState.update { it.copy(isLoading = loading) }
     }
 

@@ -33,7 +33,7 @@ class TransportRuntimeBridgeImpl(
 
     private val job = SupervisorJob()
     private val scope = CoroutineScope(job + dispatcher)
-    private val _currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
+    private val _currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
 
     init {
         scope.launch {
