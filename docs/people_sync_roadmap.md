@@ -16,6 +16,7 @@
 - Router-backed repositories must keep emitting people data after errors; unit coverage ensures the list flow stays hot even when the sync retries.
 - Sync implementations should emit errors only when user action is required (e.g., auth failure). Transient connectivity issues should continue to flow through the retry path without forcing UI re-subscription.
 - ✅ 2026-02-16: `FirestorePeopleSync` now keeps transient Firestore `UNAVAILABLE` failures on the retry path (no UI error emission) while continuing listener re-registration.
+- ✅ 2026-02-16: `FirestorePeopleSync` now inspects nested causes when classifying listener failures, so wrapped transient Firestore `UNAVAILABLE` errors remain on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-16: `BriarPeopleSync` now keeps transient “runtime not ready” failures on the retry path (no UI error emission) while continuing listener re-registration.
 - ✅ 2026-02-16: `BriarPeopleSync` now keeps transient connectivity-state failures (for example “connection lost”) on the retry path (no UI error emission), with unit coverage confirming listener re-registration still occurs.
 
