@@ -12,6 +12,7 @@ import com.example.rise.transport.router.TransportConnector
 import com.example.rise.transport.router.TransportId
 import com.example.rise.featureflags.BriarTransportMode
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -226,7 +227,9 @@ class FirestorePeopleSync(
     }
 
     private fun handleListenerError(error: Throwable) {
-        _errors.tryEmit(error)
+        if (shouldSurfaceError(error)) {
+            _errors.tryEmit(error)
+        }
         rosterJob?.cancel()
         rosterJob = null
         scheduleRetry()
@@ -257,6 +260,16 @@ class FirestorePeopleSync(
         val centeredRandom = (randomUnit * 2.0) - 1.0
         val jitterFactor = 1.0 + (centeredRandom * retryJitterRatio)
         return (baseDelayMillis * jitterFactor).toLong().coerceAtLeast(1L)
+    }
+
+    private fun shouldSurfaceError(error: Throwable): Boolean {
+        if (error !is FirebaseFirestoreException) return true
+        return when (error.code) {
+            FirebaseFirestoreException.Code.PERMISSION_DENIED,
+            FirebaseFirestoreException.Code.UNAUTHENTICATED,
+            -> true
+            else -> false
+        }
     }
 }
 
