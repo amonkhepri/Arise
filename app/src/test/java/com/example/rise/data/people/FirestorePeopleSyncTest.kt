@@ -223,6 +223,35 @@ class FirestorePeopleSyncTest {
     assertEquals(0, connector.observeContactsCalls)
   }
 
+  @Test
+  fun `firestore mode skips briar sync`() = runTest {
+    val connector = FakeBriarConnector()
+    val transportBridge = object : TransportRuntimeBridge {
+      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
+      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
+      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
+      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+      override val briarContactService = MutableStateFlow(stubBriarContactService())
+      override fun requireFirestore(caller: String) = Unit
+    }
+    val job = SupervisorJob()
+    val dispatcher = StandardTestDispatcher(testScheduler)
+    val scope = CoroutineScope(job + dispatcher)
+    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+    val sync = BriarPeopleSync(
+      transportConnector = connector,
+      identityRegistry = identityRegistry,
+      transportBridge = transportBridge,
+      syncSupervisorJob = job,
+      scope = scope,
+    )
+
+    sync.ensureStarted()
+    advanceUntilIdle()
+
+    assertEquals(0, connector.observeContactsCalls)
+  }
+
   private class InMemoryIdentityRegistryStore : IdentityRegistryStore {
     private var state = IdentityRegistryStore.StoredState(emptyMap(), null)
 

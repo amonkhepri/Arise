@@ -44,3 +44,4 @@
   lifecycle) and `agent-tools/run-and-log.sh` filters the `BridgeOrchestrator` tag, so QA no longer
   needs to sift through full logcat to verify HYBRID toggles.
 - ✅ 2026-02-16: `CompositePeopleSync` now fails fast if `briarDelegateIndex` is out of bounds, with unit coverage guarding against DI misconfiguration that could break BRIAR_ONLY identity selection.
+- ✅ 2026-02-16: `BriarPeopleSync.ensureStarted()` now exits early in `FIRESTORE` mode, with regression coverage ensuring Briar roster listeners stay gated behind HYBRID/BRIAR_ONLY.

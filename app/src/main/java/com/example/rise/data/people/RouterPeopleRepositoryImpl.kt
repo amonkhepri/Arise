@@ -317,6 +317,10 @@ class BriarPeopleSync(
         }
         retryDelayMillis = initialRetryDelayMillis
         restartJob?.cancel()
+        if (transportBridge.currentMode.value == BriarTransportMode.FIRESTORE) {
+            syncActive.set(false)
+            return
+        }
         registerListener()
     }
 
