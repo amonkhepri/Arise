@@ -1,6 +1,6 @@
 # People & Presence Firestore Inventory
 
- _Last updated: 2025-11-08_
+ _Last updated: 2026-02-16_
 
 Stage 3 of `BriarStagedPlan.md` requires an inventory of every people/presence entry point that
 still relies on Firestore and documentation of the data shape that the transport router and
@@ -15,9 +15,10 @@ these dependencies.
   - `name : String` – display name surfaced in `PersonSummary` and chat headers.
   - `bio : String` – copied into `IdentityProfile.bio`.
   - `profilePicturePath : String?` – optional path for avatar assets.
+  - `presence : String?` – optional transport status (`ONLINE`/`OFFLINE`/`UNKNOWN`); missing or invalid values fall back to `UNKNOWN`.
   - `registrationTokens : Array<String>` – FCM tokens; not yet consumed by router flows but must be preserved.
 - **Default skeleton**: see `app/src/main/java/com/example/rise/models/User.kt`.
-- **Presence**: no Firestore-backed presence field exists; all consumers currently treat presence as `PresenceStatus.UNKNOWN`.
+- **Presence**: `FirestoreConnector.observeContacts()` reads `users.presence` when present and applies `PresenceStatus.UNKNOWN` as the safety fallback for missing/invalid values.
 
 ### `users/{uid}/engagedChatChannels` (subcollection)
 - **Fields**
@@ -35,9 +36,16 @@ The default is “call through the transport stack.” Anything that must stay F
 | My account profile | `FirebaseUserRemoteDataSource` (`app/src/main/java/com/example/rise/data/firestore/FirebaseUserRemoteDataSource.kt`) | Fetches/updates the signed-in user profile for account settings. | Router-backed ✅ (2026-02-16) | `MyAccountViewModel` now depends on `MyAccountRepository`, and `RouterMyAccountRepository` routes name/bio/`profilePicturePath` writes through `AccountConnector` or Briar identity storage. |
 | Chat connector bridge | `FirebaseChatRemoteDataSource` (`app/src/main/java/com/example/rise/data/firestore/FirebaseChatRemoteDataSource.kt`) | Resolves display names and channel aliases for Firestore chats; used by `FirestoreConnector`. | Router-scoped ✅ (2025-11-08) | Only `FirestoreConnector` may call this; other modules must access roster data via connectors, not Firestore SDK. |
 
+## Presence Support Status (QA)
+
+| Transport | Presence feed status/date | Current behavior | Follow-up TODO |
+| --- | --- | --- | --- |
+| Firestore | Partial ✅ (2026-02-16) | `FirestoreConnector.observeContacts()` maps `users.presence` values (`ONLINE`/`OFFLINE`/`UNKNOWN`) and falls back to `UNKNOWN`. Capability metadata advertises `presenceField=users.presence` + `presenceFallback=UNKNOWN`. | TODO(`ROUTER-PRESENCE-SCHEMA`): make Firestore presence schema mandatory (or remove Firestore presence entirely once Briar is authoritative). |
+| Briar | Baseline ✅ (2026-02-16) | `ConnectorContact.presence` is carried through Briar adapters; default remains `UNKNOWN` when runtime status is unavailable. | TODO(`ROUTER-BRIAR-PRESENCE-LIVE`): wire continuous Briar runtime presence updates for contact cards/chat headers. |
+
 ## Router & Identity Registry Requirements
 - Canonical identifiers pulled from Firestore must map to `IdentityRegistry` entries with `aliases[TransportId.FIRESTORE] = documentId`.
-- `IdentityProfile` currently derives `bio` and `profilePicturePath` from Firestore. Presence defaults to `PresenceStatus.UNKNOWN` until a Briar-backed presence feed is available.
+- `IdentityProfile` currently derives `bio` and `profilePicturePath` from Firestore. Presence comes from connector payloads; Firestore still uses `UNKNOWN` as the fallback when `users.presence` is absent/invalid.
 - Any future presence integration should either:
   1. Add a Firestore-compatible field and update both `FirestorePeopleSync` and `IdentityRegistryStore`, or
   2. Route presence exclusively through Briar connectors and strip Firestore presence writes to avoid conflicts.

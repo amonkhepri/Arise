@@ -267,6 +267,17 @@ class FirestoreConnectorTest {
         assertEquals(PresenceStatus.UNKNOWN, contacts.getValue("uid-invalid").presence)
     }
 
+    @Test
+    fun `contacts capability advertises firestore presence fallback metadata`() = runTest {
+        val fixture = ConnectorFixture(dispatcherRule.testDispatcher)
+
+        val contactsCapability = fixture.connector.capabilities.value.entries.getValue("contacts")
+
+        assertEquals(PresenceStatus.UNKNOWN.name, contactsCapability.properties["presence"])
+        assertEquals("users.presence", contactsCapability.properties["presenceField"])
+        assertEquals(PresenceStatus.UNKNOWN.name, contactsCapability.properties["presenceFallback"])
+    }
+
     private class ConnectorFixture(dispatcher: TestDispatcher) {
         val authService = FakeAuthenticationService(
             AuthenticationService.User(
