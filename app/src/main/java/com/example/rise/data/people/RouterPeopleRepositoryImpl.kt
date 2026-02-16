@@ -357,7 +357,9 @@ class BriarPeopleSync(
     }
 
     private fun handleListenerError(error: Throwable) {
-        _errors.tryEmit(error)
+        if (shouldSurfaceError(error)) {
+            _errors.tryEmit(error)
+        }
         rosterJob?.cancel()
         rosterJob = null
         scheduleRetry()
@@ -388,6 +390,11 @@ class BriarPeopleSync(
         val centeredRandom = (randomUnit * 2.0) - 1.0
         val jitterFactor = 1.0 + (centeredRandom * retryJitterRatio)
         return (baseDelayMillis * jitterFactor).toLong().coerceAtLeast(1L)
+    }
+
+    private fun shouldSurfaceError(error: Throwable): Boolean {
+        if (error !is IllegalStateException) return true
+        return error.message?.contains("not ready", ignoreCase = true) != true
     }
 }
 
