@@ -20,6 +20,7 @@
 - ✅ 2026-02-16: `BriarPeopleSync` now keeps transient “runtime not ready” failures on the retry path (no UI error emission) while continuing listener re-registration.
 - ✅ 2026-02-16: `BriarPeopleSync` now keeps transient connectivity-state failures (for example “connection lost”) on the retry path (no UI error emission), with unit coverage confirming listener re-registration still occurs.
 - ✅ 2026-02-16: `BriarPeopleSync` now inspects nested causes when classifying transient listener failures, so wrapped “runtime not ready” / connectivity failures stay on the retry path (no UI error emission) while listener re-registration continues.
+- ✅ 2026-02-16: `BriarPeopleSync` now also classifies timeout listener failures (for example “timed out” / “timeout”) as transient connectivity issues so retries continue without surfacing UI-facing sync errors.
 
 ## Stage 3 Router Work
 

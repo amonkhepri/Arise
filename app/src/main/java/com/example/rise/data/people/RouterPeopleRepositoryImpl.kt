@@ -405,7 +405,9 @@ class BriarPeopleSync(
             .any { cause ->
                 val message = cause.message.orEmpty()
                 message.contains("not ready", ignoreCase = true) ||
-                    message.contains("connection", ignoreCase = true)
+                    message.contains("connection", ignoreCase = true) ||
+                    message.contains("timeout", ignoreCase = true) ||
+                    message.contains("timed out", ignoreCase = true)
             }
         return !isTransientBriarState
     }
