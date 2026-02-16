@@ -17,6 +17,7 @@ class MyAccountViewModel(
     data class UiState(
         val name: String = "",
         val bio: String = "",
+        val profilePicturePath: String? = null,
         val isLoading: Boolean = false,
         val isSaving: Boolean = false,
         val errorMessage: String? = null,
@@ -42,6 +43,7 @@ class MyAccountViewModel(
                     it.copy(
                         name = user.name,
                         bio = user.bio,
+                        profilePicturePath = user.profilePicturePath,
                         isLoading = false,
                         errorMessage = null,
                     )
@@ -53,15 +55,16 @@ class MyAccountViewModel(
         }
     }
 
-    fun updateProfile(name: String, bio: String) {
+    fun updateProfile(name: String, bio: String, profilePicturePath: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
-                repository.updateCurrentUser(name, bio)
+                repository.updateCurrentUser(name, bio, profilePicturePath)
                 _uiState.update {
                     it.copy(
                         name = name,
                         bio = bio,
+                        profilePicturePath = profilePicturePath ?: it.profilePicturePath,
                         isSaving = false,
                         errorMessage = null,
                     )

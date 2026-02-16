@@ -26,6 +26,7 @@
 - Update `MyAccountViewModel` + tests to rely on the façade; document the change in release notes and delete any direct Firestore SDK calls from the account feature.
 - ✅ 2025-11-08: `RouterMyAccountRepository` now calls through the connector registry, and `FirestoreConnector` implements `AccountConnector` so profile fetch/update logic stays transport-scoped.
 - ✅ 2026-02-16: `MyAccountRepository.updateCurrentUser()` now accepts optional `profilePicturePath` updates, and `RouterMyAccountRepository` forwards that field through `AccountConnector.AccountProfileUpdate` (plus Briar-only registry writes) with regression coverage.
+- ✅ 2026-02-16: `MyAccountViewModel` now carries `profilePicturePath` in `UiState` and forwards optional profile picture updates through `MyAccountRepository.updateCurrentUser()`, with unit coverage for load + update behavior.
 
 ### Presence + Identity Registry
 - Extend connector contact payloads to carry presence (defaulting to `PresenceStatus.UNKNOWN`). Firestore schema updates should note the temporary fallback and add TODOs pointing to router tickets.
