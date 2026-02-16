@@ -398,7 +398,10 @@ class BriarPeopleSync(
 
     private fun shouldSurfaceError(error: Throwable): Boolean {
         if (error !is IllegalStateException) return true
-        return error.message?.contains("not ready", ignoreCase = true) != true
+        val message = error.message.orEmpty()
+        val isTransientBriarState = message.contains("not ready", ignoreCase = true) ||
+            message.contains("connection", ignoreCase = true)
+        return !isTransientBriarState
     }
 }
 
