@@ -45,7 +45,11 @@ class RouterMyAccountRepository(
         accountConnector().fetchAccountProfile()
     }
 
-    override suspend fun updateCurrentUser(name: String, bio: String) {
+    override suspend fun updateCurrentUser(
+        name: String,
+        bio: String,
+        profilePicturePath: String?,
+    ) {
         withContext(ioDispatcher) {
             if (transportBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY) {
                 val identity = transportRouter.ensureCurrentIdentity()
@@ -61,7 +65,8 @@ class RouterMyAccountRepository(
                 } else identity
                 val updatedProfile = existingProfile.copy(
                     bio = bio.takeIf { it.isNotBlank() } ?: existingProfile.bio,
-                    profilePicturePath = existingProfile.profilePicturePath,
+                    profilePicturePath = profilePicturePath?.takeIf { it.isNotBlank() }
+                        ?: existingProfile.profilePicturePath,
                     presence = existingProfile.presence,
                 )
                 identityRegistry.upsertIdentity(
@@ -75,6 +80,7 @@ class RouterMyAccountRepository(
             val update = AccountConnector.AccountProfileUpdate(
                 name = name.takeIf { it.isNotBlank() },
                 bio = bio.takeIf { it.isNotBlank() },
+                profilePicturePath = profilePicturePath?.takeIf { it.isNotBlank() },
             )
             if (update.isEmpty()) return@withContext
             accountConnector().updateAccountProfile(update)

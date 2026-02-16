@@ -104,6 +104,24 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `updateCurrentUser forwards profile picture path`() = runTest {
+        val (repository, connector) = repository()
+
+        repository.updateCurrentUser(
+            name = "",
+            bio = "",
+            profilePicturePath = "/tmp/profile.png",
+        )
+
+        assertEquals(1, connector.updates.size)
+        val captured = connector.updates.single()
+        assertEquals(null, captured.name)
+        assertEquals(null, captured.bio)
+        assertEquals("/tmp/profile.png", captured.profilePicturePath)
+        assertEquals("/tmp/profile.png", connector.profile.profilePicturePath)
+    }
+
+    @Test
     fun `signOut stops sync resets router and signs out`() = runTest {
         val peopleSync = RecordingPeopleSync()
         val router = RecordingTransportRouter()

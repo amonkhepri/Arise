@@ -14,7 +14,11 @@ interface MyAccountRepository {
     /**
      * Updates the current user's profile.
      */
-    suspend fun updateCurrentUser(name: String, bio: String)
+    suspend fun updateCurrentUser(
+        name: String,
+        bio: String,
+        profilePicturePath: String? = null,
+    )
 
     /**
      * Signs out the current user.

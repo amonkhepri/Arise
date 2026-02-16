@@ -79,7 +79,11 @@ class MyAccountViewModelTest {
 
         override suspend fun fetchCurrentUser(): User = user
 
-        override suspend fun updateCurrentUser(name: String, bio: String) {
+        override suspend fun updateCurrentUser(
+            name: String,
+            bio: String,
+            profilePicturePath: String?,
+        ) {
             updateCalls += name to bio
             user = user.copy(name = name, bio = bio)
         }
