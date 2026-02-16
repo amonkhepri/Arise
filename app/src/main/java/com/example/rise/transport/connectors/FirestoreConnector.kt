@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 class FirestoreConnector(
@@ -226,7 +227,7 @@ class FirestoreConnector(
                         canonicalId = snapshot.id,
                         bio = snapshot.user.bio,
                         profilePicturePath = snapshot.user.profilePicturePath,
-                        presence = PresenceStatus.UNKNOWN,
+                        presence = snapshot.user.presence.toPresenceStatus(),
                         registrationTokens = snapshot.user.registrationTokens.toList(),
                     )
                 }
@@ -298,6 +299,15 @@ class FirestoreConnector(
             recipientId = recipientId,
             senderName = senderName,
         )
+
+    private fun String?.toPresenceStatus(): PresenceStatus {
+        val raw = this?.trim().orEmpty()
+        if (raw.isEmpty()) {
+            return PresenceStatus.UNKNOWN
+        }
+        return runCatching { PresenceStatus.valueOf(raw.uppercase(Locale.US)) }
+            .getOrDefault(PresenceStatus.UNKNOWN)
+    }
 
     private fun clearUserCaches(previousUserId: String?) {
         channelCache.clear()

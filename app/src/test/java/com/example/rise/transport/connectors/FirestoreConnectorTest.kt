@@ -236,6 +236,37 @@ class FirestoreConnectorTest {
         assertEquals(listOf("token-a"), aliceContact.registrationTokens)
     }
 
+    @Test
+    fun `observeContacts maps firestore presence with unknown fallback`() = runTest {
+        val fixture = ConnectorFixture(dispatcherRule.testDispatcher)
+        val connector = fixture.connector
+
+        val online = User(
+            name = "Online",
+            bio = "",
+            profilePicturePath = null,
+            registrationTokens = mutableListOf(),
+            presence = PresenceStatus.ONLINE.name,
+        )
+        val invalid = User(
+            name = "Invalid",
+            bio = "",
+            profilePicturePath = null,
+            registrationTokens = mutableListOf(),
+            presence = "MAYBE",
+        )
+
+        fixture.userRemoteDataSource.emit(
+            "uid-online" to online,
+            "uid-invalid" to invalid,
+        )
+
+        val contacts = connector.observeContacts().first().associateBy { it.canonicalId }
+
+        assertEquals(PresenceStatus.ONLINE, contacts.getValue("uid-online").presence)
+        assertEquals(PresenceStatus.UNKNOWN, contacts.getValue("uid-invalid").presence)
+    }
+
     private class ConnectorFixture(dispatcher: TestDispatcher) {
         val authService = FakeAuthenticationService(
             AuthenticationService.User(

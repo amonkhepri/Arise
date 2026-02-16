@@ -37,6 +37,7 @@
 - Track these steps in `docs/people_presence_firestore_inventory.md` with a status + date so QA knows which transports honor presence.
 - ✅ 2025-11-08: `FirestorePeopleSync` now propagates `ConnectorContact.presence` into `IdentityRegistry`, and regression tests cover both snapshot processing and repository observers. Firestore still emits `UNKNOWN` until the schema adds a presence field.
 - ✅ 2025-11-08: People cards and chat headers now surface the connector-provided presence so QA can see the signal end to end.
+- ✅ 2026-02-16: `FirestoreConnector.observeContacts()` now reads optional `users.presence` values and maps valid statuses (`ONLINE`/`OFFLINE`/`UNKNOWN`) into `ConnectorContact.presence`, with invalid or missing values safely defaulting to `UNKNOWN`.
 - ✅ 2025-11-08: `docs/connector_lifecycle.md` defines the connector lifecycle, capability contract, and telemetry events that Stage 3 must honor before Briar goes live.
 
 ### HYBRID flag verification
