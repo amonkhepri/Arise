@@ -8,7 +8,7 @@
 - **Risk Mitigated:** prevents a thundering herd when many devices reconnect after outages.
 - **Approach:** add a small random +/-10% jitter to each scheduled retry delay before invoking `delayProvider`.
 - **Validation:** unit test should verify jitter bounds and ensure listener still re-registers.
-- **Status:** not yet implemented; revisit before external user rollout.
+- ✅ 2026-02-16: `FirestorePeopleSync` now applies configurable +/-10% retry jitter before each delay, and unit coverage verifies jitter bounds while confirming listener re-registration still occurs after errors.
 
 ## Follow-up: Error Surfacing Without Flow Cancellation
 - `PeopleRepository` now exposes an `errors` flow so UIs (e.g., `PeopleViewModel`) can surface sync failures while staying subscribed to roster updates.

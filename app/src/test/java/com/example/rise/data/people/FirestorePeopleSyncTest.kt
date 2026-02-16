@@ -223,6 +223,8 @@ class FirestorePeopleSyncTest {
       initialRetryDelayMillis = 1_000,
       maxRetryDelayMillis = 4_000,
       backoffMultiplier = 2.0,
+      retryJitterRatio = 0.0,
+      retryRandomProvider = { 0.5 },
       delayProvider = { delayMillis ->
         delays += delayMillis
         testScheduler.advanceTimeBy(delayMillis)
@@ -278,6 +280,8 @@ class FirestorePeopleSyncTest {
       initialRetryDelayMillis = 1_000,
       maxRetryDelayMillis = 4_000,
       backoffMultiplier = 2.0,
+      retryJitterRatio = 0.0,
+      retryRandomProvider = { 0.5 },
       delayProvider = { delayMillis ->
         delays += delayMillis
         testScheduler.advanceTimeBy(delayMillis)
@@ -348,6 +352,69 @@ class FirestorePeopleSyncTest {
     advanceUntilIdle()
 
     assertEquals("Expected listener to re-register after error even after restart", 3, connector.observeContactsCalls)
+  }
+
+  @Test
+  fun `listener retry applies jitter within bounds and still re-registers`() = runTest {
+    val connector = FakeFirestoreConnector()
+    val delays = mutableListOf<Long>()
+    val randomValues = ArrayDeque(listOf(0.0, 1.0, 0.5))
+    val transportBridge = object : TransportRuntimeBridge {
+      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
+      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
+      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
+      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+      override val briarContactService = MutableStateFlow(stubBriarContactService())
+      override fun requireFirestore(caller: String) = Unit
+    }
+    val job = SupervisorJob()
+    val dispatcher = StandardTestDispatcher(testScheduler)
+    val scope = CoroutineScope(job + dispatcher)
+    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+    val error = FirebaseFirestoreException(
+      "Permission denied",
+      FirebaseFirestoreException.Code.PERMISSION_DENIED,
+    )
+    val expectedBaseDelays = listOf(1_000L, 2_000L, 4_000L)
+
+    val sync = FirestorePeopleSync(
+      firebaseAuth = null,
+      transportConnector = connector,
+      identityRegistry = identityRegistry,
+      transportBridge = transportBridge,
+      syncSupervisorJob = job,
+      scope = scope,
+      currentUserIdProvider = { null },
+      initialRetryDelayMillis = 1_000,
+      maxRetryDelayMillis = 4_000,
+      backoffMultiplier = 2.0,
+      retryJitterRatio = 0.1,
+      retryRandomProvider = { randomValues.removeFirst() },
+      delayProvider = { delayMillis ->
+        delays += delayMillis
+        testScheduler.advanceTimeBy(delayMillis)
+      },
+    )
+
+    sync.ensureStarted()
+    advanceUntilIdle()
+    assertEquals(1, connector.observeContactsCalls)
+
+    repeat(expectedBaseDelays.size) { index ->
+      connector.emitError(error)
+      advanceUntilIdle()
+      val baseDelay = expectedBaseDelays[index]
+      val minDelay = (baseDelay * 0.9).toLong()
+      val maxDelay = (baseDelay * 1.1).toLong()
+      val actualDelay = delays[index]
+      assertTrue(
+        "Expected jittered delay in [$minDelay, $maxDelay] but was $actualDelay",
+        actualDelay in minDelay..maxDelay,
+      )
+      assertEquals(index + 2, connector.observeContactsCalls)
+    }
+
+    assertEquals(listOf(900L, 2_200L, 4_000L), delays)
   }
 
   @Test
