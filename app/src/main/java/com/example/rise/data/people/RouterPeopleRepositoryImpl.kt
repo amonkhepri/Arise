@@ -407,6 +407,12 @@ class CompositePeopleSync(
     private val transportMode: StateFlow<BriarTransportMode>,
     private val briarDelegateIndex: Int,
 ) : PeopleSync {
+    init {
+        require(briarDelegateIndex in delegates.indices) {
+            "briarDelegateIndex must point to an existing delegate"
+        }
+    }
+
     override val syncPeopleErrors: Flow<Throwable> = kotlinx.coroutines.flow.merge(
         *delegates.map { it.syncPeopleErrors }.toTypedArray()
     )
