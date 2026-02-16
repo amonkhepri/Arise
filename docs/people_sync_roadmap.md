@@ -2,13 +2,14 @@
 
 ## Context
 - Current Firestore roster listener now propagates failures and retries with exponential backoff.
-- All clients share identical retry timing; with no live users this is acceptable short term.
+- Firestore and Briar roster listeners now apply jittered retry timing to reduce reconnect bursts.
 
 ## Backlog Item: Add Retry Jitter
 - **Risk Mitigated:** prevents a thundering herd when many devices reconnect after outages.
 - **Approach:** add a small random +/-10% jitter to each scheduled retry delay before invoking `delayProvider`.
 - **Validation:** unit test should verify jitter bounds and ensure listener still re-registers.
 - ✅ 2026-02-16: `FirestorePeopleSync` now applies configurable +/-10% retry jitter before each delay, and unit coverage verifies jitter bounds while confirming listener re-registration still occurs after errors.
+- ✅ 2026-02-16: `BriarPeopleSync` now applies the same configurable +/-10% retry jitter, with unit coverage verifying jitter bounds and listener re-registration on retry.
 
 ## Follow-up: Error Surfacing Without Flow Cancellation
 - `PeopleRepository` now exposes an `errors` flow so UIs (e.g., `PeopleViewModel`) can surface sync failures while staying subscribed to roster updates.

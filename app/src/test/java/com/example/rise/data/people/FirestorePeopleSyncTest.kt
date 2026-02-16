@@ -187,7 +187,7 @@ class FirestorePeopleSyncTest {
     }
   }
 
-    private class FakeFirestoreConnector : TransportConnector {
+  private class FakeFirestoreConnector : TransportConnector {
     private val contacts = MutableSharedFlow<List<ConnectorContact>>(extraBufferCapacity = Int.MAX_VALUE)
     private val errors = MutableSharedFlow<Throwable>(extraBufferCapacity = Int.MAX_VALUE)
     private val _status = MutableStateFlow(ConnectorStatus.ACTIVE)
@@ -235,6 +235,56 @@ class FirestorePeopleSyncTest {
 
     suspend fun emitContacts(entries: List<ConnectorContact>) {
       contacts.emit(entries)
+    }
+
+    suspend fun emitError(error: Throwable) {
+      errors.emit(error)
+    }
+  }
+
+  private class FakeBriarConnector : TransportConnector {
+    private val contacts = MutableSharedFlow<List<ConnectorContact>>(extraBufferCapacity = Int.MAX_VALUE)
+    private val errors = MutableSharedFlow<Throwable>(extraBufferCapacity = Int.MAX_VALUE)
+    private val _status = MutableStateFlow(ConnectorStatus.ACTIVE)
+    private val _lifecycle = MutableStateFlow(ConnectorLifecycleState.READY)
+
+    override val status = _status
+    override val lifecycle: StateFlow<ConnectorLifecycleState> = _lifecycle
+    override val capabilities: StateFlow<ConnectorCapabilities> = MutableStateFlow(ConnectorCapabilities.EMPTY)
+    override val transport: TransportId = TransportId.BRIAR
+    var observeContactsCalls: Int = 0
+
+    override suspend fun currentIdentity(): CanonicalIdentity =
+      CanonicalIdentity(id = "self", displayName = "Self")
+
+    override suspend fun ensureConversation(conversation: com.example.rise.transport.router.CanonicalConversation): TransportConversationId {
+      throw UnsupportedOperationException("Not needed in test")
+    }
+
+    override fun observeMessages(conversationId: String): Flow<List<com.example.rise.transport.router.ConnectorInboundMessage>> {
+      throw UnsupportedOperationException("Not needed in test")
+    }
+
+    override fun observeContacts(): Flow<List<ConnectorContact>> = callbackFlow {
+      observeContactsCalls += 1
+      val contactsJob = launch {
+        contacts.collect { entries ->
+          trySend(entries).isSuccess
+        }
+      }
+      val errorsJob = launch {
+        errors.collect { error ->
+          close(error)
+        }
+      }
+      awaitClose {
+        contactsJob.cancel()
+        errorsJob.cancel()
+      }
+    }
+
+    override suspend fun sendMessage(message: com.example.rise.transport.router.ConnectorOutboundMessage) {
+      throw UnsupportedOperationException("Not needed in test")
     }
 
     suspend fun emitError(error: Throwable) {
@@ -453,6 +503,63 @@ class FirestorePeopleSyncTest {
 
     repeat(expectedBaseDelays.size) { index ->
       connector.emitError(error)
+      advanceUntilIdle()
+      val baseDelay = expectedBaseDelays[index]
+      val minDelay = (baseDelay * 0.9).toLong()
+      val maxDelay = (baseDelay * 1.1).toLong()
+      val actualDelay = delays[index]
+      assertTrue(
+        "Expected jittered delay in [$minDelay, $maxDelay] but was $actualDelay",
+        actualDelay in minDelay..maxDelay,
+      )
+      assertEquals(index + 2, connector.observeContactsCalls)
+    }
+
+    assertEquals(listOf(900L, 2_200L, 4_000L), delays)
+  }
+
+  @Test
+  fun `briar listener retry applies jitter within bounds and still re-registers`() = runTest {
+    val connector = FakeBriarConnector()
+    val delays = mutableListOf<Long>()
+    val randomValues = ArrayDeque(listOf(0.0, 1.0, 0.5))
+    val transportBridge = object : TransportRuntimeBridge {
+      override val currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
+      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
+      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
+      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+      override val briarContactService = MutableStateFlow(stubBriarContactService())
+      override fun requireFirestore(caller: String) = Unit
+    }
+    val job = SupervisorJob()
+    val dispatcher = StandardTestDispatcher(testScheduler)
+    val scope = CoroutineScope(job + dispatcher)
+    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+    val expectedBaseDelays = listOf(1_000L, 2_000L, 4_000L)
+
+    val sync = BriarPeopleSync(
+      transportConnector = connector,
+      identityRegistry = identityRegistry,
+      transportBridge = transportBridge,
+      syncSupervisorJob = job,
+      scope = scope,
+      initialRetryDelayMillis = 1_000,
+      maxRetryDelayMillis = 4_000,
+      backoffMultiplier = 2.0,
+      retryJitterRatio = 0.1,
+      retryRandomProvider = { randomValues.removeFirst() },
+      delayProvider = { delayMillis ->
+        delays += delayMillis
+        testScheduler.advanceTimeBy(delayMillis)
+      },
+    )
+
+    sync.ensureStarted()
+    advanceUntilIdle()
+    assertEquals(1, connector.observeContactsCalls)
+
+    repeat(expectedBaseDelays.size) { index ->
+      connector.emitError(IllegalStateException("retry me"))
       advanceUntilIdle()
       val baseDelay = expectedBaseDelays[index]
       val minDelay = (baseDelay * 0.9).toLong()

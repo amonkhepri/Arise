@@ -286,6 +286,8 @@ class BriarPeopleSync(
     private val initialRetryDelayMillis: Long = 250,
     private val maxRetryDelayMillis: Long = 30_000,
     private val backoffMultiplier: Double = 2.0,
+    private val retryJitterRatio: Double = 0.1,
+    private val retryRandomProvider: () -> Double = { Random.nextDouble() },
     private val delayProvider: suspend (Long) -> Unit = { delay(it) },
 ) : PeopleSync {
 
@@ -300,6 +302,9 @@ class BriarPeopleSync(
     init {
         require(transportConnector.transport == TransportId.BRIAR) {
             "BriarPeopleSync requires a Briar transport connector"
+        }
+        require(retryJitterRatio in 0.0..1.0) {
+            "retryJitterRatio must be between 0.0 and 1.0"
         }
     }
 
@@ -361,7 +366,7 @@ class BriarPeopleSync(
     private fun scheduleRetry() {
         if (!syncActive.get()) return
         restartJob?.cancel()
-        val delayMillis = retryDelayMillis
+        val delayMillis = jitterDelay(retryDelayMillis)
         restartJob = scope.launch {
             delayProvider(delayMillis)
             if (!syncActive.get()) return@launch
@@ -375,6 +380,14 @@ class BriarPeopleSync(
         retryDelayMillis = initialRetryDelayMillis
         restartJob?.cancel()
         restartJob = null
+    }
+
+    private fun jitterDelay(baseDelayMillis: Long): Long {
+        if (retryJitterRatio == 0.0 || baseDelayMillis <= 0L) return baseDelayMillis
+        val randomUnit = retryRandomProvider().coerceIn(0.0, 1.0)
+        val centeredRandom = (randomUnit * 2.0) - 1.0
+        val jitterFactor = 1.0 + (centeredRandom * retryJitterRatio)
+        return (baseDelayMillis * jitterFactor).toLong().coerceAtLeast(1L)
     }
 }
 
