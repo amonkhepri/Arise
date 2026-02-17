@@ -282,6 +282,7 @@ class FirestorePeopleSync(
                 (cause is SocketException &&
                     (
                         cause.message.orEmpty().contains("unreachable", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("host is down", ignoreCase = true) ||
                             cause.message.orEmpty().contains("no route to host", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection refused", ignoreCase = true) ||
@@ -430,6 +431,7 @@ class BriarPeopleSync(
                     message.contains("connection refused", ignoreCase = true) ||
                     message.contains("software caused connection abort", ignoreCase = true) ||
                     message.contains("unreachable", ignoreCase = true) ||
+                    message.contains("host is down", ignoreCase = true) ||
                     message.contains("no route to host", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
                     message.contains("broken pipe", ignoreCase = true) ||
