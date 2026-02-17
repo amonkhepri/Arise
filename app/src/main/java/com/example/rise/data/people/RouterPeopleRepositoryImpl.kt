@@ -400,7 +400,6 @@ class BriarPeopleSync(
 
     private fun shouldSurfaceError(error: Throwable): Boolean {
         val isTransientBriarState = generateSequence(error as Throwable?) { it.cause }
-            .filterIsInstance<IllegalStateException>()
             .any { cause ->
                 val message = cause.message.orEmpty()
                 message.contains("not ready", ignoreCase = true) ||
