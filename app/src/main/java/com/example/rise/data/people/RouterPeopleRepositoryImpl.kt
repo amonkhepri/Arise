@@ -455,6 +455,7 @@ class BriarPeopleSync(
                     message.contains("name or service not known", ignoreCase = true) ||
                     message.contains("unable to resolve host", ignoreCase = true) ||
                     message.contains("no address associated with hostname", ignoreCase = true) ||
+                    message.contains("no such host", ignoreCase = true) ||
                     message.contains("no such host is known", ignoreCase = true) ||
                     message.contains("nodename nor servname provided", ignoreCase = true) ||
                     message.contains("failed to connect", ignoreCase = true) ||
