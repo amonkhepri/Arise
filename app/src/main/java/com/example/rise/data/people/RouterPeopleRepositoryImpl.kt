@@ -291,6 +291,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("name or service not known", ignoreCase = true) ||
                             cause.message.orEmpty().contains("no such host is known", ignoreCase = true) ||
                             cause.message.orEmpty().contains("nodename nor servname provided", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("failed to connect", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection refused", ignoreCase = true) ||
@@ -449,6 +450,7 @@ class BriarPeopleSync(
                     message.contains("name or service not known", ignoreCase = true) ||
                     message.contains("no such host is known", ignoreCase = true) ||
                     message.contains("nodename nor servname provided", ignoreCase = true) ||
+                    message.contains("failed to connect", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
                     message.contains("broken pipe", ignoreCase = true) ||
                     message.contains("timeout", ignoreCase = true) ||
