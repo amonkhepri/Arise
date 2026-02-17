@@ -293,6 +293,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("no such host is known", ignoreCase = true) ||
                             cause.message.orEmpty().contains("nodename nor servname provided", ignoreCase = true) ||
                             cause.message.orEmpty().contains("failed to connect", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("connection lost", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("socket closed", ignoreCase = true) ||
