@@ -285,6 +285,7 @@ class FirestorePeopleSync(
                     (
                         cause.message.orEmpty().contains("unreachable", ignoreCase = true) ||
                             cause.message.orEmpty().contains("enetunreach", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("ehostunreach", ignoreCase = true) ||
                             cause.message.orEmpty().contains("enetdown", ignoreCase = true) ||
                             cause.message.orEmpty().contains("etimedout", ignoreCase = true) ||
                             cause.message.orEmpty().contains("network is down", ignoreCase = true) ||
@@ -456,6 +457,7 @@ class BriarPeopleSync(
                     message.contains("connection abort", ignoreCase = true) ||
                     message.contains("unreachable", ignoreCase = true) ||
                     message.contains("enetunreach", ignoreCase = true) ||
+                    message.contains("ehostunreach", ignoreCase = true) ||
                     message.contains("enetdown", ignoreCase = true) ||
                     message.contains("network is down", ignoreCase = true) ||
                     message.contains("host is down", ignoreCase = true) ||
