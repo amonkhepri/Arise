@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 
@@ -263,15 +264,26 @@ class FirestorePeopleSync(
     }
 
     private fun shouldSurfaceError(error: Throwable): Boolean {
-        val firestoreCodes = generateSequence(error as Throwable?) { it.cause }
+        val causes = generateSequence(error as Throwable?) { it.cause }.toList()
+        val firestoreCodes = causes
             .filterIsInstance<FirebaseFirestoreException>()
             .map { it.code }
             .toList()
-        if (firestoreCodes.isEmpty()) return true
-        return firestoreCodes.any { code ->
+        val hasAuthError = firestoreCodes.any { code ->
             code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
                 code == FirebaseFirestoreException.Code.UNAUTHENTICATED
         }
+        if (hasAuthError) return true
+        if (firestoreCodes.isNotEmpty()) return false
+
+        val hasTransientTimeout = causes.any { cause ->
+            cause is SocketTimeoutException ||
+                cause.message.orEmpty().contains("timed out", ignoreCase = true) ||
+                cause.message.orEmpty().contains("timeout", ignoreCase = true)
+        }
+        if (hasTransientTimeout) return false
+
+        return true
     }
 }
 
