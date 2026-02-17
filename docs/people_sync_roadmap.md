@@ -34,6 +34,7 @@
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested “network unreachable” listener failures as transient connectivity issues, so wrapped `SocketException("Network is unreachable")` stays on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested “broken pipe” listener failures as transient connectivity issues, so wrapped `SocketException("Broken pipe")` stays on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested `SocketException("No route to host")` listener failures as transient connectivity issues, so wrapped no-route transport errors stay on the retry path (no UI error emission) while listener re-registration continues.
+- ✅ 2026-02-17: `BriarPeopleSync` now treats only explicit transport-connection failures (for example lost/reset/refused/abort) as transient, so non-transient connection-worded failures such as “Connection permission denied” surface to UI while retry re-registration still continues.
 - ✅ 2026-02-17: `DefaultBriarContactAdapter.observeContacts()` now reacts to `BriarContactService.availability()` changes so contact streaming begins as soon as Briar runtime readiness flips to available, with regression coverage for unavailable-to-ready transitions.
 
 ## Stage 3 Router Work

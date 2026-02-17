@@ -425,7 +425,10 @@ class BriarPeopleSync(
             .any { cause ->
                 val message = cause.message.orEmpty()
                 message.contains("not ready", ignoreCase = true) ||
-                    message.contains("connection", ignoreCase = true) ||
+                    message.contains("connection lost", ignoreCase = true) ||
+                    message.contains("connection reset", ignoreCase = true) ||
+                    message.contains("connection refused", ignoreCase = true) ||
+                    message.contains("software caused connection abort", ignoreCase = true) ||
                     message.contains("unreachable", ignoreCase = true) ||
                     message.contains("no route to host", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
