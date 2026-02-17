@@ -448,6 +448,7 @@ class BriarPeopleSync(
                     message.contains("name resolution", ignoreCase = true) ||
                     message.contains("name or service not known", ignoreCase = true) ||
                     message.contains("no such host is known", ignoreCase = true) ||
+                    message.contains("nodename nor servname provided", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
                     message.contains("broken pipe", ignoreCase = true) ||
                     message.contains("timeout", ignoreCase = true) ||

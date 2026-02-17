@@ -50,6 +50,7 @@
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested DNS resolution transport failures (for example `SocketException("Temporary failure in name resolution")` or `SocketException("Name or service not known")`) as transient connectivity issues, keeping those errors on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies wrapped `UnknownHostException` DNS failures (for example “No address associated with hostname”) as transient connectivity issues, keeping those listener errors on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested Windows-style DNS lookup failures (`SocketException("No such host is known")`) as transient connectivity issues, so wrapped host-lookup transport errors stay on the retry path (no UI error emission) while listener re-registration continues.
+- ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested macOS-style DNS lookup failures (`SocketException("nodename nor servname provided, or not known")`) as transient connectivity issues, so wrapped host-lookup transport errors stay on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `DefaultBriarContactAdapter.observeContacts()` now reacts to `BriarContactService.availability()` changes so contact streaming begins as soon as Briar runtime readiness flips to available, with regression coverage for unavailable-to-ready transitions.
 
 ## Stage 3 Router Work
