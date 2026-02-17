@@ -61,10 +61,15 @@ class MyAccountViewModel(
             try {
                 repository.updateCurrentUser(name, bio, profilePicturePath)
                 _uiState.update {
+                    val updatedName = name.takeIf { value -> value.isNotBlank() } ?: it.name
+                    val updatedBio = bio.takeIf { value -> value.isNotBlank() } ?: it.bio
+                    val updatedProfilePicturePath =
+                        profilePicturePath?.takeIf { value -> value.isNotBlank() }
+                            ?: it.profilePicturePath
                     it.copy(
-                        name = name,
-                        bio = bio,
-                        profilePicturePath = profilePicturePath ?: it.profilePicturePath,
+                        name = updatedName,
+                        bio = updatedBio,
+                        profilePicturePath = updatedProfilePicturePath,
                         isSaving = false,
                         errorMessage = null,
                     )

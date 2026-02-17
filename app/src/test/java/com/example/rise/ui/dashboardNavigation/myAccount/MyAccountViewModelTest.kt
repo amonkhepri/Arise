@@ -77,6 +77,25 @@ class MyAccountViewModelTest {
     }
 
     @Test
+    fun `updateProfile keeps existing ui fields when blank inputs are submitted`() = runTest {
+        val repository = FakeMyAccountRepository().apply {
+            user = user.copy(profilePicturePath = "content://profile.jpg")
+        }
+        val viewModel = MyAccountViewModel(repository)
+        viewModel.loadProfile()
+        advanceUntilIdle()
+
+        viewModel.updateProfile(name = " ", bio = "", profilePicturePath = null)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("Jane", state.name)
+        assertEquals("Bio", state.bio)
+        assertEquals("content://profile.jpg", state.profilePicturePath)
+        assertEquals(listOf(UpdateCall(" ", "", null)), repository.updateCalls)
+    }
+
+    @Test
     fun `signOut emits navigation event`() = runTest {
         val repository = FakeMyAccountRepository()
         val viewModel = MyAccountViewModel(repository)
