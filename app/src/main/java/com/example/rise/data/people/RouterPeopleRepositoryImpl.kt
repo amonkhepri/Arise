@@ -298,6 +298,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("nodename nor servname provided", ignoreCase = true) ||
                             cause.message.orEmpty().contains("failed to connect", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection lost", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("econnreset", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection terminated", ignoreCase = true) ||
@@ -465,6 +466,7 @@ class BriarPeopleSync(
                     message.contains("nodename nor servname provided", ignoreCase = true) ||
                     message.contains("failed to connect", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
+                    message.contains("econnreset", ignoreCase = true) ||
                     message.contains("broken pipe", ignoreCase = true) ||
                     message.contains("timeout", ignoreCase = true) ||
                     message.contains("timed out", ignoreCase = true)
