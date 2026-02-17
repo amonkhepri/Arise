@@ -404,6 +404,7 @@ class BriarPeopleSync(
                 val message = cause.message.orEmpty()
                 message.contains("not ready", ignoreCase = true) ||
                     message.contains("connection", ignoreCase = true) ||
+                    message.contains("unreachable", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
                     message.contains("timeout", ignoreCase = true) ||
                     message.contains("timed out", ignoreCase = true)
