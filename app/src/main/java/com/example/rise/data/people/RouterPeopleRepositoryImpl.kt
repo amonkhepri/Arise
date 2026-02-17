@@ -284,6 +284,7 @@ class FirestorePeopleSync(
                 (cause is SocketException &&
                     (
                         cause.message.orEmpty().contains("unreachable", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("enetunreach", ignoreCase = true) ||
                             cause.message.orEmpty().contains("network is down", ignoreCase = true) ||
                             cause.message.orEmpty().contains("host is down", ignoreCase = true) ||
                             cause.message.orEmpty().contains("no route to host", ignoreCase = true) ||
