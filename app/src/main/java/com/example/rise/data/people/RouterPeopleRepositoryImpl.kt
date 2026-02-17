@@ -263,15 +263,14 @@ class FirestorePeopleSync(
     }
 
     private fun shouldSurfaceError(error: Throwable): Boolean {
-        val firestoreError = generateSequence(error as Throwable?) { it.cause }
+        val firestoreCodes = generateSequence(error as Throwable?) { it.cause }
             .filterIsInstance<FirebaseFirestoreException>()
-            .firstOrNull()
-            ?: return true
-        return when (firestoreError.code) {
-            FirebaseFirestoreException.Code.PERMISSION_DENIED,
-            FirebaseFirestoreException.Code.UNAUTHENTICATED,
-            -> true
-            else -> false
+            .map { it.code }
+            .toList()
+        if (firestoreCodes.isEmpty()) return true
+        return firestoreCodes.any { code ->
+            code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                code == FirebaseFirestoreException.Code.UNAUTHENTICATED
         }
     }
 }

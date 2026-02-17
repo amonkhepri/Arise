@@ -204,6 +204,67 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped auth listener error surfaces sync error even when transient firestore error appears first`() = runTest {
+    val connector = FakeFirestoreConnector()
+    val transportBridge = object : TransportRuntimeBridge {
+      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
+      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
+      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
+      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+      override val briarContactService = MutableStateFlow(stubBriarContactService())
+      override fun requireFirestore(caller: String) = Unit
+    }
+    val job = SupervisorJob()
+    val dispatcher = StandardTestDispatcher(testScheduler)
+    val scope = CoroutineScope(job + dispatcher)
+    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+    val sync = FirestorePeopleSync(
+      firebaseAuth = null,
+      transportConnector = connector,
+      identityRegistry = identityRegistry,
+      transportBridge = transportBridge,
+      syncSupervisorJob = job,
+      scope = scope,
+      currentUserIdProvider = { null },
+      initialRetryDelayMillis = 1_000,
+      maxRetryDelayMillis = 1_000,
+      backoffMultiplier = 2.0,
+      retryJitterRatio = 0.0,
+      retryRandomProvider = { 0.5 },
+      delayProvider = { },
+    )
+    val surfacedErrors = mutableListOf<Throwable>()
+    val errorsJob = launch {
+      sync.syncPeopleErrors.collect { surfacedErrors += it }
+    }
+
+    sync.ensureStarted()
+    advanceUntilIdle()
+    assertEquals(1, connector.observeContactsCalls)
+
+    val unavailableError = FirebaseFirestoreException(
+      "Service unavailable",
+      FirebaseFirestoreException.Code.UNAVAILABLE,
+    ).apply {
+      initCause(
+        FirebaseFirestoreException(
+          "User unauthenticated",
+          FirebaseFirestoreException.Code.UNAUTHENTICATED,
+        ),
+      )
+    }
+    val wrappedAuth = IllegalStateException("Listener wrapper", unavailableError)
+    connector.emitError(wrappedAuth)
+    advanceUntilIdle()
+
+    assertEquals(1, surfacedErrors.size)
+    assertTrue(surfacedErrors.single() is IllegalStateException)
+    assertEquals("Listener wrapper", surfacedErrors.single().message)
+    assertEquals(2, connector.observeContactsCalls)
+    errorsJob.cancel()
+  }
+
+  @Test
   fun `briar transient listener error retries without surfacing sync error`() = runTest {
     val connector = FakeBriarConnector()
     val transportBridge = object : TransportRuntimeBridge {
