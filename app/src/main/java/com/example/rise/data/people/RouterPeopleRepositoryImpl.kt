@@ -33,6 +33,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 
@@ -279,6 +280,7 @@ class FirestorePeopleSync(
 
         val hasTransientTimeout = causes.any { cause ->
             cause is SocketTimeoutException ||
+                cause is UnknownHostException ||
                 (cause is SocketException &&
                     (
                         cause.message.orEmpty().contains("unreachable", ignoreCase = true) ||
