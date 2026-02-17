@@ -297,6 +297,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("connection lost", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection closed", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("connection terminated", ignoreCase = true) ||
                             cause.message.orEmpty().contains("socket closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection refused", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection abort", ignoreCase = true) ||
