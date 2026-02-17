@@ -118,9 +118,12 @@ class DefaultBridgeOrchestrator(
         val readyConnector = candidateOrder
             .mapNotNull { connectorRegistry.connectorFor(it) }
             .firstOrNull { lifecycleStates[it.transport] == ConnectorLifecycleState.READY }
-        val fallbackConnector = readyConnector
-            ?: candidateOrder.firstNotNullOfOrNull { connectorRegistry.connectorFor(it) }
-            ?: connectorRegistry.connectors.firstOrNull()
+        val fallbackConnector = when {
+            mode == BriarTransportMode.FIRESTORE && preferredConnector != null -> preferredConnector
+            else -> readyConnector
+                ?: candidateOrder.firstNotNullOfOrNull { connectorRegistry.connectorFor(it) }
+                ?: connectorRegistry.connectors.firstOrNull()
+        }
 
         val reason = when {
             preferredConnector == null -> PrimaryRoutingReason.PreferredMissing

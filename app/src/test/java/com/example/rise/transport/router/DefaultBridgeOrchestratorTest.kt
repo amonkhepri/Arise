@@ -114,6 +114,29 @@ class DefaultBridgeOrchestratorTest {
     }
 
     @Test
+    fun `firestore mode keeps firestore primary when firestore is not ready`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val runtimeBridge = FakeRuntimeBridge(BriarTransportMode.FIRESTORE)
+        val firestore = TestConnector(TransportId.FIRESTORE, ConnectorLifecycleState.AUTHENTICATING)
+        val briar = TestConnector(TransportId.BRIAR, ConnectorLifecycleState.READY)
+        val registry = DefaultConnectorRegistry(setOf(firestore, briar))
+        val orchestrator = DefaultBridgeOrchestrator(
+            transportBridge = runtimeBridge,
+            connectorRegistry = registry,
+            telemetrySink = { },
+            dispatcher = dispatcher,
+            externalScope = backgroundScope,
+        )
+
+        advanceUntilIdle()
+
+        val snapshot = orchestrator.routingState.value
+        assertEquals(TransportId.FIRESTORE, snapshot.primary)
+        assertEquals(PrimaryRoutingReason.FlagForcesFirestore, snapshot.reason)
+        assertEquals(null, snapshot.fallbackTarget)
+    }
+
+    @Test
     fun `explicit fallback updates routing snapshot`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val runtimeBridge = FakeRuntimeBridge(BriarTransportMode.HYBRID)
