@@ -280,7 +280,10 @@ class FirestorePeopleSync(
         val hasTransientTimeout = causes.any { cause ->
             cause is SocketTimeoutException ||
                 (cause is SocketException &&
-                    cause.message.orEmpty().contains("unreachable", ignoreCase = true)) ||
+                    (
+                        cause.message.orEmpty().contains("unreachable", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("connection reset", ignoreCase = true)
+                    )) ||
                 cause.message.orEmpty().contains("timed out", ignoreCase = true) ||
                 cause.message.orEmpty().contains("timeout", ignoreCase = true)
         }
