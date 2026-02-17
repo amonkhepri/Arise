@@ -73,7 +73,7 @@ class FirestoreConnector(
                         "presenceFallback" to PresenceStatus.UNKNOWN.name,
                     ),
                 ),
-                "account" to CapabilityDescriptor(1, mapOf("editableFields" to "name,bio")),
+                "account" to CapabilityDescriptor(1, mapOf("editableFields" to "name,bio,profilePicturePath")),
                 "notifications" to CapabilityDescriptor(1, mapOf("push" to "true")),
             )
         )

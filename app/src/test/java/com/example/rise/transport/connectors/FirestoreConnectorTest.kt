@@ -278,6 +278,15 @@ class FirestoreConnectorTest {
         assertEquals(PresenceStatus.UNKNOWN.name, contactsCapability.properties["presenceFallback"])
     }
 
+    @Test
+    fun `account capability advertises profile picture editable field`() = runTest {
+        val fixture = ConnectorFixture(dispatcherRule.testDispatcher)
+
+        val accountCapability = fixture.connector.capabilities.value.entries.getValue("account")
+
+        assertEquals("name,bio,profilePicturePath", accountCapability.properties["editableFields"])
+    }
+
     private class ConnectorFixture(dispatcher: TestDispatcher) {
         val authService = FakeAuthenticationService(
             AuthenticationService.User(
