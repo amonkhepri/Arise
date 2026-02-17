@@ -288,6 +288,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("name resolution", ignoreCase = true) ||
                             cause.message.orEmpty().contains("name or service not known", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("connection closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection refused", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection abort", ignoreCase = true) ||
                             cause.message.orEmpty().contains("broken pipe", ignoreCase = true)
