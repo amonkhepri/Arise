@@ -304,6 +304,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("connection terminated", ignoreCase = true) ||
                             cause.message.orEmpty().contains("socket closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection refused", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("econnrefused", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection abort", ignoreCase = true) ||
                             cause.message.orEmpty().contains("broken pipe", ignoreCase = true)
                     )) ||
@@ -450,6 +451,7 @@ class BriarPeopleSync(
                     message.contains("connection closed", ignoreCase = true) ||
                     message.contains("socket closed", ignoreCase = true) ||
                     message.contains("connection refused", ignoreCase = true) ||
+                    message.contains("econnrefused", ignoreCase = true) ||
                     message.contains("software caused connection abort", ignoreCase = true) ||
                     message.contains("connection abort", ignoreCase = true) ||
                     message.contains("unreachable", ignoreCase = true) ||
