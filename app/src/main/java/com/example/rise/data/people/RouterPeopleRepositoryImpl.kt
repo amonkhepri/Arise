@@ -285,6 +285,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("network is down", ignoreCase = true) ||
                             cause.message.orEmpty().contains("host is down", ignoreCase = true) ||
                             cause.message.orEmpty().contains("no route to host", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("name resolution", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection refused", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection abort", ignoreCase = true) ||
