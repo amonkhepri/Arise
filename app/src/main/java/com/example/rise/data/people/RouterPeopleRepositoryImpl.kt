@@ -438,6 +438,8 @@ class BriarPeopleSync(
                     message.contains("network is down", ignoreCase = true) ||
                     message.contains("host is down", ignoreCase = true) ||
                     message.contains("no route to host", ignoreCase = true) ||
+                    message.contains("name resolution", ignoreCase = true) ||
+                    message.contains("name or service not known", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
                     message.contains("broken pipe", ignoreCase = true) ||
                     message.contains("timeout", ignoreCase = true) ||
