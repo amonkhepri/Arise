@@ -115,6 +115,10 @@ class RouterMyAccountRepository(
         if (connector is AccountConnector) {
             return connector
         }
+        val firestoreConnector = connectorRegistry.connectorFor(TransportId.FIRESTORE)
+        if (firestoreConnector is AccountConnector) {
+            return firestoreConnector
+        }
         val fallback = connectorRegistry.connectors
             .firstOrNull { it is AccountConnector }
             ?.let { it as AccountConnector }

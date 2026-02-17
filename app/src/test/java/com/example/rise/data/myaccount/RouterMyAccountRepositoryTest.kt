@@ -207,6 +207,39 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `hybrid mode prefers firestore account connector when primary lacks account capability`() = runTest {
+        val briarAccountConnector = FakeAccountConnector(transport = TransportId.BRIAR).apply {
+            profile = profile.copy(name = "Briar Account Connector")
+        }
+        val firestoreAccountConnector = FakeAccountConnector(transport = TransportId.FIRESTORE).apply {
+            profile = profile.copy(name = "Firestore Account Connector")
+        }
+        val primaryConnector = NonAccountConnector(TransportId.BRIAR)
+        val registry = OrderedFallbackConnectorRegistry(
+            primary = primaryConnector,
+            firstFallback = briarAccountConnector,
+            secondFallback = firestoreAccountConnector,
+        )
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.HYBRID)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val result = repository.fetchCurrentUser()
+
+        assertEquals(firestoreAccountConnector.profile, result)
+    }
+
+    @Test
     fun `briar only mode returns identity registry profile`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Briar User")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
@@ -248,8 +281,9 @@ class RouterMyAccountRepositoryTest {
         override fun mirrorsFor(mode: BriarTransportMode): List<TransportConnector> = emptyList()
     }
 
-    private class FakeAccountConnector : TransportConnector, AccountConnector {
-        override val transport: TransportId = TransportId.FIRESTORE
+    private class FakeAccountConnector(
+        override val transport: TransportId = TransportId.FIRESTORE,
+    ) : TransportConnector, AccountConnector {
         override val status: StateFlow<ConnectorStatus> = MutableStateFlow(ConnectorStatus.ACTIVE)
         override val lifecycle: StateFlow<ConnectorLifecycleState> = MutableStateFlow(ConnectorLifecycleState.READY)
         override val capabilities: StateFlow<ConnectorCapabilities> = MutableStateFlow(ConnectorCapabilities.EMPTY)
@@ -390,6 +424,29 @@ class RouterMyAccountRepositoryTest {
                 primary
             } else {
                 fallback
+            }
+        }
+
+        override fun mirrorsFor(mode: BriarTransportMode): List<TransportConnector> = emptyList()
+    }
+
+    private class OrderedFallbackConnectorRegistry(
+        private val primary: TransportConnector,
+        private val firstFallback: TransportConnector,
+        private val secondFallback: TransportConnector,
+    ) : ConnectorRegistry {
+        private val ordered = listOf(primary, firstFallback, secondFallback)
+        override val connectors: Set<TransportConnector> = linkedSetOf(primary, firstFallback, secondFallback)
+
+        override fun connectorFor(transportId: TransportId): TransportConnector? {
+            return ordered.firstOrNull { it.transport == transportId }
+        }
+
+        override fun primaryFor(mode: BriarTransportMode): TransportConnector {
+            return if (mode == BriarTransportMode.HYBRID || mode == BriarTransportMode.BRIAR_ONLY) {
+                primary
+            } else {
+                secondFallback
             }
         }
 

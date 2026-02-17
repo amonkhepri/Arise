@@ -39,6 +39,7 @@
 - ✅ 2026-02-16: `MyAccountViewModel` now carries `profilePicturePath` in `UiState` and forwards optional profile picture updates through `MyAccountRepository.updateCurrentUser()`, with unit coverage for load + update behavior.
 - ✅ 2026-02-17: `FirestoreConnector` account capability metadata now advertises `editableFields=name,bio,profilePicturePath`, keeping HYBRID account façade capability signals aligned with supported profile writes.
 - ✅ 2026-02-17: `MyAccountViewModel.updateProfile()` now preserves existing UI name/bio/profile picture values when blank inputs represent no-op saves, matching `RouterMyAccountRepository` blank-field update semantics with regression coverage.
+- ✅ 2026-02-17: `RouterMyAccountRepository` now explicitly prefers the Firestore `AccountConnector` fallback when HYBRID’s primary connector lacks account support, keeping account façade profile reads deterministic while preserving regression coverage.
 
 ### Presence + Identity Registry
 - Extend connector contact payloads to carry presence (defaulting to `PresenceStatus.UNKNOWN`). Firestore schema updates should note the temporary fallback and add TODOs pointing to router tickets.
