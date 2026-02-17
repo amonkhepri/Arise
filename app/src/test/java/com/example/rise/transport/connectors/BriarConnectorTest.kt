@@ -16,6 +16,7 @@ import com.example.rise.transport.router.ConnectorInboundMessage
 import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.ConnectorTelemetryEvent
+import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportConversationId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -126,6 +127,24 @@ class BriarConnectorTest {
         advanceUntilIdle()
         assertEquals(ConnectorLifecycleState.DEGRADED, connector.lifecycle.value)
         assertEquals("false", connector.capabilities.value.entries["contacts"]?.properties?.get("enabled"))
+    }
+
+    @Test
+    fun `contacts capability advertises briar presence fallback metadata`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val bridge = FakeTransportRuntimeBridge(BriarTransportMode.HYBRID)
+        val connector = BriarConnector(
+            transportBridge = bridge,
+            telemetrySink = {},
+            briarChatAdapter = StubBriarChatAdapter(),
+            briarContactAdapter = StubBriarContactAdapter(),
+            dispatcher = dispatcher,
+        )
+
+        val contactsCapability = connector.capabilities.value.entries.getValue("contacts")
+
+        assertEquals(PresenceStatus.UNKNOWN.name, contactsCapability.properties["presence"])
+        assertEquals(PresenceStatus.UNKNOWN.name, contactsCapability.properties["presenceFallback"])
     }
 
     private class FakeTransportRuntimeBridge(initialMode: BriarTransportMode) : TransportRuntimeBridge {

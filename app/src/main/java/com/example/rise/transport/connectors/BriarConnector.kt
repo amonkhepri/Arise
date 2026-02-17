@@ -240,6 +240,7 @@ class BriarConnector(
                         version = if (contactsEnabled) 1 else 0,
                         properties = mapOf(
                             "presence" to PresenceStatus.UNKNOWN.name,
+                            "presenceFallback" to PresenceStatus.UNKNOWN.name,
                             "enabled" to contactsEnabled.toString(),
                         ),
                     ),

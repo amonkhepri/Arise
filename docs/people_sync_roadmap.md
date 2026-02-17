@@ -48,6 +48,7 @@
 - ✅ 2025-11-08: People cards and chat headers now surface the connector-provided presence so QA can see the signal end to end.
 - ✅ 2026-02-16: `FirestoreConnector.observeContacts()` now reads optional `users.presence` values and maps valid statuses (`ONLINE`/`OFFLINE`/`UNKNOWN`) into `ConnectorContact.presence`, with invalid or missing values safely defaulting to `UNKNOWN`.
 - ✅ 2026-02-16: `FirestoreConnector` contacts capability metadata now publishes `presenceField=users.presence` and `presenceFallback=UNKNOWN`, while `docs/people_presence_firestore_inventory.md` tracks transport-level presence status with dated router TODO follow-ups for schema hardening.
+- ✅ 2026-02-17: `BriarConnector` contacts capability metadata now publishes `presenceFallback=UNKNOWN` alongside baseline presence signaling, with `BriarConnectorTest` coverage to keep Briar/Firestore fallback semantics aligned for router consumers.
 - ✅ 2025-11-08: `docs/connector_lifecycle.md` defines the connector lifecycle, capability contract, and telemetry events that Stage 3 must honor before Briar goes live.
 
 ### HYBRID flag verification
