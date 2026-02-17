@@ -21,6 +21,7 @@
 - ✅ 2026-02-16: `BriarPeopleSync` now keeps transient connectivity-state failures (for example “connection lost”) on the retry path (no UI error emission), with unit coverage confirming listener re-registration still occurs.
 - ✅ 2026-02-16: `BriarPeopleSync` now inspects nested causes when classifying transient listener failures, so wrapped “runtime not ready” / connectivity failures stay on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-16: `BriarPeopleSync` now also classifies timeout listener failures (for example “timed out” / “timeout”) as transient connectivity issues so retries continue without surfacing UI-facing sync errors.
+- ✅ 2026-02-17: `DefaultBriarContactAdapter.observeContacts()` now reacts to `BriarContactService.availability()` changes so contact streaming begins as soon as Briar runtime readiness flips to available, with regression coverage for unavailable-to-ready transitions.
 
 ## Stage 3 Router Work
 

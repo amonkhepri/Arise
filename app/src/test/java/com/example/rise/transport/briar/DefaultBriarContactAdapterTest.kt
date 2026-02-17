@@ -11,13 +11,16 @@ import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.ConnectorContact
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -48,6 +51,29 @@ class DefaultBriarContactAdapterTest {
         assertEquals("alias", mapped.transportId)
     }
 
+    @Test
+    fun `observeContacts begins streaming when service availability flips to ready`() = runTest {
+        val contact = BriarContact(
+            canonicalId = "canon",
+            transportAlias = "alias",
+            displayName = "Alias",
+            presence = BriarPresenceStatus.ONLINE,
+        )
+        val service = FlippingContactService(initiallyAvailable = false)
+        val adapter = DefaultBriarContactAdapter(fakeBridge(service))
+
+        val pendingContacts = async { adapter.observeContacts().drop(1).first() }
+        advanceUntilIdle()
+
+        service.setAvailable(true)
+        service.emitContacts(listOf(contact))
+        advanceUntilIdle()
+
+        val contacts = pendingContacts.await()
+        assertEquals(1, contacts.size)
+        assertEquals("alias", contacts.first().transportId)
+    }
+
     private fun fakeBridge(service: BriarContactService): TransportRuntimeBridge {
         val contactFlow = MutableStateFlow(service)
         val mode = MutableStateFlow(BriarTransportMode.HYBRID)
@@ -59,6 +85,28 @@ class DefaultBriarContactAdapterTest {
             override val briarChatGateway = MutableStateFlow(NoOpBriarChatGateway).asStateFlow()
             override val briarContactService: StateFlow<BriarContactService> = contactFlow
             override fun requireFirestore(caller: String) = Unit
+        }
+    }
+
+    private class FlippingContactService(initiallyAvailable: Boolean) : BriarContactService {
+        private val availability = MutableStateFlow(initiallyAvailable)
+        private val contacts = MutableStateFlow<List<BriarContact>>(emptyList())
+
+        override val isAvailable: Boolean
+            get() = availability.value
+
+        override fun availability(): StateFlow<Boolean> = availability.asStateFlow()
+
+        override suspend fun addContactByLink(link: String, alias: String?) = Unit
+
+        override fun observeContacts(): StateFlow<List<BriarContact>> = contacts.asStateFlow()
+
+        fun setAvailable(value: Boolean) {
+            availability.value = value
+        }
+
+        fun emitContacts(value: List<BriarContact>) {
+            contacts.value = value
         }
     }
 }
