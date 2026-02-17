@@ -282,7 +282,8 @@ class FirestorePeopleSync(
                 (cause is SocketException &&
                     (
                         cause.message.orEmpty().contains("unreachable", ignoreCase = true) ||
-                            cause.message.orEmpty().contains("connection reset", ignoreCase = true)
+                            cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("broken pipe", ignoreCase = true)
                     )) ||
                 cause.message.orEmpty().contains("timed out", ignoreCase = true) ||
                 cause.message.orEmpty().contains("timeout", ignoreCase = true)
@@ -424,6 +425,7 @@ class BriarPeopleSync(
                     message.contains("connection", ignoreCase = true) ||
                     message.contains("unreachable", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
+                    message.contains("broken pipe", ignoreCase = true) ||
                     message.contains("timeout", ignoreCase = true) ||
                     message.contains("timed out", ignoreCase = true)
             }

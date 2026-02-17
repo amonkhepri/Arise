@@ -21,6 +21,7 @@
 - ✅ 2026-02-17: `FirestorePeopleSync` now keeps wrapped timeout-style listener failures (for example nested `SocketTimeoutException("connection timed out")`) on the retry path when no auth-required Firestore code is present, so transient connectivity issues do not emit UI-facing sync errors.
 - ✅ 2026-02-17: `FirestorePeopleSync` now also classifies nested `SocketException("Network is unreachable")` listener failures as transient connectivity issues, keeping those errors on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `FirestorePeopleSync` now also classifies nested `SocketException("Connection reset by peer")` listener failures as transient connectivity issues, so wrapped connection-reset transport errors stay on the retry path (no UI error emission) while listener re-registration continues.
+- ✅ 2026-02-17: `FirestorePeopleSync` now also classifies nested `SocketException("Broken pipe")` listener failures as transient connectivity issues, so wrapped broken-pipe transport errors stay on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-16: `BriarPeopleSync` now keeps transient “runtime not ready” failures on the retry path (no UI error emission) while continuing listener re-registration.
 - ✅ 2026-02-16: `BriarPeopleSync` now keeps transient connectivity-state failures (for example “connection lost”) on the retry path (no UI error emission), with unit coverage confirming listener re-registration still occurs.
 - ✅ 2026-02-16: `BriarPeopleSync` now inspects nested causes when classifying transient listener failures, so wrapped “runtime not ready” / connectivity failures stay on the retry path (no UI error emission) while listener re-registration continues.
@@ -28,6 +29,7 @@
 - ✅ 2026-02-17: `BriarPeopleSync` now treats transient connectivity/timeout keywords across the full nested cause chain (not only `IllegalStateException`), so wrapped transport exceptions such as `SocketTimeoutException("connection timed out")` stay on the retry path with listener re-registration.
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies “unavailable” listener failures as transient connectivity issues, keeping those errors on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested “network unreachable” listener failures as transient connectivity issues, so wrapped `SocketException("Network is unreachable")` stays on the retry path (no UI error emission) while listener re-registration continues.
+- ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested “broken pipe” listener failures as transient connectivity issues, so wrapped `SocketException("Broken pipe")` stays on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `DefaultBriarContactAdapter.observeContacts()` now reacts to `BriarContactService.availability()` changes so contact streaming begins as soon as Briar runtime readiness flips to available, with regression coverage for unavailable-to-ready transitions.
 
 ## Stage 3 Router Work
