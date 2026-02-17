@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
@@ -278,6 +279,8 @@ class FirestorePeopleSync(
 
         val hasTransientTimeout = causes.any { cause ->
             cause is SocketTimeoutException ||
+                (cause is SocketException &&
+                    cause.message.orEmpty().contains("unreachable", ignoreCase = true)) ||
                 cause.message.orEmpty().contains("timed out", ignoreCase = true) ||
                 cause.message.orEmpty().contains("timeout", ignoreCase = true)
         }
