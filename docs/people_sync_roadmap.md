@@ -23,6 +23,7 @@
 - ✅ 2026-02-16: `BriarPeopleSync` now inspects nested causes when classifying transient listener failures, so wrapped “runtime not ready” / connectivity failures stay on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-16: `BriarPeopleSync` now also classifies timeout listener failures (for example “timed out” / “timeout”) as transient connectivity issues so retries continue without surfacing UI-facing sync errors.
 - ✅ 2026-02-17: `BriarPeopleSync` now treats transient connectivity/timeout keywords across the full nested cause chain (not only `IllegalStateException`), so wrapped transport exceptions such as `SocketTimeoutException("connection timed out")` stay on the retry path with listener re-registration.
+- ✅ 2026-02-17: `BriarPeopleSync` now also classifies “unavailable” listener failures as transient connectivity issues, keeping those errors on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `DefaultBriarContactAdapter.observeContacts()` now reacts to `BriarContactService.availability()` changes so contact streaming begins as soon as Briar runtime readiness flips to available, with regression coverage for unavailable-to-ready transitions.
 
 ## Stage 3 Router Work
