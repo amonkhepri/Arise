@@ -427,6 +427,7 @@ class BriarPeopleSync(
                 message.contains("not ready", ignoreCase = true) ||
                     message.contains("connection", ignoreCase = true) ||
                     message.contains("unreachable", ignoreCase = true) ||
+                    message.contains("no route to host", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
                     message.contains("broken pipe", ignoreCase = true) ||
                     message.contains("timeout", ignoreCase = true) ||
