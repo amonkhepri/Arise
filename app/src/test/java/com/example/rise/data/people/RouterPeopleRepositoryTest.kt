@@ -315,6 +315,38 @@ class RouterPeopleRepositoryTest {
     }
 
     @Test
+    fun `processSnapshot keeps existing non unknown presence when incoming firestore presence is unknown`() = runTest {
+        val existingRecord = IdentityRecord(
+            canonicalIdentity = CanonicalIdentity("friend", "Friend"),
+            aliases = mapOf(TransportId.FIRESTORE to "friend"),
+            profile = IdentityProfile(
+                bio = "Bio",
+                profilePicturePath = null,
+                presence = PresenceStatus.ONLINE,
+            ),
+        )
+        val registry = FakeIdentityRegistry().apply {
+            setIdentities(listOf(existingRecord))
+        }
+        val entries = listOf(
+            FirestoreSnapshotEntry(
+                canonicalId = "friend",
+                user = User("Friend", "Bio", null, mutableListOf()),
+                presence = PresenceStatus.UNKNOWN,
+            )
+        )
+
+        processSnapshot(
+            entries = entries,
+            currentUserId = null,
+            identityRegistry = registry,
+        )
+
+        val friend = registry.identitiesSnapshot().single()
+        assertEquals(PresenceStatus.ONLINE, friend.profile.presence)
+    }
+
+    @Test
     fun `processBriarSnapshot updates registry from contacts and removes missing`() = runTest {
         val registry = FakeIdentityRegistry().apply {
             setIdentities(
@@ -354,6 +386,43 @@ class RouterPeopleRepositoryTest {
         assertEquals("avatar", friend.profile.profilePicturePath)
         assertEquals(PresenceStatus.ONLINE, friend.profile.presence)
         assertEquals("briar-alias", friend.aliases[TransportId.BRIAR])
+    }
+
+    @Test
+    fun `processBriarSnapshot keeps existing non unknown presence when incoming briar presence is unknown`() = runTest {
+        val existingRecord = IdentityRecord(
+            canonicalIdentity = CanonicalIdentity("friend", "Friend"),
+            aliases = mapOf(TransportId.BRIAR to "briar-alias"),
+            profile = IdentityProfile(
+                bio = "bio",
+                profilePicturePath = "avatar",
+                presence = PresenceStatus.OFFLINE,
+            ),
+        )
+        val registry = FakeIdentityRegistry().apply {
+            setIdentities(listOf(existingRecord))
+        }
+        val contacts = listOf(
+            ConnectorContact(
+                transport = TransportId.BRIAR,
+                transportId = "briar-alias",
+                displayName = "Friend",
+                canonicalId = "friend",
+                bio = "bio",
+                profilePicturePath = "avatar",
+                presence = PresenceStatus.UNKNOWN,
+                registrationTokens = emptyList(),
+            )
+        )
+
+        processBriarSnapshot(
+            contacts = contacts,
+            currentUserId = null,
+            identityRegistry = registry,
+        )
+
+        val friend = registry.identitiesSnapshot().single()
+        assertEquals(PresenceStatus.OFFLINE, friend.profile.presence)
     }
 }
 

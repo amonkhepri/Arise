@@ -470,12 +470,16 @@ internal suspend fun processSnapshot(
     identityRegistry: IdentityRegistry,
 ) {
     val remoteIds = entries.mapTo(mutableSetOf()) { it.canonicalId }
-    val existingIds = identityRegistry.identitiesSnapshot()
+    val existingRecords = identityRegistry.identitiesSnapshot()
+    val existingIds = existingRecords
         .filter { record ->
             record.canonicalIdentity.id != currentUserId &&
                 record.aliases.containsKey(TransportId.FIRESTORE)
         }
         .mapTo(mutableSetOf()) { it.canonicalIdentity.id }
+    val presenceByCanonicalId = existingRecords
+        .associate { it.canonicalIdentity.id to it.profile.presence }
+        .toMutableMap()
     val (currentEntries, otherEntries) = if (currentUserId == null) {
         emptyList<FirestoreSnapshotEntry>() to entries
     } else {
@@ -483,6 +487,10 @@ internal suspend fun processSnapshot(
     }
 
     suspend fun upsert(entry: FirestoreSnapshotEntry, setAsCurrent: Boolean) {
+        val mergedPresence = preserveKnownPresence(
+            incomingPresence = entry.presence,
+            existingPresence = presenceByCanonicalId[entry.canonicalId],
+        )
         identityRegistry.upsertIdentity(
             identity = CanonicalIdentity(
                 id = entry.canonicalId,
@@ -492,10 +500,11 @@ internal suspend fun processSnapshot(
             profile = IdentityProfile(
                 bio = entry.user.bio,
                 profilePicturePath = entry.user.profilePicturePath,
-                presence = entry.presence,
+                presence = mergedPresence,
             ),
             setAsCurrent = setAsCurrent,
         )
+        presenceByCanonicalId[entry.canonicalId] = mergedPresence
     }
 
     currentEntries.forEach { entry -> upsert(entry, setAsCurrent = true) }
@@ -516,14 +525,22 @@ internal suspend fun processBriarSnapshot(
     identityRegistry: IdentityRegistry,
 ) {
     val remoteIds = contacts.mapTo(mutableSetOf()) { it.canonicalId }
-    val existingIds = identityRegistry.identitiesSnapshot()
+    val existingRecords = identityRegistry.identitiesSnapshot()
+    val existingIds = existingRecords
         .filter { record ->
             record.canonicalIdentity.id != currentUserId &&
                 record.aliases.containsKey(TransportId.BRIAR)
         }
         .mapTo(mutableSetOf()) { it.canonicalIdentity.id }
+    val presenceByCanonicalId = existingRecords
+        .associate { it.canonicalIdentity.id to it.profile.presence }
+        .toMutableMap()
 
     contacts.forEach { contact ->
+        val mergedPresence = preserveKnownPresence(
+            incomingPresence = contact.presence,
+            existingPresence = presenceByCanonicalId[contact.canonicalId],
+        )
         val identity = CanonicalIdentity(
             id = contact.canonicalId,
             displayName = contact.displayName,
@@ -534,10 +551,11 @@ internal suspend fun processBriarSnapshot(
             profile = IdentityProfile(
                 bio = contact.bio,
                 profilePicturePath = contact.profilePicturePath,
-                presence = contact.presence,
+                presence = mergedPresence,
             ),
             setAsCurrent = contact.canonicalId == currentUserId,
         )
+        presenceByCanonicalId[contact.canonicalId] = mergedPresence
     }
 
     removeMissingContacts(
@@ -575,4 +593,15 @@ private fun ConnectorContact.toUser(): User {
         profilePicturePath = profilePicturePath,
         registrationTokens = registrationTokens.toMutableList(),
     )
+}
+
+private fun preserveKnownPresence(
+    incomingPresence: PresenceStatus,
+    existingPresence: PresenceStatus?,
+): PresenceStatus {
+    return if (incomingPresence != PresenceStatus.UNKNOWN) {
+        incomingPresence
+    } else {
+        existingPresence ?: PresenceStatus.UNKNOWN
+    }
 }
