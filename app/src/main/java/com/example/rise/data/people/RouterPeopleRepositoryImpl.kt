@@ -291,7 +291,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("name or service not known", ignoreCase = true) ||
                             cause.message.orEmpty().contains("unable to resolve host", ignoreCase = true) ||
                             cause.message.orEmpty().contains("no address associated with hostname", ignoreCase = true) ||
-                            cause.message.orEmpty().contains("no such host is known", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("no such host", ignoreCase = true) ||
                             cause.message.orEmpty().contains("nodename nor servname provided", ignoreCase = true) ||
                             cause.message.orEmpty().contains("failed to connect", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection lost", ignoreCase = true) ||
