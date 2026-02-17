@@ -432,7 +432,8 @@ class BriarPeopleSync(
         val isTransientBriarState = generateSequence(error as Throwable?) { it.cause }
             .any { cause ->
                 val message = cause.message.orEmpty()
-                message.contains("not ready", ignoreCase = true) ||
+                cause is UnknownHostException ||
+                    message.contains("not ready", ignoreCase = true) ||
                     message.contains("connection lost", ignoreCase = true) ||
                     message.contains("connection reset", ignoreCase = true) ||
                     message.contains("connection refused", ignoreCase = true) ||
