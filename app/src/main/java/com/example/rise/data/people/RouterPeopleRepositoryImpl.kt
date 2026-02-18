@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.net.ConnectException
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -280,6 +281,7 @@ class FirestorePeopleSync(
 
         val hasTransientTimeout = causes.any { cause ->
             cause is SocketTimeoutException ||
+                cause is ConnectException ||
                 cause is UnknownHostException ||
                 (cause is SocketException &&
                     (
