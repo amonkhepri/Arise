@@ -55,6 +55,13 @@ Additional rules:
 - Reference scenario files (e.g., `test_delayed_message.txt`, `schedule_message.txt`) when automating UI flows, and update them if UI coordinates change.
 - Store temporary artifacts in `agent-tools/screenshots/` or discard them before submitting a PR to keep diffs clean.
 
+## Current Architecture Direction (High Priority)
+- Read `README.md` before making product-level or architecture-level changes. Treat it as the current vision and migration context.
+- Firestore/Firebase usage is legacy and is being phased out. Do not introduce new Firestore or Firebase dependencies, auth flows, repositories, listeners, or schema coupling unless the user explicitly asks for legacy maintenance.
+- Authentication must be connector-driven (Briar first, or another connector if available). New authentication logic should go through transport/connector abstractions rather than Firebase-specific APIs.
+- Prefer connector-capability-based design (for auth/account/profile features) so new connectors can participate without UI rewrites.
+- If modifying existing Firestore code, keep changes minimal and migration-oriented; avoid expanding Firestore surface area.
+
 ## Project Structure & Module Organization
 - `app/` contains the Android application code (Kotlin, XML resources, instrumentation tests).
 - `commons/` holds shared utilities consumed by the app module.
