@@ -159,6 +159,25 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped unavailable listener error retries without surfacing sync error`() = runTest {
+    val harness = startFirestoreRetryHarness()
+
+    val wrappedTransient = IllegalStateException(
+      "Listener wrapper",
+      RuntimeException("UNAVAILABLE: io exception"),
+    )
+    harness.connector.emitError(wrappedTransient)
+    advanceUntilIdle()
+
+    assertTrue(
+      "Expected wrapped UNAVAILABLE message to stay in retry path",
+      harness.surfacedErrors.isEmpty(),
+    )
+    assertEquals(2, harness.connector.observeContactsCalls)
+    harness.cancel()
+  }
+
+  @Test
   fun `wrapped network unreachable listener error retries without surfacing sync error`() = runTest {
     val harness = startFirestoreRetryHarness()
 
