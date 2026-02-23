@@ -178,6 +178,25 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped no address is associated with this host name listener error retries without surfacing sync error`() = runTest {
+    val harness = startFirestoreRetryHarness()
+
+    val wrappedTransient = IllegalStateException(
+      "Listener wrapper",
+      SocketException("No address is associated with this host name"),
+    )
+    harness.connector.emitError(wrappedTransient)
+    advanceUntilIdle()
+
+    assertTrue(
+      "Expected wrapped no address is associated with this host name SocketException to stay in retry path",
+      harness.surfacedErrors.isEmpty(),
+    )
+    assertEquals(2, harness.connector.observeContactsCalls)
+    harness.cancel()
+  }
+
+  @Test
   fun `wrapped temporary name resolution listener error retries without surfacing sync error`() = runTest {
     val connector = FakeFirestoreConnector()
     val transportBridge = object : TransportRuntimeBridge {
