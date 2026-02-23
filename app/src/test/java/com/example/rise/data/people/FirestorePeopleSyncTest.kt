@@ -1621,110 +1621,20 @@ class FirestorePeopleSyncTest {
 
   @Test
   fun `wrapped connection abort listener error retries without surfacing sync error`() = runTest {
-    val connector = FakeFirestoreConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = FirestorePeopleSync(
-      firebaseAuth = null,
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      currentUserIdProvider = { null },
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("Software caused connection abort"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped connection abort SocketException to stay in retry path",
     )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
-
-    val wrappedTransient = IllegalStateException(
-      "Listener wrapper",
-      SocketException("Software caused connection abort"),
-    )
-    connector.emitError(wrappedTransient)
-    advanceUntilIdle()
-
-    assertTrue(
-      "Expected wrapped connection abort SocketException to stay in retry path",
-      surfacedErrors.isEmpty(),
-    )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
   }
 
   @Test
   fun `wrapped ECONNABORTED listener error retries without surfacing sync error`() = runTest {
-    val connector = FakeFirestoreConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = FirestorePeopleSync(
-      firebaseAuth = null,
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      currentUserIdProvider = { null },
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("ECONNABORTED"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped ECONNABORTED SocketException to stay in retry path",
     )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
-
-    val wrappedTransient = IllegalStateException(
-      "Listener wrapper",
-      SocketException("ECONNABORTED"),
-    )
-    connector.emitError(wrappedTransient)
-    advanceUntilIdle()
-
-    assertTrue(
-      "Expected wrapped ECONNABORTED SocketException to stay in retry path",
-      surfacedErrors.isEmpty(),
-    )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
   }
 
   @Test
@@ -3571,6 +3481,19 @@ class FirestorePeopleSyncTest {
       surfacedErrors = surfacedErrors,
       errorsJob = errorsJob,
     )
+  }
+
+  private suspend fun TestScope.assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+    wrappedCause: Throwable,
+    expectedNoSurfaceMessage: String,
+  ) {
+    val harness = startFirestoreRetryHarness()
+    harness.connector.emitError(IllegalStateException("Listener wrapper", wrappedCause))
+    advanceUntilIdle()
+
+    assertTrue(expectedNoSurfaceMessage, harness.surfacedErrors.isEmpty())
+    assertEquals(2, harness.connector.observeContactsCalls)
+    harness.cancel()
   }
 
   private class InMemoryIdentityRegistryStore : IdentityRegistryStore {
