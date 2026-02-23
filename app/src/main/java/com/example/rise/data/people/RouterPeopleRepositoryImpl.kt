@@ -309,6 +309,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("connection refused", ignoreCase = true) ||
                             cause.message.orEmpty().contains("econnrefused", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection abort", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("econnaborted", ignoreCase = true) ||
                             cause.message.orEmpty().contains("broken pipe", ignoreCase = true)
                     )) ||
                 cause.message.orEmpty().contains("timed out", ignoreCase = true) ||
