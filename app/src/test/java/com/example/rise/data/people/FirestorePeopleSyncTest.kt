@@ -27,6 +27,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -37,6 +38,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -101,93 +103,23 @@ class FirestorePeopleSyncTest {
 
   @Test
   fun `transient listener error retries without surfacing sync error`() = runTest {
-    val connector = FakeFirestoreConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = FirestorePeopleSync(
-      firebaseAuth = null,
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      currentUserIdProvider = { null },
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
-    )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
+    val harness = startFirestoreRetryHarness()
 
     val transient = FirebaseFirestoreException(
       "Service unavailable",
       FirebaseFirestoreException.Code.UNAVAILABLE,
     )
-    connector.emitError(transient)
+    harness.connector.emitError(transient)
     advanceUntilIdle()
 
-    assertTrue("Expected transient errors to stay in retry path", surfacedErrors.isEmpty())
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
+    assertTrue("Expected transient errors to stay in retry path", harness.surfacedErrors.isEmpty())
+    assertEquals(2, harness.connector.observeContactsCalls)
+    harness.cancel()
   }
 
   @Test
   fun `wrapped transient listener error retries without surfacing sync error`() = runTest {
-    val connector = FakeFirestoreConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = FirestorePeopleSync(
-      firebaseAuth = null,
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      currentUserIdProvider = { null },
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
-    )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
+    val harness = startFirestoreRetryHarness()
 
     val wrappedTransient = IllegalStateException(
       "Listener wrapper",
@@ -196,123 +128,53 @@ class FirestorePeopleSyncTest {
         FirebaseFirestoreException.Code.UNAVAILABLE,
       ),
     )
-    connector.emitError(wrappedTransient)
+    harness.connector.emitError(wrappedTransient)
     advanceUntilIdle()
 
     assertTrue(
       "Expected wrapped transient errors to stay in retry path",
-      surfacedErrors.isEmpty(),
+      harness.surfacedErrors.isEmpty(),
     )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
+    assertEquals(2, harness.connector.observeContactsCalls)
+    harness.cancel()
   }
 
   @Test
   fun `wrapped socket timeout listener error retries without surfacing sync error`() = runTest {
-    val connector = FakeFirestoreConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = FirestorePeopleSync(
-      firebaseAuth = null,
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      currentUserIdProvider = { null },
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
-    )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
+    val harness = startFirestoreRetryHarness()
 
     val wrappedTransient = IllegalStateException(
       "Listener wrapper",
       SocketTimeoutException("connection timed out"),
     )
-    connector.emitError(wrappedTransient)
+    harness.connector.emitError(wrappedTransient)
     advanceUntilIdle()
 
     assertTrue(
       "Expected wrapped SocketTimeoutException to stay in retry path",
-      surfacedErrors.isEmpty(),
+      harness.surfacedErrors.isEmpty(),
     )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
+    assertEquals(2, harness.connector.observeContactsCalls)
+    harness.cancel()
   }
 
   @Test
   fun `wrapped network unreachable listener error retries without surfacing sync error`() = runTest {
-    val connector = FakeFirestoreConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = FirestorePeopleSync(
-      firebaseAuth = null,
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      currentUserIdProvider = { null },
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
-    )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
+    val harness = startFirestoreRetryHarness()
 
     val wrappedTransient = IllegalStateException(
       "Listener wrapper",
       SocketException("Network is unreachable"),
     )
-    connector.emitError(wrappedTransient)
+    harness.connector.emitError(wrappedTransient)
     advanceUntilIdle()
 
     assertTrue(
       "Expected wrapped network unreachable SocketException to stay in retry path",
-      surfacedErrors.isEmpty(),
+      harness.surfacedErrors.isEmpty(),
     )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
+    assertEquals(2, harness.connector.observeContactsCalls)
+    harness.cancel()
   }
 
   @Test
@@ -3520,6 +3382,53 @@ class FirestorePeopleSyncTest {
     override val briarContactService = MutableStateFlow(stubBriarContactService())
 
     override fun requireFirestore(caller: String) = onRequireFirestore(caller)
+  }
+
+  private data class FirestoreRetryHarness(
+    val connector: FakeFirestoreConnector,
+    val surfacedErrors: MutableList<Throwable>,
+    val errorsJob: Job,
+  ) {
+    fun cancel() {
+      errorsJob.cancel()
+    }
+  }
+
+  private fun TestScope.startFirestoreRetryHarness(): FirestoreRetryHarness {
+    val connector = FakeFirestoreConnector()
+    val transportBridge = testTransportBridge(BriarTransportMode.FIRESTORE)
+    val job = SupervisorJob()
+    val dispatcher = StandardTestDispatcher(testScheduler)
+    val scope = CoroutineScope(job + dispatcher)
+    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+    val sync = FirestorePeopleSync(
+      firebaseAuth = null,
+      transportConnector = connector,
+      identityRegistry = identityRegistry,
+      transportBridge = transportBridge,
+      syncSupervisorJob = job,
+      scope = scope,
+      currentUserIdProvider = { null },
+      initialRetryDelayMillis = 1_000,
+      maxRetryDelayMillis = 1_000,
+      backoffMultiplier = 2.0,
+      retryJitterRatio = 0.0,
+      retryRandomProvider = { 0.5 },
+      delayProvider = { },
+    )
+    val surfacedErrors = mutableListOf<Throwable>()
+    val errorsJob = launch {
+      sync.syncPeopleErrors.collect { surfacedErrors += it }
+    }
+
+    sync.ensureStarted()
+    advanceUntilIdle()
+    assertEquals(1, connector.observeContactsCalls)
+    return FirestoreRetryHarness(
+      connector = connector,
+      surfacedErrors = surfacedErrors,
+      errorsJob = errorsJob,
+    )
   }
 
   private class InMemoryIdentityRegistryStore : IdentityRegistryStore {
