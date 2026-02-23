@@ -457,6 +457,7 @@ class BriarPeopleSync(
                     message.contains("connection reset", ignoreCase = true) ||
                     message.contains("connection closed", ignoreCase = true) ||
                     message.contains("connection terminated", ignoreCase = true) ||
+                    message.contains("socket is closed", ignoreCase = true) ||
                     message.contains("socket closed", ignoreCase = true) ||
                     message.contains("connection refused", ignoreCase = true) ||
                     message.contains("econnrefused", ignoreCase = true) ||
