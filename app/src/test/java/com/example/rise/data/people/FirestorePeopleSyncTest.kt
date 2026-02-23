@@ -3323,14 +3323,7 @@ class FirestorePeopleSyncTest {
   @Test
   fun `wrapped briar failed to connect retries without surfacing sync error`() = runTest {
     val connector = FakeBriarConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
+    val transportBridge = testTransportBridge(BriarTransportMode.BRIAR_ONLY)
     val job = SupervisorJob()
     val dispatcher = StandardTestDispatcher(testScheduler)
     val scope = CoroutineScope(job + dispatcher)
@@ -3375,14 +3368,7 @@ class FirestorePeopleSyncTest {
   @Test
   fun `briar non transient connection error surfaces sync error and retries`() = runTest {
     val connector = FakeBriarConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
+    val transportBridge = testTransportBridge(BriarTransportMode.BRIAR_ONLY)
     val job = SupervisorJob()
     val dispatcher = StandardTestDispatcher(testScheduler)
     val scope = CoroutineScope(job + dispatcher)
@@ -3424,13 +3410,8 @@ class FirestorePeopleSyncTest {
   @Test
   fun `briar only mode skips firestore sync`() = runTest {
     val connector = FakeFirestoreConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = error("should not be called")
+    val transportBridge = testTransportBridge(BriarTransportMode.BRIAR_ONLY) {
+      error("should not be called")
     }
     val job = SupervisorJob()
     val dispatcher = StandardTestDispatcher(testScheduler)
@@ -3455,14 +3436,7 @@ class FirestorePeopleSyncTest {
   @Test
   fun `firestore mode skips briar sync`() = runTest {
     val connector = FakeBriarConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.FIRESTORE)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
+    val transportBridge = testTransportBridge(BriarTransportMode.FIRESTORE)
     val job = SupervisorJob()
     val dispatcher = StandardTestDispatcher(testScheduler)
     val scope = CoroutineScope(job + dispatcher)
@@ -3479,6 +3453,19 @@ class FirestorePeopleSyncTest {
     advanceUntilIdle()
 
     assertEquals(0, connector.observeContactsCalls)
+  }
+
+  private fun testTransportBridge(
+    mode: BriarTransportMode,
+    onRequireFirestore: (String) -> Unit = {},
+  ): TransportRuntimeBridge = object : TransportRuntimeBridge {
+    override val currentMode = MutableStateFlow(mode)
+    override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
+    override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
+    override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
+    override val briarContactService = MutableStateFlow(stubBriarContactService())
+
+    override fun requireFirestore(caller: String) = onRequireFirestore(caller)
   }
 
   private class InMemoryIdentityRegistryStore : IdentityRegistryStore {
