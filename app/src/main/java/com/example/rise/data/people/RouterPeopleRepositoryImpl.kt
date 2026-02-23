@@ -452,6 +452,7 @@ class BriarPeopleSync(
             .any { cause ->
                 val message = cause.message.orEmpty()
                 cause is UnknownHostException ||
+                    cause is ConnectException ||
                     message.contains("not ready", ignoreCase = true) ||
                     message.contains("connection lost", ignoreCase = true) ||
                     message.contains("connection reset", ignoreCase = true) ||
