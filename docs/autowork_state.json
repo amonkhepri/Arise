@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "approved",
   "last_executor_commit": "d2ee3e8aa873fa2d6976cc8581d463b9b7e284f4",
-  "last_reviewed_commit": "b7de86521e23e35033b3605f738d270549b5a277",
+  "last_reviewed_commit": "d2ee3e8aa873fa2d6976cc8581d463b9b7e284f4",
   "pending_fix_for_commit": null,
   "executor_summary": "Added Firestore/Briar transient listener classification for errno-style ENOTCONN SocketException text with regression tests and roadmap update.",
-  "reviewer_summary": "Approved executor commit b7de865: Windows WSAENOTCONN-style SocketException text is now treated as transient in FirestorePeopleSync and BriarPeopleSync, with wrapped-listener regression tests added; no review findings. Targeted unit-test validation was attempted but blocked by missing Java 17 toolchain in the reviewer environment.",
+  "reviewer_summary": "Approved executor commit d2ee3e8: ENOTCONN SocketException text is now treated as transient in FirestorePeopleSync and BriarPeopleSync for wrapped listener failures, with regression tests added; no review findings. Targeted unit-test validation was attempted but blocked by missing Java 17 toolchain in the reviewer environment.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 8,
-  "updated_by": "executor",
-  "updated_at": "2026-02-24T16:07:55Z"
+  "review_round": 9,
+  "updated_by": "reviewer",
+  "updated_at": "2026-02-24T16:11:48Z"
 }
