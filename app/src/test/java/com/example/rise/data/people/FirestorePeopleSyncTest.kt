@@ -954,6 +954,14 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped ENETRESET runtime listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = RuntimeException("ENETRESET"),
+      expectedNoSurfaceMessage = "Expected wrapped ENETRESET runtime error to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped ECONNREFUSED runtime listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = RuntimeException("ECONNREFUSED"),
