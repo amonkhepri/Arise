@@ -479,6 +479,7 @@ class BriarPeopleSync(
                     message.contains("name or service not known", ignoreCase = true) ||
                     message.contains("unable to resolve host", ignoreCase = true) ||
                     message.contains("no address associated with hostname", ignoreCase = true) ||
+                    message.contains("no address associated with host name", ignoreCase = true) ||
                     message.contains("no address is associated with this host name", ignoreCase = true) ||
                     message.contains("no such host", ignoreCase = true) ||
                     message.contains("no such host is known", ignoreCase = true) ||
