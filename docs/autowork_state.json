@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "approved",
   "last_executor_commit": "53860616ba7db9ed923b16ba9a3db163ddbc1242",
-  "last_reviewed_commit": "ff3dccfdb475831800e8a81c41b6a3b6d6272bb6",
+  "last_reviewed_commit": "53860616ba7db9ed923b16ba9a3db163ddbc1242",
   "pending_fix_for_commit": null,
   "executor_summary": "Added Firestore/Briar transient listener classification for Windows WSAECONNRESET text (\"forcibly closed by the remote host\") with regression tests and roadmap update.",
-  "reviewer_summary": "Approved executor commit ff3dccfd: Windows WSAECONNABORTED host-machine-abort text is now treated as transient in FirestorePeopleSync and BriarPeopleSync, with wrapped-listener regression tests added; no review findings. Targeted unit-test validation was attempted but blocked by missing Java 17 toolchain in the reviewer environment.",
+  "reviewer_summary": "Approved executor commit 5386061: Windows WSAECONNRESET remote-host-close text (\"forcibly closed by the remote host\") is now treated as transient in FirestorePeopleSync and BriarPeopleSync, with wrapped-listener regression tests added; no review findings. Targeted unit-test validation was attempted but blocked by missing Java 17 toolchain in the reviewer environment.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 2,
-  "updated_by": "executor",
-  "updated_at": "2026-02-24T15:10:26Z"
+  "review_round": 3,
+  "updated_by": "reviewer",
+  "updated_at": "2026-02-24T15:15:01Z"
 }
