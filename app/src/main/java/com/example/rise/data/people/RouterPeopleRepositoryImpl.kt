@@ -290,6 +290,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("ehostunreach", ignoreCase = true) ||
                             cause.message.orEmpty().contains("enetdown", ignoreCase = true) ||
                             cause.message.orEmpty().contains("dead network", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("dead host", ignoreCase = true) ||
                             cause.message.orEmpty().contains("etimedout", ignoreCase = true) ||
                             cause.message.orEmpty().contains("network is down", ignoreCase = true) ||
                             cause.message.orEmpty().contains("host is down", ignoreCase = true) ||
@@ -325,6 +326,7 @@ class FirestorePeopleSync(
                 cause.message.orEmpty().contains("enetreset", ignoreCase = true) ||
                 cause.message.orEmpty().contains("ehostdown", ignoreCase = true) ||
                 cause.message.orEmpty().contains("dead network", ignoreCase = true) ||
+                cause.message.orEmpty().contains("dead host", ignoreCase = true) ||
                 cause.message.orEmpty().contains("aborted by the software in your host machine", ignoreCase = true) ||
                 cause.message.orEmpty().contains("forcibly closed by the remote host", ignoreCase = true) ||
                 cause.message.orEmpty().contains("enotfound", ignoreCase = true) ||
@@ -496,6 +498,7 @@ class BriarPeopleSync(
                     message.contains("ehostunreach", ignoreCase = true) ||
                     message.contains("enetdown", ignoreCase = true) ||
                     message.contains("dead network", ignoreCase = true) ||
+                    message.contains("dead host", ignoreCase = true) ||
                     message.contains("ehostdown", ignoreCase = true) ||
                     message.contains("network is down", ignoreCase = true) ||
                     message.contains("host is down", ignoreCase = true) ||
