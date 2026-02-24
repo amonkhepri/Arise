@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "approved",
   "last_executor_commit": "4fd1249339e8bc358a463401cfbe6281d124612b",
-  "last_reviewed_commit": "2917d1fd74b823ec7ea29ecb019a20998b139012",
+  "last_reviewed_commit": "4fd1249339e8bc358a463401cfbe6281d124612b",
   "pending_fix_for_commit": null,
   "executor_summary": "Added Firestore/Briar transient listener classification for Windows WSAECONNREFUSED-style SocketException text (target machine actively refused) with regression tests and roadmap update.",
-  "reviewer_summary": "Approved executor commit 2917d1f: Windows WSAETIMEDOUT-style timeout SocketException text is now treated as transient in FirestorePeopleSync and BriarPeopleSync, with wrapped-listener regression tests added; no review findings. Targeted unit-test validation was attempted but blocked by missing Java 17 toolchain in the reviewer environment.",
+  "reviewer_summary": "Approved executor commit 4fd1249: Windows WSAECONNREFUSED-style SocketException text is now treated as transient in FirestorePeopleSync and BriarPeopleSync, with wrapped-listener regression tests added; no review findings. Targeted unit-test validation was attempted but blocked by missing Java 17 toolchain in the reviewer environment.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 4,
-  "updated_by": "executor",
-  "updated_at": "2026-02-24T15:31:15Z"
+  "review_round": 5,
+  "updated_by": "reviewer",
+  "updated_at": "2026-02-24T15:33:37Z"
 }
