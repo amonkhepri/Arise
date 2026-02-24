@@ -3205,6 +3205,15 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped briar EHOSTDOWN retries without surfacing sync error`() = runTest {
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("EHOSTDOWN"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped EHOSTDOWN SocketException to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped briar broken pipe retries without surfacing sync error`() = runTest {
     val connector = FakeBriarConnector()
     val transportBridge = object : TransportRuntimeBridge {

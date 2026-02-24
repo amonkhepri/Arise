@@ -482,6 +482,7 @@ class BriarPeopleSync(
                     message.contains("enetunreach", ignoreCase = true) ||
                     message.contains("ehostunreach", ignoreCase = true) ||
                     message.contains("enetdown", ignoreCase = true) ||
+                    message.contains("ehostdown", ignoreCase = true) ||
                     message.contains("network is down", ignoreCase = true) ||
                     message.contains("host is down", ignoreCase = true) ||
                     message.contains("no route to host", ignoreCase = true) ||
