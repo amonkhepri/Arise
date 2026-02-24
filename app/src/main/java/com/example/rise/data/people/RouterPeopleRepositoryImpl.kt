@@ -322,6 +322,7 @@ class FirestorePeopleSync(
                 cause.message.orEmpty().contains("econnrefused", ignoreCase = true) ||
                 cause.message.orEmpty().contains("enetreset", ignoreCase = true) ||
                 cause.message.orEmpty().contains("ehostdown", ignoreCase = true) ||
+                cause.message.orEmpty().contains("aborted by the software in your host machine", ignoreCase = true) ||
                 cause.message.orEmpty().contains("enotfound", ignoreCase = true) ||
                 cause.message.orEmpty().contains("eai_again", ignoreCase = true) ||
                 cause.message.orEmpty().contains("no such host", ignoreCase = true) ||
@@ -481,6 +482,7 @@ class BriarPeopleSync(
                     message.contains("software caused connection abort", ignoreCase = true) ||
                     message.contains("connection abort", ignoreCase = true) ||
                     message.contains("econnaborted", ignoreCase = true) ||
+                    message.contains("aborted by the software in your host machine", ignoreCase = true) ||
                     message.contains("unreachable", ignoreCase = true) ||
                     message.contains("enetunreach", ignoreCase = true) ||
                     message.contains("ehostunreach", ignoreCase = true) ||

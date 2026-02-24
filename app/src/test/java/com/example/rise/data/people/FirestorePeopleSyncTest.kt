@@ -1738,6 +1738,15 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped windows connection aborted listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("An established connection was aborted by the software in your host machine"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped Windows connection-aborted SocketException to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped ECONNABORTED listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = SocketException("ECONNABORTED"),
@@ -3385,6 +3394,15 @@ class FirestorePeopleSyncTest {
     )
     assertEquals(2, connector.observeContactsCalls)
     errorsJob.cancel()
+  }
+
+  @Test
+  fun `wrapped briar windows connection aborted retries without surfacing sync error`() = runTest {
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("An established connection was aborted by the software in your host machine"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped Windows connection-aborted SocketException to stay in retry path",
+    )
   }
 
   @Test
