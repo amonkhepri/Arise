@@ -74,6 +74,7 @@
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested `ConnectException("Failed to connect ...")` listener failures as transient connectivity issues, so wrapped failed-to-connect transport errors stay on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested low-level connection-refused errno socket failures such as `SocketException("ECONNREFUSED")` as transient connectivity issues, so wrapped connection-refused transport errors stay on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `BriarPeopleSync` now also classifies nested low-level host-unreachable errno socket failures such as `SocketException("EHOSTUNREACH")` as transient connectivity issues, so wrapped host-unreachable transport errors stay on the retry path (no UI error emission) while listener re-registration continues.
+- ✅ 2026-02-24: `FirestorePeopleSync` and `BriarPeopleSync` now also classify nested `SocketException("Network dropped connection on reset")` listener failures as transient connectivity issues, so Linux ENETRESET text variants stay on the retry path (no UI error emission) while listener re-registration continues.
 - ✅ 2026-02-17: `DefaultBriarContactAdapter.observeContacts()` now reacts to `BriarContactService.availability()` changes so contact streaming begins as soon as Briar runtime readiness flips to available, with regression coverage for unavailable-to-ready transitions.
 
 ## Stage 3 Router Work

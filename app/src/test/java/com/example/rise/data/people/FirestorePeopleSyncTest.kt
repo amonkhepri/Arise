@@ -962,6 +962,15 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped network dropped connection on reset listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("Network dropped connection on reset"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped network dropped connection on reset SocketException to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped EAI_AGAIN runtime listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = RuntimeException("getaddrinfo EAI_AGAIN example.com"),
@@ -2228,6 +2237,15 @@ class FirestorePeopleSyncTest {
     )
     assertEquals(2, connector.observeContactsCalls)
     errorsJob.cancel()
+  }
+
+  @Test
+  fun `wrapped briar network dropped connection on reset retries without surfacing sync error`() = runTest {
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("Network dropped connection on reset"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped network dropped connection on reset SocketException to stay in retry path",
+    )
   }
 
   @Test

@@ -305,6 +305,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("connection lost", ignoreCase = true) ||
                             cause.message.orEmpty().contains("econnreset", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("network dropped connection on reset", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection terminated", ignoreCase = true) ||
                             cause.message.orEmpty().contains("socket is closed", ignoreCase = true) ||
@@ -317,6 +318,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("broken pipe", ignoreCase = true)
                     )) ||
                 cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
+                cause.message.orEmpty().contains("network dropped connection on reset", ignoreCase = true) ||
                 cause.message.orEmpty().contains("econnrefused", ignoreCase = true) ||
                 cause.message.orEmpty().contains("enetreset", ignoreCase = true) ||
                 cause.message.orEmpty().contains("ehostdown", ignoreCase = true) ||
@@ -469,6 +471,7 @@ class BriarPeopleSync(
                     message.contains("not ready", ignoreCase = true) ||
                     message.contains("connection lost", ignoreCase = true) ||
                     message.contains("connection reset", ignoreCase = true) ||
+                    message.contains("network dropped connection on reset", ignoreCase = true) ||
                     message.contains("connection closed", ignoreCase = true) ||
                     message.contains("connection terminated", ignoreCase = true) ||
                     message.contains("socket is closed", ignoreCase = true) ||
