@@ -492,6 +492,7 @@ class BriarPeopleSync(
                     message.contains("failed to connect", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
                     message.contains("econnreset", ignoreCase = true) ||
+                    message.contains("enetreset", ignoreCase = true) ||
                     message.contains("epipe", ignoreCase = true) ||
                     message.contains("etimedout", ignoreCase = true) ||
                     message.contains("broken pipe", ignoreCase = true) ||
