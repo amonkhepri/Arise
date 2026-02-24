@@ -962,6 +962,14 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped ETIMEDOUT runtime listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = RuntimeException("ETIMEDOUT"),
+      expectedNoSurfaceMessage = "Expected wrapped ETIMEDOUT runtime error to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped ECONNREFUSED runtime listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = RuntimeException("ECONNREFUSED"),
