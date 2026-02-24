@@ -2191,6 +2191,51 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped briar ENOTFOUND runtime listener error retries without surfacing sync error`() = runTest {
+    val connector = FakeBriarConnector()
+    val transportBridge = testTransportBridge(BriarTransportMode.BRIAR_ONLY)
+    val job = SupervisorJob()
+    val dispatcher = StandardTestDispatcher(testScheduler)
+    val scope = CoroutineScope(job + dispatcher)
+    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+    val sync = BriarPeopleSync(
+      transportConnector = connector,
+      identityRegistry = identityRegistry,
+      transportBridge = transportBridge,
+      syncSupervisorJob = job,
+      scope = scope,
+      initialRetryDelayMillis = 1_000,
+      maxRetryDelayMillis = 1_000,
+      backoffMultiplier = 2.0,
+      retryJitterRatio = 0.0,
+      retryRandomProvider = { 0.5 },
+      delayProvider = { },
+    )
+    val surfacedErrors = mutableListOf<Throwable>()
+    val errorsJob = launch {
+      sync.syncPeopleErrors.collect { surfacedErrors += it }
+    }
+
+    sync.ensureStarted()
+    advanceUntilIdle()
+    assertEquals(1, connector.observeContactsCalls)
+
+    val wrappedTransient = IllegalStateException(
+      "Listener wrapper",
+      RuntimeException("getaddrinfo ENOTFOUND example.com"),
+    )
+    connector.emitError(wrappedTransient)
+    advanceUntilIdle()
+
+    assertTrue(
+      "Expected wrapped ENOTFOUND runtime error to stay in retry path",
+      surfacedErrors.isEmpty(),
+    )
+    assertEquals(2, connector.observeContactsCalls)
+    errorsJob.cancel()
+  }
+
+  @Test
   fun `wrapped briar network unreachable retries without surfacing sync error`() = runTest {
     val connector = FakeBriarConnector()
     val transportBridge = object : TransportRuntimeBridge {

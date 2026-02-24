@@ -488,6 +488,7 @@ class BriarPeopleSync(
                     message.contains("no address is associated with this host name", ignoreCase = true) ||
                     message.contains("no such host", ignoreCase = true) ||
                     message.contains("no such host is known", ignoreCase = true) ||
+                    message.contains("enotfound", ignoreCase = true) ||
                     message.contains("nodename nor servname provided", ignoreCase = true) ||
                     message.contains("failed to connect", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
