@@ -178,6 +178,25 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped ENOTFOUND listener error retries without surfacing sync error`() = runTest {
+    val harness = startFirestoreRetryHarness()
+
+    val wrappedTransient = IllegalStateException(
+      "Listener wrapper",
+      RuntimeException("getaddrinfo ENOTFOUND example.com"),
+    )
+    harness.connector.emitError(wrappedTransient)
+    advanceUntilIdle()
+
+    assertTrue(
+      "Expected wrapped ENOTFOUND message to stay in retry path",
+      harness.surfacedErrors.isEmpty(),
+    )
+    assertEquals(2, harness.connector.observeContactsCalls)
+    harness.cancel()
+  }
+
+  @Test
   fun `wrapped network unreachable listener error retries without surfacing sync error`() = runTest {
     val harness = startFirestoreRetryHarness()
 
