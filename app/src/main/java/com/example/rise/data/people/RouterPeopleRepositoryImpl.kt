@@ -321,6 +321,7 @@ class FirestorePeopleSync(
                 cause.message.orEmpty().contains("enetreset", ignoreCase = true) ||
                 cause.message.orEmpty().contains("enotfound", ignoreCase = true) ||
                 cause.message.orEmpty().contains("no such host", ignoreCase = true) ||
+                cause.message.orEmpty().contains("no route to host", ignoreCase = true) ||
                 cause.message.orEmpty().contains("epipe", ignoreCase = true) ||
                 cause.message.orEmpty().contains("unavailable", ignoreCase = true) ||
                 cause.message.orEmpty().contains("timed out", ignoreCase = true) ||

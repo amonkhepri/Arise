@@ -986,6 +986,14 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped no route to host runtime listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = RuntimeException("No route to host"),
+      expectedNoSurfaceMessage = "Expected wrapped no route to host runtime error to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped connection lost listener error retries without surfacing sync error`() = runTest {
     val connector = FakeFirestoreConnector()
     val transportBridge = object : TransportRuntimeBridge {
