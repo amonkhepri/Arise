@@ -313,10 +313,12 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("econnrefused", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection abort", ignoreCase = true) ||
                             cause.message.orEmpty().contains("econnaborted", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("epipe", ignoreCase = true) ||
                             cause.message.orEmpty().contains("broken pipe", ignoreCase = true)
                     )) ||
                 cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
                 cause.message.orEmpty().contains("econnrefused", ignoreCase = true) ||
+                cause.message.orEmpty().contains("epipe", ignoreCase = true) ||
                 cause.message.orEmpty().contains("unavailable", ignoreCase = true) ||
                 cause.message.orEmpty().contains("timed out", ignoreCase = true) ||
                 cause.message.orEmpty().contains("timeout", ignoreCase = true)
@@ -488,6 +490,7 @@ class BriarPeopleSync(
                     message.contains("failed to connect", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
                     message.contains("econnreset", ignoreCase = true) ||
+                    message.contains("epipe", ignoreCase = true) ||
                     message.contains("etimedout", ignoreCase = true) ||
                     message.contains("broken pipe", ignoreCase = true) ||
                     message.contains("timeout", ignoreCase = true) ||
