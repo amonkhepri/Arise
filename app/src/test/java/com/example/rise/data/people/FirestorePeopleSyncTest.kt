@@ -1798,6 +1798,15 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped windows socket not connected listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("The socket is not connected"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped Windows socket-not-connected SocketException to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped ECONNABORTED listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = SocketException("ECONNABORTED"),
@@ -3504,6 +3513,15 @@ class FirestorePeopleSyncTest {
       wrappedCause = SocketException("A socket operation encountered a dead host"),
       expectedNoSurfaceMessage =
         "Expected wrapped Windows dead-host SocketException to stay in retry path",
+    )
+  }
+
+  @Test
+  fun `wrapped briar windows socket not connected retries without surfacing sync error`() = runTest {
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("The socket is not connected"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped Windows socket-not-connected SocketException to stay in retry path",
     )
   }
 
