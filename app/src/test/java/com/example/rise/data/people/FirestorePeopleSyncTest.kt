@@ -3414,255 +3414,47 @@ class FirestorePeopleSyncTest {
 
   @Test
   fun `wrapped briar connection closed retries without surfacing sync error`() = runTest {
-    val connector = FakeBriarConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = BriarPeopleSync(
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("Connection closed"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped connection closed SocketException to stay in retry path",
     )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
-
-    val wrappedTransient = IllegalStateException(
-      "Listener wrapper",
-      SocketException("Connection closed"),
-    )
-    connector.emitError(wrappedTransient)
-    advanceUntilIdle()
-
-    assertTrue(
-      "Expected wrapped connection closed SocketException to stay in retry path",
-      surfacedErrors.isEmpty(),
-    )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
   }
 
   @Test
   fun `wrapped briar connection terminated retries without surfacing sync error`() = runTest {
-    val connector = FakeBriarConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = BriarPeopleSync(
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("Connection terminated"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped connection terminated SocketException to stay in retry path",
     )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
-
-    val wrappedTransient = IllegalStateException(
-      "Listener wrapper",
-      SocketException("Connection terminated"),
-    )
-    connector.emitError(wrappedTransient)
-    advanceUntilIdle()
-
-    assertTrue(
-      "Expected wrapped connection terminated SocketException to stay in retry path",
-      surfacedErrors.isEmpty(),
-    )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
   }
 
   @Test
   fun `wrapped briar socket closed retries without surfacing sync error`() = runTest {
-    val connector = FakeBriarConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = BriarPeopleSync(
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("Socket closed"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped socket closed SocketException to stay in retry path",
     )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
-
-    val wrappedTransient = IllegalStateException(
-      "Listener wrapper",
-      SocketException("Socket closed"),
-    )
-    connector.emitError(wrappedTransient)
-    advanceUntilIdle()
-
-    assertTrue(
-      "Expected wrapped socket closed SocketException to stay in retry path",
-      surfacedErrors.isEmpty(),
-    )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
   }
 
   @Test
   fun `wrapped briar socket is closed retries without surfacing sync error`() = runTest {
-    val connector = FakeBriarConnector()
-    val transportBridge = testTransportBridge(BriarTransportMode.BRIAR_ONLY)
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = BriarPeopleSync(
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("Socket is closed"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped socket is closed SocketException to stay in retry path",
     )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
-
-    val wrappedTransient = IllegalStateException(
-      "Listener wrapper",
-      SocketException("Socket is closed"),
-    )
-    connector.emitError(wrappedTransient)
-    advanceUntilIdle()
-
-    assertTrue(
-      "Expected wrapped socket is closed SocketException to stay in retry path",
-      surfacedErrors.isEmpty(),
-    )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
   }
 
   @Test
   fun `wrapped briar ECONNREFUSED retries without surfacing sync error`() = runTest {
-    val connector = FakeBriarConnector()
-    val transportBridge = object : TransportRuntimeBridge {
-      override val currentMode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
-      override val runtimeStatus = MutableStateFlow(BriarRuntimeStatus.stopped)
-      override val diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
-      override val briarChatGateway = MutableStateFlow(stubBriarChatGateway())
-      override val briarContactService = MutableStateFlow(stubBriarContactService())
-      override fun requireFirestore(caller: String) = Unit
-    }
-    val job = SupervisorJob()
-    val dispatcher = StandardTestDispatcher(testScheduler)
-    val scope = CoroutineScope(job + dispatcher)
-    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
-    val sync = BriarPeopleSync(
-      transportConnector = connector,
-      identityRegistry = identityRegistry,
-      transportBridge = transportBridge,
-      syncSupervisorJob = job,
-      scope = scope,
-      initialRetryDelayMillis = 1_000,
-      maxRetryDelayMillis = 1_000,
-      backoffMultiplier = 2.0,
-      retryJitterRatio = 0.0,
-      retryRandomProvider = { 0.5 },
-      delayProvider = { },
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("ECONNREFUSED"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped ECONNREFUSED SocketException to stay in retry path",
     )
-    val surfacedErrors = mutableListOf<Throwable>()
-    val errorsJob = launch {
-      sync.syncPeopleErrors.collect { surfacedErrors += it }
-    }
-
-    sync.ensureStarted()
-    advanceUntilIdle()
-    assertEquals(1, connector.observeContactsCalls)
-
-    val wrappedTransient = IllegalStateException(
-      "Listener wrapper",
-      SocketException("ECONNREFUSED"),
-    )
-    connector.emitError(wrappedTransient)
-    advanceUntilIdle()
-
-    assertTrue(
-      "Expected wrapped ECONNREFUSED SocketException to stay in retry path",
-      surfacedErrors.isEmpty(),
-    )
-    assertEquals(2, connector.observeContactsCalls)
-    errorsJob.cancel()
   }
 
   @Test
@@ -3910,6 +3702,64 @@ class FirestorePeopleSyncTest {
     expectedNoSurfaceMessage: String,
   ) {
     val harness = startFirestoreRetryHarness()
+    harness.connector.emitError(IllegalStateException("Listener wrapper", wrappedCause))
+    advanceUntilIdle()
+
+    assertTrue(expectedNoSurfaceMessage, harness.surfacedErrors.isEmpty())
+    assertEquals(2, harness.connector.observeContactsCalls)
+    harness.cancel()
+  }
+
+  private data class BriarRetryHarness(
+    val connector: FakeBriarConnector,
+    val surfacedErrors: MutableList<Throwable>,
+    val errorsJob: Job,
+  ) {
+    fun cancel() {
+      errorsJob.cancel()
+    }
+  }
+
+  private fun TestScope.startBriarRetryHarness(): BriarRetryHarness {
+    val connector = FakeBriarConnector()
+    val transportBridge = testTransportBridge(BriarTransportMode.BRIAR_ONLY)
+    val job = SupervisorJob()
+    val dispatcher = StandardTestDispatcher(testScheduler)
+    val scope = CoroutineScope(job + dispatcher)
+    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+    val sync = BriarPeopleSync(
+      transportConnector = connector,
+      identityRegistry = identityRegistry,
+      transportBridge = transportBridge,
+      syncSupervisorJob = job,
+      scope = scope,
+      initialRetryDelayMillis = 1_000,
+      maxRetryDelayMillis = 1_000,
+      backoffMultiplier = 2.0,
+      retryJitterRatio = 0.0,
+      retryRandomProvider = { 0.5 },
+      delayProvider = { },
+    )
+    val surfacedErrors = mutableListOf<Throwable>()
+    val errorsJob = launch {
+      sync.syncPeopleErrors.collect { surfacedErrors += it }
+    }
+
+    sync.ensureStarted()
+    advanceUntilIdle()
+    assertEquals(1, connector.observeContactsCalls)
+    return BriarRetryHarness(
+      connector = connector,
+      surfacedErrors = surfacedErrors,
+      errorsJob = errorsJob,
+    )
+  }
+
+  private suspend fun TestScope.assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+    wrappedCause: Throwable,
+    expectedNoSurfaceMessage: String,
+  ) {
+    val harness = startBriarRetryHarness()
     harness.connector.emitError(IllegalStateException("Listener wrapper", wrappedCause))
     advanceUntilIdle()
 
