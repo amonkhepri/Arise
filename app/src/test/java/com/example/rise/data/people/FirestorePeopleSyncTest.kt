@@ -1756,6 +1756,19 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped windows timeout listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException(
+        "A connection attempt failed because the connected party did not properly respond " +
+          "after a period of time, or established connection failed because connected " +
+          "host has failed to respond",
+      ),
+      expectedNoSurfaceMessage =
+        "Expected wrapped Windows timeout SocketException to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped ECONNABORTED listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = SocketException("ECONNABORTED"),
@@ -3420,6 +3433,19 @@ class FirestorePeopleSyncTest {
       wrappedCause = SocketException("An existing connection was forcibly closed by the remote host"),
       expectedNoSurfaceMessage =
         "Expected wrapped Windows connection-reset SocketException to stay in retry path",
+    )
+  }
+
+  @Test
+  fun `wrapped briar windows timeout retries without surfacing sync error`() = runTest {
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException(
+        "A connection attempt failed because the connected party did not properly respond " +
+          "after a period of time, or established connection failed because connected " +
+          "host has failed to respond",
+      ),
+      expectedNoSurfaceMessage =
+        "Expected wrapped Windows timeout SocketException to stay in retry path",
     )
   }
 

@@ -329,6 +329,8 @@ class FirestorePeopleSync(
                 cause.message.orEmpty().contains("no such host", ignoreCase = true) ||
                 cause.message.orEmpty().contains("no route to host", ignoreCase = true) ||
                 cause.message.orEmpty().contains("epipe", ignoreCase = true) ||
+                cause.message.orEmpty().contains("did not properly respond after a period of time", ignoreCase = true) ||
+                cause.message.orEmpty().contains("connected host has failed to respond", ignoreCase = true) ||
                 cause.message.orEmpty().contains("unavailable", ignoreCase = true) ||
                 cause.message.orEmpty().contains("etimedout", ignoreCase = true) ||
                 cause.message.orEmpty().contains("timed out", ignoreCase = true) ||
@@ -505,6 +507,8 @@ class BriarPeopleSync(
                     message.contains("eai_again", ignoreCase = true) ||
                     message.contains("nodename nor servname provided", ignoreCase = true) ||
                     message.contains("failed to connect", ignoreCase = true) ||
+                    message.contains("did not properly respond after a period of time", ignoreCase = true) ||
+                    message.contains("connected host has failed to respond", ignoreCase = true) ||
                     message.contains("unavailable", ignoreCase = true) ||
                     message.contains("econnreset", ignoreCase = true) ||
                     message.contains("enetreset", ignoreCase = true) ||
