@@ -935,6 +935,14 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped ECONNREFUSED runtime listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = RuntimeException("ECONNREFUSED"),
+      expectedNoSurfaceMessage = "Expected wrapped ECONNREFUSED runtime error to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped connection lost listener error retries without surfacing sync error`() = runTest {
     val connector = FakeFirestoreConnector()
     val transportBridge = object : TransportRuntimeBridge {
