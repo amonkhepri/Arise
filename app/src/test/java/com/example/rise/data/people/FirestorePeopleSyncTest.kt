@@ -978,6 +978,14 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped no such host is known runtime listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = RuntimeException("No such host is known"),
+      expectedNoSurfaceMessage = "Expected wrapped no such host runtime error to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped connection lost listener error retries without surfacing sync error`() = runTest {
     val connector = FakeFirestoreConnector()
     val transportBridge = object : TransportRuntimeBridge {
