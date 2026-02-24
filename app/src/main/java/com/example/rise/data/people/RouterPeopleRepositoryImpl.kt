@@ -311,6 +311,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("socket is closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("socket closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection refused", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("target machine actively refused", ignoreCase = true) ||
                             cause.message.orEmpty().contains("econnrefused", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection abort", ignoreCase = true) ||
                             cause.message.orEmpty().contains("econnaborted", ignoreCase = true) ||
@@ -481,6 +482,7 @@ class BriarPeopleSync(
                     message.contains("socket is closed", ignoreCase = true) ||
                     message.contains("socket closed", ignoreCase = true) ||
                     message.contains("connection refused", ignoreCase = true) ||
+                    message.contains("target machine actively refused", ignoreCase = true) ||
                     message.contains("econnrefused", ignoreCase = true) ||
                     message.contains("software caused connection abort", ignoreCase = true) ||
                     message.contains("connection abort", ignoreCase = true) ||

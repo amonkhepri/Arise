@@ -1769,6 +1769,17 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped windows connection refused listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException(
+        "No connection could be made because the target machine actively refused it",
+      ),
+      expectedNoSurfaceMessage =
+        "Expected wrapped Windows connection-refused SocketException to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped ECONNABORTED listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = SocketException("ECONNABORTED"),
@@ -3446,6 +3457,17 @@ class FirestorePeopleSyncTest {
       ),
       expectedNoSurfaceMessage =
         "Expected wrapped Windows timeout SocketException to stay in retry path",
+    )
+  }
+
+  @Test
+  fun `wrapped briar windows connection refused retries without surfacing sync error`() = runTest {
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException(
+        "No connection could be made because the target machine actively refused it",
+      ),
+      expectedNoSurfaceMessage =
+        "Expected wrapped Windows connection-refused SocketException to stay in retry path",
     )
   }
 
