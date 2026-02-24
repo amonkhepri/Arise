@@ -962,6 +962,14 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped EAI_AGAIN runtime listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = RuntimeException("getaddrinfo EAI_AGAIN example.com"),
+      expectedNoSurfaceMessage = "Expected wrapped EAI_AGAIN runtime error to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped ETIMEDOUT runtime listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = RuntimeException("ETIMEDOUT"),
