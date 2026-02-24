@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "approved",
-  "last_executor_commit": "65a57713f23d0ab308e9d874b1c6f51a04efb6b3",
+  "review_status": "pending",
+  "last_executor_commit": "674b86e4469cffdffd2afee3504dc0f5a60458fa",
   "last_reviewed_commit": "65a57713f23d0ab308e9d874b1c6f51a04efb6b3",
   "pending_fix_for_commit": null,
-  "executor_summary": "Added Firestore/Briar transient listener classification for Windows WSAENETDOWN-style SocketException text (dead network) with regression tests and roadmap update.",
+  "executor_summary": "Added Firestore/Briar transient listener classification for Windows WSAEHOSTDOWN-style SocketException text (dead host) with regression tests and roadmap update.",
   "reviewer_summary": "Approved executor commit 65a5771: Windows WSAENETDOWN-style SocketException text is now treated as transient in FirestorePeopleSync and BriarPeopleSync, with wrapped-listener regression tests added; no review findings. Targeted unit-test validation was attempted but blocked by missing Java 17 toolchain in the reviewer environment.",
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 6,
-  "updated_by": "reviewer",
-  "updated_at": "2026-02-24T15:42:12Z"
+  "updated_by": "executor",
+  "updated_at": "2026-02-24T15:47:41Z"
 }
