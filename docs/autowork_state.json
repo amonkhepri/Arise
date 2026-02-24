@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "approved",
   "last_executor_commit": "ff3dccfdb475831800e8a81c41b6a3b6d6272bb6",
-  "last_reviewed_commit": "2145e210eb02f49f9bfa1a7d6d8b7320e923df67",
+  "last_reviewed_commit": "ff3dccfdb475831800e8a81c41b6a3b6d6272bb6",
   "pending_fix_for_commit": null,
   "executor_summary": "Persisted pending-review state for executor commit ff3dccf (Windows WSAECONNABORTED transient classification + regression tests) after prior run left docs/autowork_state.json uncommitted.",
-  "reviewer_summary": "Approved executor commit 2145e210: ENETRESET reset-text variant handling was added for FirestorePeopleSync and BriarPeopleSync with matching wrapped-listener regression tests; no review findings. Targeted unit-test validation was attempted but blocked by missing Java 17 toolchain in the reviewer environment.",
+  "reviewer_summary": "Approved executor commit ff3dccfd: Windows WSAECONNABORTED host-machine-abort text is now treated as transient in FirestorePeopleSync and BriarPeopleSync, with wrapped-listener regression tests added; no review findings. Targeted unit-test validation was attempted but blocked by missing Java 17 toolchain in the reviewer environment.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 1,
-  "updated_by": "executor",
-  "updated_at": "2026-02-24T15:03:16Z"
+  "review_round": 2,
+  "updated_by": "reviewer",
+  "updated_at": "2026-02-24T15:05:41Z"
 }
