@@ -1816,6 +1816,15 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped transport endpoint not connected listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("Transport endpoint is not connected"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped transport endpoint not connected SocketException to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped ECONNABORTED listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = SocketException("ECONNABORTED"),
@@ -3540,6 +3549,15 @@ class FirestorePeopleSyncTest {
       wrappedCause = SocketException("ENOTCONN"),
       expectedNoSurfaceMessage =
         "Expected wrapped ENOTCONN SocketException to stay in retry path",
+    )
+  }
+
+  @Test
+  fun `wrapped briar transport endpoint not connected retries without surfacing sync error`() = runTest {
+    assertWrappedBriarListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("Transport endpoint is not connected"),
+      expectedNoSurfaceMessage =
+        "Expected wrapped transport endpoint not connected SocketException to stay in retry path",
     )
   }
 

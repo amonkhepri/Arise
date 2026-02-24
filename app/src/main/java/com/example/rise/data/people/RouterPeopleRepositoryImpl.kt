@@ -312,6 +312,7 @@ class FirestorePeopleSync(
                             cause.message.orEmpty().contains("connection terminated", ignoreCase = true) ||
                             cause.message.orEmpty().contains("socket is closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("socket is not connected", ignoreCase = true) ||
+                            cause.message.orEmpty().contains("transport endpoint is not connected", ignoreCase = true) ||
                             cause.message.orEmpty().contains("enotconn", ignoreCase = true) ||
                             cause.message.orEmpty().contains("socket closed", ignoreCase = true) ||
                             cause.message.orEmpty().contains("connection refused", ignoreCase = true) ||
@@ -328,6 +329,7 @@ class FirestorePeopleSync(
                 cause.message.orEmpty().contains("enetreset", ignoreCase = true) ||
                 cause.message.orEmpty().contains("ehostdown", ignoreCase = true) ||
                 cause.message.orEmpty().contains("socket is not connected", ignoreCase = true) ||
+                cause.message.orEmpty().contains("transport endpoint is not connected", ignoreCase = true) ||
                 cause.message.orEmpty().contains("enotconn", ignoreCase = true) ||
                 cause.message.orEmpty().contains("dead network", ignoreCase = true) ||
                 cause.message.orEmpty().contains("dead host", ignoreCase = true) ||
@@ -489,6 +491,7 @@ class BriarPeopleSync(
                     message.contains("connection terminated", ignoreCase = true) ||
                     message.contains("socket is closed", ignoreCase = true) ||
                     message.contains("socket is not connected", ignoreCase = true) ||
+                    message.contains("transport endpoint is not connected", ignoreCase = true) ||
                     message.contains("enotconn", ignoreCase = true) ||
                     message.contains("socket closed", ignoreCase = true) ||
                     message.contains("connection refused", ignoreCase = true) ||
