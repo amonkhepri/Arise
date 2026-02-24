@@ -319,6 +319,7 @@ class FirestorePeopleSync(
                 cause.message.orEmpty().contains("connection reset", ignoreCase = true) ||
                 cause.message.orEmpty().contains("econnrefused", ignoreCase = true) ||
                 cause.message.orEmpty().contains("enetreset", ignoreCase = true) ||
+                cause.message.orEmpty().contains("ehostdown", ignoreCase = true) ||
                 cause.message.orEmpty().contains("enotfound", ignoreCase = true) ||
                 cause.message.orEmpty().contains("eai_again", ignoreCase = true) ||
                 cause.message.orEmpty().contains("no such host", ignoreCase = true) ||

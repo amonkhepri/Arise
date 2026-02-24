@@ -978,6 +978,14 @@ class FirestorePeopleSyncTest {
   }
 
   @Test
+  fun `wrapped EHOSTDOWN listener error retries without surfacing sync error`() = runTest {
+    assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
+      wrappedCause = SocketException("EHOSTDOWN"),
+      expectedNoSurfaceMessage = "Expected wrapped EHOSTDOWN SocketException to stay in retry path",
+    )
+  }
+
+  @Test
   fun `wrapped ECONNREFUSED runtime listener error retries without surfacing sync error`() = runTest {
     assertWrappedFirestoreListenerErrorRetriesWithoutSurfacingSyncError(
       wrappedCause = RuntimeException("ECONNREFUSED"),
