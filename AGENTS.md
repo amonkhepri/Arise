@@ -57,7 +57,10 @@ Additional rules:
 
 ## Current Architecture Direction (High Priority)
 - Read `README.md` before making product-level or architecture-level changes. Treat it as the current vision and migration context.
+- Firestore/Firebase dependency removal from core application flows is the current top priority. Prefer work that removes, replaces, or isolates Firestore usage over adding more legacy Firestore reliability heuristics.
+- For autonomous/continuous agent runs, prioritize connector-first migration tasks (people sync, account, auth, presence, routing) before Firestore retry-classifier/string-variant expansions.
 - Firestore/Firebase usage is legacy and is being phased out. Do not introduce new Firestore or Firebase dependencies, auth flows, repositories, listeners, or schema coupling unless the user explicitly asks for legacy maintenance.
+- Legacy Firestore fixes are allowed only when explicitly requested or when they unblock migration / prevent a user-visible regression (for example crash, data loss, auth lockout, or broken sync).
 - Authentication must be connector-driven (Briar first, or another connector if available). New authentication logic should go through transport/connector abstractions rather than Firebase-specific APIs.
 - Prefer connector-capability-based design (for auth/account/profile features) so new connectors can participate without UI rewrites.
 - If modifying existing Firestore code, keep changes minimal and migration-oriented; avoid expanding Firestore surface area.

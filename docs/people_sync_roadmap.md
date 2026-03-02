@@ -4,6 +4,22 @@
 - Current Firestore roster listener now propagates failures and retries with exponential backoff.
 - Firestore and Briar roster listeners now apply jittered retry timing to reduce reconnect bursts.
 
+## Priority Reset (2026-02-24): Remove Firestore Dependency First
+- Firestore dependency removal from core flows is now the top priority for this roadmap.
+- Additional Firestore/Briar retry-string micro-hardening is maintenance-only from this point onward. Only do it when it is explicitly requested, fixes a user-visible regression, or unblocks connector migration work.
+- Prefer tasks that reduce Firestore surface area, prove connector-only behavior, and remove Firebase assumptions from UI/domain/repository layers.
+
+## Top Priority Backlog: Firestore Removal / Connector-First Migration
+- [x] 2026-02-24: Created first-pass Firestore/Firebase dependency inventory for production code paths in `docs/firestore_dependency_inventory.md`, with entries tagged as `migrate-now`, `temporary-legacy`, or `delete-after-cutover`.
+- [ ] Keep `docs/firestore_dependency_inventory.md` current as each Firebase/Firestore surface is removed, isolated, or re-scoped.
+- [ ] Define explicit cutover criteria for people flows: what must pass in `HYBRID` and `BRIAR_ONLY` for Firestore to stop being required in core people sync behavior.
+- [ ] Add/expand regression coverage proving core people/account flows continue to work when Firestore is unavailable/disabled but connector-based paths are available.
+- [ ] Prioritize deleting or isolating direct Firestore SDK calls from UI/domain-facing layers; Firestore code should remain behind connector/adaptor boundaries only.
+- [ ] Record each Firestore surface-area reduction here (date + affected classes) so this roadmap tracks removal progress, not only reliability keyword additions.
+
+## Reliability Hardening (Legacy Maintenance Track)
+- The sections below are historical reliability work and maintenance backlog/history. They are no longer the default autowork target unless they meet the blocker criteria above.
+
 ## Backlog Item: Add Retry Jitter
 - **Risk Mitigated:** prevents a thundering herd when many devices reconnect after outages.
 - **Approach:** add a small random +/-10% jitter to each scheduled retry delay before invoking `delayProvider`.
