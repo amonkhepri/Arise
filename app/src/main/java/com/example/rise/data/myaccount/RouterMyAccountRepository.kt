@@ -6,11 +6,13 @@ import com.example.rise.models.User
 import com.example.rise.briar.runtime.BriarRuntimeManager
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.AccountConnector
+import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorRegistry
 import com.example.rise.transport.router.IdentityRegistry
-import com.example.rise.transport.router.TransportRouter
 import com.example.rise.transport.router.IdentityProfile
+import com.example.rise.transport.router.TransportConnector
 import com.example.rise.transport.router.TransportId
+import com.example.rise.transport.router.TransportRouter
 import com.example.rise.featureflags.BriarTransportMode
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
@@ -122,30 +124,42 @@ class RouterMyAccountRepository(
             val account = candidate as? AccountConnector ?: return@mapNotNull null
             candidate to account
         }
+        val readyPrimaryAccountConnector = primaryAccountConnector
+            ?.takeIf { primaryConnector.isReadyForAccountRouting() }
+        val readyAccountConnectors = accountConnectors.filter { (connector, _) ->
+            connector.isReadyForAccountRouting()
+        }
         val preferred = when (mode) {
             BriarTransportMode.FIRESTORE -> {
-                if (primaryConnector.transport == TransportId.FIRESTORE && primaryAccountConnector != null) {
-                    primaryAccountConnector
+                if (primaryConnector.transport == TransportId.FIRESTORE && readyPrimaryAccountConnector != null) {
+                    readyPrimaryAccountConnector
                 } else {
-                    accountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }?.second
+                    readyAccountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }?.second
                 }
             }
             BriarTransportMode.HYBRID,
             BriarTransportMode.BRIAR_ONLY -> {
-                if (primaryConnector.transport != TransportId.FIRESTORE && primaryAccountConnector != null) {
-                    primaryAccountConnector
+                if (primaryConnector.transport != TransportId.FIRESTORE && readyPrimaryAccountConnector != null) {
+                    readyPrimaryAccountConnector
                 } else {
-                    accountConnectors.firstOrNull { it.first.transport != TransportId.FIRESTORE }?.second
+                    readyAccountConnectors.firstOrNull { it.first.transport != TransportId.FIRESTORE }?.second
                 }
             }
         }
         return preferred
+            ?: readyPrimaryAccountConnector
+            ?: readyAccountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }?.second
+            ?: readyAccountConnectors.firstOrNull()?.second
             ?: primaryAccountConnector
             ?: accountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }?.second
             ?: accountConnectors.firstOrNull()?.second
             ?: throw IllegalStateException(
                 "No connector supports account profiles for mode=$mode primary=${primaryConnector.transport}"
             )
+    }
+
+    private fun TransportConnector.isReadyForAccountRouting(): Boolean {
+        return lifecycle.value == ConnectorLifecycleState.READY
     }
 
     companion object {

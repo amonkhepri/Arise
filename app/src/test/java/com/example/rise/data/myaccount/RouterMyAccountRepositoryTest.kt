@@ -275,6 +275,44 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `hybrid mode falls back to ready account connector when preferred connector is stopped`() = runTest {
+        val unavailableBriarConnector = FakeAccountConnector(
+            transport = TransportId.BRIAR,
+            lifecycleState = ConnectorLifecycleState.STOPPED,
+            fetchFailure = IllegalStateException("Briar account connector not ready"),
+            updateFailure = IllegalStateException("Briar account connector not ready"),
+        )
+        val firestoreAccountConnector = FakeAccountConnector(transport = TransportId.FIRESTORE).apply {
+            profile = profile.copy(name = "Firestore Account Connector")
+        }
+        val registry = OrderedFallbackConnectorRegistry(
+            primary = unavailableBriarConnector,
+            firstFallback = firestoreAccountConnector,
+            secondFallback = NonAccountConnector(TransportId.BRIAR),
+        )
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.HYBRID)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val fetched = repository.fetchCurrentUser()
+        repository.updateCurrentUser(name = "Nova", bio = "")
+
+        assertEquals("Firestore Account Connector", fetched.name)
+        assertTrue(unavailableBriarConnector.updates.isEmpty())
+        assertEquals(1, firestoreAccountConnector.updates.size)
+    }
+
+    @Test
     fun `briar only mode returns identity registry profile`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Briar User")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
@@ -381,16 +419,24 @@ class RouterMyAccountRepositoryTest {
 
     private class FakeAccountConnector(
         override val transport: TransportId = TransportId.FIRESTORE,
+        lifecycleState: ConnectorLifecycleState = ConnectorLifecycleState.READY,
+        statusState: ConnectorStatus = ConnectorStatus.ACTIVE,
+        private val fetchFailure: Throwable? = null,
+        private val updateFailure: Throwable? = null,
     ) : TransportConnector, AccountConnector {
-        override val status: StateFlow<ConnectorStatus> = MutableStateFlow(ConnectorStatus.ACTIVE)
-        override val lifecycle: StateFlow<ConnectorLifecycleState> = MutableStateFlow(ConnectorLifecycleState.READY)
+        override val status: StateFlow<ConnectorStatus> = MutableStateFlow(statusState)
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = MutableStateFlow(lifecycleState)
         override val capabilities: StateFlow<ConnectorCapabilities> = MutableStateFlow(ConnectorCapabilities.EMPTY)
         var profile: User = User(name = "Ada", bio = "Bio", profilePicturePath = null, registrationTokens = mutableListOf())
         val updates = mutableListOf<AccountConnector.AccountProfileUpdate>()
 
-        override suspend fun fetchAccountProfile(): User = profile
+        override suspend fun fetchAccountProfile(): User {
+            fetchFailure?.let { throw it }
+            return profile
+        }
 
         override suspend fun updateAccountProfile(update: AccountConnector.AccountProfileUpdate) {
+            updateFailure?.let { throw it }
             updates += update
             update.name?.let { profile = profile.copy(name = it) }
             update.bio?.let { profile = profile.copy(bio = it) }
