@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "approved",
-  "last_executor_commit": "0275075e41ed3052b2610d04eb119dc8a83ff4b6",
+  "review_status": "pending",
+  "last_executor_commit": "cc5ef36d4b15363da539b9e97c29541037a092ab",
   "last_reviewed_commit": "0275075e41ed3052b2610d04eb119dc8a83ff4b6",
   "pending_fix_for_commit": null,
-  "executor_summary": "Added BRIAR_ONLY regression coverage for empty-profile updates and short-circuited RouterMyAccountRepository to avoid no-op identity upserts.",
+  "executor_summary": "Added BRIAR_ONLY regression coverage for stale router identities and updated RouterMyAccountRepository.fetchCurrentUser() to prefer IdentityRegistry display names after local profile updates.",
   "reviewer_summary": "Approved executor commit 0275075: BRIAR_ONLY no-op profile updates now short-circuit identity upsert with regression coverage; no review findings.",
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 13,
-  "updated_by": "reviewer",
-  "updated_at": "2026-03-03T17:01:41Z"
+  "updated_by": "executor",
+  "updated_at": "2026-03-03T17:08:25Z"
 }
