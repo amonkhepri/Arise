@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "approved",
-  "last_executor_commit": "5ee069b130e2a7d2caaffa6ec6d10d44be6408ee",
+  "review_status": "pending",
+  "last_executor_commit": "357e5b2ac27e17ff6b4d75a5122a2e8190a8d153",
   "last_reviewed_commit": "5ee069b130e2a7d2caaffa6ec6d10d44be6408ee",
   "pending_fix_for_commit": null,
-  "executor_summary": "Added HYBRID account fallback regression coverage and updated RouterMyAccountRepository.accountConnector() to prefer READY account connectors before using fallback routing.",
+  "executor_summary": "Added FIRESTORE-mode fallback regression coverage and updated RouterMyAccountRepository.accountConnector() to require ACTIVE+READY connector health before selecting account routing candidates.",
   "reviewer_summary": "Approved executor commit 5ee069b: account routing now prefers READY account connectors and falls back to a READY alternative when the preferred HYBRID connector is stopped, with regression coverage; no review findings.",
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 15,
-  "updated_by": "reviewer",
-  "updated_at": "2026-03-03T17:25:22Z"
+  "updated_by": "executor",
+  "updated_at": "2026-03-03T17:30:12Z"
 }
