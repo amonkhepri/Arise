@@ -562,10 +562,16 @@ class CompositePeopleSync(
         transportMode,
         combine(delegates.map { it.currentUserCanonicalId }) { ids -> ids.toList() },
     ) { mode, ids ->
-        if (mode == BriarTransportMode.BRIAR_ONLY) {
-            ids.getOrNull(briarDelegateIndex)
-        } else {
-            ids.firstOrNull { it != null }
+        val briarId = ids.getOrNull(briarDelegateIndex)
+        val nonBriarId = ids.withIndex()
+            .firstOrNull { indexedId ->
+                indexedId.index != briarDelegateIndex && indexedId.value != null
+            }
+            ?.value
+        when (mode) {
+            BriarTransportMode.BRIAR_ONLY -> briarId
+            BriarTransportMode.HYBRID -> briarId ?: nonBriarId
+            BriarTransportMode.FIRESTORE -> nonBriarId ?: briarId
         }
     }
 
