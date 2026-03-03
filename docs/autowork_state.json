@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "needs_fix",
-  "last_executor_commit": "4d0214e43efffa1d234ce96f8aebcb1a51a03a1a",
+  "review_status": "pending",
+  "last_executor_commit": "b3396d1890fd4df8469495215f524caa21323a13",
   "last_reviewed_commit": "4d0214e43efffa1d234ce96f8aebcb1a51a03a1a",
   "pending_fix_for_commit": "4d0214e43efffa1d234ce96f8aebcb1a51a03a1a",
-  "executor_summary": "Added BRIAR_ONLY account regression coverage and fallback logic so fetchCurrentUser uses cached IdentityRegistry identity when router identity lookup fails.",
+  "executor_summary": "Added cancellation regression coverage and updated BRIAR_ONLY fetchCurrentUser to rethrow CancellationException instead of falling back to cached identity.",
   "reviewer_summary": "Needs fix for 4d0214e: fetchCurrentUser captures CancellationException via runCatching and may return cached user after cancellation in BRIAR_ONLY mode.",
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 19,
-  "updated_by": "reviewer",
-  "updated_at": "2026-03-03T18:02:44Z"
+  "updated_by": "executor",
+  "updated_at": "2026-03-03T18:08:04Z"
 }
