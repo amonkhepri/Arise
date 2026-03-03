@@ -8,6 +8,7 @@ import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.AccountConnector
 import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorRegistry
+import com.example.rise.transport.router.ConnectorStatus
 import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.IdentityProfile
 import com.example.rise.transport.router.TransportConnector
@@ -159,7 +160,8 @@ class RouterMyAccountRepository(
     }
 
     private fun TransportConnector.isReadyForAccountRouting(): Boolean {
-        return lifecycle.value == ConnectorLifecycleState.READY
+        return lifecycle.value == ConnectorLifecycleState.READY &&
+            status.value == ConnectorStatus.ACTIVE
     }
 
     companion object {

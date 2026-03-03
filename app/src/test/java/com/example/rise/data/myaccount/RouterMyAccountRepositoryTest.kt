@@ -313,6 +313,45 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `firestore mode falls back when firestore account connector is not active`() = runTest {
+        val briarAccountConnector = FakeAccountConnector(transport = TransportId.BRIAR).apply {
+            profile = profile.copy(name = "Briar Account Connector")
+        }
+        val unavailableFirestoreConnector = FakeAccountConnector(
+            transport = TransportId.FIRESTORE,
+            lifecycleState = ConnectorLifecycleState.READY,
+            statusState = ConnectorStatus.ERROR,
+            fetchFailure = IllegalStateException("Firestore account connector unavailable"),
+            updateFailure = IllegalStateException("Firestore account connector unavailable"),
+        )
+        val registry = OrderedFallbackConnectorRegistry(
+            primary = NonAccountConnector(TransportId.BRIAR),
+            firstFallback = briarAccountConnector,
+            secondFallback = unavailableFirestoreConnector,
+        )
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.FIRESTORE)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val fetched = repository.fetchCurrentUser()
+        repository.updateCurrentUser(name = "Nova", bio = "")
+
+        assertEquals("Briar Account Connector", fetched.name)
+        assertEquals(1, briarAccountConnector.updates.size)
+        assertTrue(unavailableFirestoreConnector.updates.isEmpty())
+    }
+
+    @Test
     fun `briar only mode returns identity registry profile`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Briar User")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
