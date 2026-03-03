@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "approved",
-  "last_executor_commit": "cc5ef36d4b15363da539b9e97c29541037a092ab",
+  "review_status": "pending",
+  "last_executor_commit": "5ee069b130e2a7d2caaffa6ec6d10d44be6408ee",
   "last_reviewed_commit": "cc5ef36d4b15363da539b9e97c29541037a092ab",
   "pending_fix_for_commit": null,
-  "executor_summary": "Added BRIAR_ONLY regression coverage for stale router identities and updated RouterMyAccountRepository.fetchCurrentUser() to prefer IdentityRegistry display names after local profile updates.",
+  "executor_summary": "Added HYBRID account fallback regression coverage and updated RouterMyAccountRepository.accountConnector() to prefer READY account connectors before using fallback routing.",
   "reviewer_summary": "Approved executor commit cc5ef36: BRIAR_ONLY fetch now prefers IdentityRegistry display names to keep local profile name updates visible when router identity is stale, with regression coverage; no review findings.",
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 14,
-  "updated_by": "reviewer",
-  "updated_at": "2026-03-03T17:11:09Z"
+  "updated_by": "executor",
+  "updated_at": "2026-03-03T17:22:20Z"
 }
