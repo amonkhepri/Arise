@@ -1,6 +1,6 @@
 # Firestore/Firebase Dependency Inventory (First Pass)
 
-_Last updated: 2026-02-24_
+_Last updated: 2026-03-03_
 
 This inventory is the migration-oriented snapshot of production Firebase/Firestore usage in Arise.
 It exists to shift work selection toward removing or isolating legacy Firebase dependencies instead
@@ -42,7 +42,7 @@ router data-shape details). This inventory focuses on dependency surfaces and mi
 | People sync (legacy path in router repo file) | `app/src/main/java/com/example/rise/data/people/RouterPeopleRepositoryImpl.kt` (`FirestorePeopleSync`) | Uses `FirebaseAuth` listener and Firestore-specific exception typing (`FirebaseFirestoreException`) in sync classification/retry behavior. | `migrate-now` | Reduce/retire `FirestorePeopleSync` as a core dependency; keep only bounded legacy adapter behavior if FIRESTORE mode remains. |
 | People sync (connector path) | `app/src/main/java/com/example/rise/transport/connectors/FirestoreConnector.kt` | Firestore-backed connector still serves contacts/messages/account and advertises presence from `users.presence`. | `temporary-legacy` | Keep as the legacy transport adapter behind `TransportConnector` until connector-only cutover; do not expand scope. |
 | Presence inventory/docs | `docs/people_presence_firestore_inventory.md` | Tracks Firestore `users.presence` fallback semantics and router expectations. | `temporary-legacy` | Keep updated until Firestore presence is removed or made non-core. |
-| Account/profile routing fallback | `app/src/main/java/com/example/rise/data/myaccount/RouterMyAccountRepository.kt` | `accountConnector()` explicitly falls back to Firestore connector when primary connector lacks account support. | `migrate-now` | Replace fallback-first behavior with explicit cutover rules/capabilities so Firestore is not silently required in non-FIRESTORE modes. |
+| Account/profile routing fallback | `app/src/main/java/com/example/rise/data/myaccount/RouterMyAccountRepository.kt` | `accountConnector()` now prefers non-Firestore account connectors in `HYBRID`/`BRIAR_ONLY` and uses Firestore only as a legacy fallback when no connector-native account capability is available. | `migrate-now` | Remove the remaining Firestore fallback once cutover criteria guarantee connector-native account/profile support in non-FIRESTORE modes. |
 | User profile remote adapter | `app/src/main/java/com/example/rise/data/firestore/FirebaseUserRemoteDataSource.kt` | Direct Firestore `users` document CRUD + snapshot observation. | `temporary-legacy` | Keep only as legacy adapter behind `UserRemoteDataSource`; remove direct app-core reliance over time. |
 | User profile abstraction (Firestore-shaped semantics in docs) | `app/src/main/java/com/example/rise/data/firestore/UserRemoteDataSource.kt` | Interface docs explicitly describe Firestore-backed production usage and Firestore-like update semantics. | `temporary-legacy` | Reword contract around backend-agnostic semantics after Firebase path is no longer primary. |
 | Auth service implementation | `app/src/main/java/com/example/rise/auth/FirebaseAuthenticationService.kt` | Direct FirebaseAuth sign-in/register/custom-token/auth-state/profile APIs implement `AuthenticationService`. | `migrate-now` | Add connector-driven auth implementation(s) and move Firebase auth to legacy adapter path only. |

@@ -16,6 +16,7 @@
 - [ ] Add/expand regression coverage proving core people/account flows continue to work when Firestore is unavailable/disabled but connector-based paths are available.
 - [ ] Prioritize deleting or isolating direct Firestore SDK calls from UI/domain-facing layers; Firestore code should remain behind connector/adaptor boundaries only.
 - [ ] Record each Firestore surface-area reduction here (date + affected classes) so this roadmap tracks removal progress, not only reliability keyword additions.
+- ✅ 2026-03-03: `RouterMyAccountRepository.accountConnector()` now prefers non-Firestore `AccountConnector` implementations in `HYBRID`/`BRIAR_ONLY`, keeping Firestore as legacy fallback only when no connector-native account capability is available; covered by `RouterMyAccountRepositoryTest`.
 
 ## Reliability Hardening (Legacy Maintenance Track)
 - The sections below are historical reliability work and maintenance backlog/history. They are no longer the default autowork target unless they meet the blocker criteria above.
@@ -114,6 +115,7 @@
 - ✅ 2026-02-17: `FirestoreConnector` account capability metadata now advertises `editableFields=name,bio,profilePicturePath`, keeping HYBRID account façade capability signals aligned with supported profile writes.
 - ✅ 2026-02-17: `MyAccountViewModel.updateProfile()` now preserves existing UI name/bio/profile picture values when blank inputs represent no-op saves, matching `RouterMyAccountRepository` blank-field update semantics with regression coverage.
 - ✅ 2026-02-17: `RouterMyAccountRepository` now explicitly prefers the Firestore `AccountConnector` fallback when HYBRID’s primary connector lacks account support, keeping account façade profile reads deterministic while preserving regression coverage.
+- ✅ 2026-03-03: `RouterMyAccountRepository` now prefers non-Firestore account-capable connectors in `HYBRID`/`BRIAR_ONLY` before falling back to Firestore, reducing implicit Firestore dependency in connector-first account flows.
 
 ### Presence + Identity Registry
 - Extend connector contact payloads to carry presence (defaulting to `PresenceStatus.UNKNOWN`). Firestore schema updates should note the temporary fallback and add TODOs pointing to router tickets.

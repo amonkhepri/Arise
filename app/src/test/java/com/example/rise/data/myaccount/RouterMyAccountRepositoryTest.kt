@@ -207,7 +207,7 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
-    fun `hybrid mode prefers firestore account connector when primary lacks account capability`() = runTest {
+    fun `hybrid mode prefers non firestore account connector when primary lacks account capability`() = runTest {
         val briarAccountConnector = FakeAccountConnector(transport = TransportId.BRIAR).apply {
             profile = profile.copy(name = "Briar Account Connector")
         }
@@ -236,7 +236,7 @@ class RouterMyAccountRepositoryTest {
 
         val result = repository.fetchCurrentUser()
 
-        assertEquals(firestoreAccountConnector.profile, result)
+        assertEquals(briarAccountConnector.profile, result)
     }
 
     @Test

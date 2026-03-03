@@ -115,14 +115,22 @@ class RouterMyAccountRepository(
         if (connector is AccountConnector) {
             return connector
         }
-        val firestoreConnector = connectorRegistry.connectorFor(TransportId.FIRESTORE)
-        if (firestoreConnector is AccountConnector) {
-            return firestoreConnector
+
+        val accountConnectors = connectorRegistry.connectors.mapNotNull { candidate ->
+            val account = candidate as? AccountConnector ?: return@mapNotNull null
+            candidate to account
         }
-        val fallback = connectorRegistry.connectors
-            .firstOrNull { it is AccountConnector }
-            ?.let { it as AccountConnector }
-        return fallback
+        val preferred = when (mode) {
+            BriarTransportMode.FIRESTORE -> accountConnectors
+                .firstOrNull { it.first.transport == TransportId.FIRESTORE }
+            BriarTransportMode.HYBRID,
+            BriarTransportMode.BRIAR_ONLY -> accountConnectors
+                .firstOrNull { it.first.transport != TransportId.FIRESTORE }
+        }
+        val fallback = preferred
+            ?: accountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }
+            ?: accountConnectors.firstOrNull()
+        return fallback?.second
             ?: throw IllegalStateException("No connector supports account profiles for mode=$mode primary=${connector.transport}")
     }
 
