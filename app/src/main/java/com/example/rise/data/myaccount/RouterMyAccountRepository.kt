@@ -35,8 +35,9 @@ class RouterMyAccountRepository(
             val record = identityRegistry.identitiesSnapshot()
                 .firstOrNull { it.canonicalIdentity.id == identity.id }
             val profile = record?.profile ?: IdentityProfile()
+            val resolvedDisplayName = record?.canonicalIdentity?.displayName ?: identity.displayName
             return@withContext User(
-                name = identity.displayName,
+                name = resolvedDisplayName,
                 bio = profile.bio.orEmpty(),
                 profilePicturePath = profile.profilePicturePath,
                 registrationTokens = mutableListOf(),

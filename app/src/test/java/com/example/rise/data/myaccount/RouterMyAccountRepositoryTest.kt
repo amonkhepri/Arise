@@ -304,6 +304,36 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `briar only mode fetchCurrentUser uses registry display name after local profile update`() = runTest {
+        val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Router Name")
+        val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+        identityRegistry.upsertIdentity(
+            identity = canonicalIdentity,
+            aliases = mapOf(TransportId.BRIAR to canonicalIdentity.id),
+            profile = IdentityProfile(bio = "Briar bio"),
+            setAsCurrent = true,
+        )
+        val bridge = FakeTransportRuntimeBridge().apply { setMode(BriarTransportMode.BRIAR_ONLY) }
+        val router = IdentityAwareTransportRouter(canonicalIdentity)
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = router,
+            connectorRegistry = FakeConnectorRegistry(FakeAccountConnector()),
+            transportBridge = bridge,
+            identityRegistry = identityRegistry,
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        repository.updateCurrentUser(name = "Updated Name", bio = "")
+        val result = repository.fetchCurrentUser()
+
+        assertEquals("Updated Name", result.name)
+        assertEquals("Briar bio", result.bio)
+    }
+
+    @Test
     fun `briar only mode skips identity upsert when profile update is empty`() = runTest {
         val store = InMemoryIdentityRegistryStore()
         val identityRegistry = IdentityRegistryImpl(store)
