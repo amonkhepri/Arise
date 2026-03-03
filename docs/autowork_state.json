@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "needs_fix",
   "last_executor_commit": "78cb7f46f956ddfca80c369f3bc5830f757ab070",
-  "last_reviewed_commit": "d7565cb08de0772cac747a75f0085f45d939275a",
-  "pending_fix_for_commit": null,
+  "last_reviewed_commit": "78cb7f46f956ddfca80c369f3bc5830f757ab070",
+  "pending_fix_for_commit": "78cb7f46f956ddfca80c369f3bc5830f757ab070",
   "executor_summary": "Removed MessageItem static FirebaseAuth usage by injecting current-user identity from chat state, with MessageItemTest regression coverage and roadmap/inventory updates.",
-  "reviewer_summary": "Approved executor commit d7565cb: updateCurrentUser now falls back to cached IdentityRegistry identity in BRIAR_ONLY when router lookup fails; no review findings.",
+  "reviewer_summary": "Needs fix: ChatActivity only updates message rows when count changes, so current-user identity transitions can leave sender ownership rendering stale.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 21,
-  "updated_by": "executor",
-  "updated_at": "2026-03-03T18:28:10Z"
+  "review_round": 22,
+  "updated_by": "reviewer",
+  "updated_at": "2026-03-03T18:29:59Z"
 }

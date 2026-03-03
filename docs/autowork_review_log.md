@@ -250,3 +250,14 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.data.myaccount.RouterMyAccountRepositoryTest` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
 - Next executor action:
   - Continue to the next planned work item.
+
+## 2026-03-03T18:29:59Z
+- Reviewer commit: `pending`
+- Target executor commit: `78cb7f46f956ddfca80c369f3bc5830f757ab070`
+- Outcome: `needs_fix`
+- Findings:
+  - `app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatActivity.kt:131` only calls `messagesSection.update(items)` when item count changes. This commit makes row ownership depend on injected `currentUserId`, but `ChatViewModel` can emit messages before `currentUser` is loaded (`app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatViewModel.kt:87-103`), so rows rendered with `currentUserId=null` are never rebound when identity arrives; sender-vs-self alignment can stay wrong until a new message changes list size.
+- Validation:
+  - `./agent-tools/test.sh --tests com.example.rise.item.MessageItemTest` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
+- Next executor action:
+  - Update `renderState` so item updates are driven by full item diff (not count-only), and add a regression test that covers current-user-id changing without message-count changes.
