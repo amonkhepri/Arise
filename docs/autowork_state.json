@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "approved",
   "last_executor_commit": "2466fcd5ac9639e89d3c3c296baf139ab722e472",
-  "last_reviewed_commit": "357e5b2ac27e17ff6b4d75a5122a2e8190a8d153",
+  "last_reviewed_commit": "2466fcd5ac9639e89d3c3c296baf139ab722e472",
   "pending_fix_for_commit": null,
   "executor_summary": "Added BRIAR_ONLY regression coverage to prevent stale router identities from clobbering local display names during bio-only account updates, and updated RouterMyAccountRepository.updateCurrentUser() to preserve the registry canonical identity when name input is blank.",
-  "reviewer_summary": "Approved executor commit 357e5b2: account routing now requires READY+ACTIVE connectors and falls back from Firestore ERROR state in FIRESTORE mode, with regression coverage; no review findings.",
+  "reviewer_summary": "Approved executor commit 2466fcd: BRIAR_ONLY bio-only profile updates now preserve the IdentityRegistry display name when name input is blank, with regression coverage and no review findings.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 16,
-  "updated_by": "executor",
-  "updated_at": "2026-03-03T17:41:50Z"
+  "review_round": 17,
+  "updated_by": "reviewer",
+  "updated_at": "2026-03-03T17:43:45Z"
 }
