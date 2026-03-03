@@ -111,27 +111,37 @@ class RouterMyAccountRepository(
 
     private fun accountConnector(): AccountConnector {
         val mode = transportBridge.currentMode.value
-        val connector = connectorRegistry.primaryFor(mode)
-        if (connector is AccountConnector) {
-            return connector
-        }
+        val primaryConnector = connectorRegistry.primaryFor(mode)
+        val primaryAccountConnector = primaryConnector as? AccountConnector
 
         val accountConnectors = connectorRegistry.connectors.mapNotNull { candidate ->
             val account = candidate as? AccountConnector ?: return@mapNotNull null
             candidate to account
         }
         val preferred = when (mode) {
-            BriarTransportMode.FIRESTORE -> accountConnectors
-                .firstOrNull { it.first.transport == TransportId.FIRESTORE }
+            BriarTransportMode.FIRESTORE -> {
+                if (primaryConnector.transport == TransportId.FIRESTORE && primaryAccountConnector != null) {
+                    primaryAccountConnector
+                } else {
+                    accountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }?.second
+                }
+            }
             BriarTransportMode.HYBRID,
-            BriarTransportMode.BRIAR_ONLY -> accountConnectors
-                .firstOrNull { it.first.transport != TransportId.FIRESTORE }
+            BriarTransportMode.BRIAR_ONLY -> {
+                if (primaryConnector.transport != TransportId.FIRESTORE && primaryAccountConnector != null) {
+                    primaryAccountConnector
+                } else {
+                    accountConnectors.firstOrNull { it.first.transport != TransportId.FIRESTORE }?.second
+                }
+            }
         }
-        val fallback = preferred
-            ?: accountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }
-            ?: accountConnectors.firstOrNull()
-        return fallback?.second
-            ?: throw IllegalStateException("No connector supports account profiles for mode=$mode primary=${connector.transport}")
+        return preferred
+            ?: primaryAccountConnector
+            ?: accountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }?.second
+            ?: accountConnectors.firstOrNull()?.second
+            ?: throw IllegalStateException(
+                "No connector supports account profiles for mode=$mode primary=${primaryConnector.transport}"
+            )
     }
 
     companion object {

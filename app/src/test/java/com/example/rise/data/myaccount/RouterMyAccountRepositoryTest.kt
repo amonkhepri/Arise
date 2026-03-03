@@ -240,6 +240,41 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `hybrid mode prefers non firestore account connector even when primary is firestore account connector`() = runTest {
+        val firestoreAccountConnector = FakeAccountConnector(transport = TransportId.FIRESTORE).apply {
+            profile = profile.copy(name = "Firestore Primary Connector")
+        }
+        val briarAccountConnector = FakeAccountConnector(transport = TransportId.BRIAR).apply {
+            profile = profile.copy(name = "Briar Account Connector")
+        }
+        val registry = OrderedFallbackConnectorRegistry(
+            primary = firestoreAccountConnector,
+            firstFallback = briarAccountConnector,
+            secondFallback = NonAccountConnector(TransportId.BRIAR),
+        )
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.HYBRID)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val fetched = repository.fetchCurrentUser()
+        repository.updateCurrentUser(name = "Nova", bio = "")
+
+        assertEquals("Briar Account Connector", fetched.name)
+        assertEquals(1, briarAccountConnector.updates.size)
+        assertTrue(firestoreAccountConnector.updates.isEmpty())
+    }
+
+    @Test
     fun `briar only mode returns identity registry profile`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Briar User")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
