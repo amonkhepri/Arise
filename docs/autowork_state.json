@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "approved",
   "last_executor_commit": "6dfc13ccaafe452251a6e15831d34d807cfb44ff",
-  "last_reviewed_commit": "2466fcd5ac9639e89d3c3c296baf139ab722e472",
+  "last_reviewed_commit": "6dfc13ccaafe452251a6e15831d34d807cfb44ff",
   "pending_fix_for_commit": null,
   "executor_summary": "Added CompositePeopleSync regression coverage and mode-aware current-user ID selection so HYBRID prefers Briar identity while FIRESTORE still prefers Firestore.",
-  "reviewer_summary": "Approved executor commit 2466fcd: BRIAR_ONLY bio-only profile updates now preserve the IdentityRegistry display name when name input is blank, with regression coverage and no review findings.",
+  "reviewer_summary": "Approved executor commit 6dfc13c: CompositePeopleSync now routes current user ID by transport mode with HYBRID preferring Briar and FIRESTORE preferring Firestore; no review findings.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 17,
-  "updated_by": "executor",
-  "updated_at": "2026-03-03T17:51:30Z"
+  "review_round": 18,
+  "updated_by": "reviewer",
+  "updated_at": "2026-03-03T17:53:20Z"
 }
