@@ -58,7 +58,7 @@ router data-shape details). This inventory focuses on dependency surfaces and mi
 | Alarm repository contract leakage | `app/src/main/java/com/example/rise/data/dashboard/AlarmRepository.kt` | Interface returns `AlarmQuery` exposing `asFirestoreQuery(): Query`. | `migrate-now` | Replace Firestore query leakage with backend-neutral paging/list contract. |
 | Dashboard alarm screen | `app/src/main/java/com/example/rise/ui/dashboardNavigation/dashboard/DashboardFragment.kt` | Imports Firestore query/exception types and uses Firestore-specific Recycler adapter. | `delete-after-cutover` | Delete/replace with backend-neutral adapter once alarm repository contract is decoupled from Firestore. |
 | Alarm Recycler adapter | `app/src/main/java/com/example/rise/ui/dashboardNavigation/dashboard/recyclerview/MyFireStoreAlarmRecyclerViewAdapter.kt` | Direct `FirebaseFirestore.getInstance()` and `FirebaseAuth.getInstance()` deletes in UI adapter. | `delete-after-cutover` | Replace with viewmodel/repository actions; remove direct Firestore UI writes. |
-| Alarm model annotation | `app/src/main/java/com/example/rise/ui/alarm/models/Alarm.kt` | `@IgnoreExtraProperties` imports Firestore annotations into app model. | `migrate-now` | Move mapping to adapter/DTO layer or replace annotation with backend-neutral model handling. |
+| Alarm model annotation | `app/src/main/java/com/example/rise/ui/alarm/models/Alarm.kt` | ✅ Removed `@IgnoreExtraProperties` on 2026-03-03; `Alarm` no longer imports Firestore annotations. | `migrate-now` | Completed: keep alarm/domain models backend-neutral and prevent reintroducing Firestore annotations outside adapter layers. |
 
 ## Recommended Migration Order (Autowork Default)
 
@@ -70,7 +70,7 @@ router data-shape details). This inventory focuses on dependency surfaces and mi
 2. `migrate-now` UI/domain leakage cleanup
 - `MessageItem` and `ChatActivity` direct `FirebaseAuth` access (✅ removed 2026-03-03)
 - `AlarmRepository` Firestore query leakage (`asFirestoreQuery`)
-- Firestore annotations in app models (`Alarm`)
+- Firestore annotations in app models (`Alarm`) (✅ completed 2026-03-03)
 
 3. `temporary-legacy` adapter containment hardening
 - Keep `FirestoreConnector`, `FirebaseUserRemoteDataSource`, `FirebaseChatRemoteDataSource`, FCM service scoped behind interfaces
