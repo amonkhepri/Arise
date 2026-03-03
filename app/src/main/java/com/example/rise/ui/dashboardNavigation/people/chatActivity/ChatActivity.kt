@@ -122,7 +122,10 @@ class ChatActivity : BaseActivity() {
         setTitleColor()
         binding.toolbar.subtitle = state.presence.toDisplayText(this)
         binding.toolbar.setSubtitleTextColor(state.presence.toDisplayColor(this))
-        val items = state.messages.map { message -> TextMessageItem(message) }
+        val currentUserId = state.currentUser?.id ?: auth.currentUser?.uid
+        val items = state.messages.map { message ->
+            TextMessageItem(message = message, currentUserId = currentUserId)
+        }
 
         // Only update if the list actually changed
         if (messagesSection.itemCount != items.size) {

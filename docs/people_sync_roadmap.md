@@ -27,6 +27,7 @@
 - [ ] Prioritize deleting or isolating direct Firestore SDK calls from UI/domain-facing layers; Firestore code should remain behind connector/adaptor boundaries only.
 - [ ] Record each Firestore surface-area reduction here (date + affected classes) so this roadmap tracks removal progress, not only reliability keyword additions.
 - ✅ 2026-03-03: `RouterMyAccountRepository.accountConnector()` now prefers non-Firestore `AccountConnector` implementations in `HYBRID`/`BRIAR_ONLY`, keeping Firestore as legacy fallback only when no connector-native account capability is available; covered by `RouterMyAccountRepositoryTest`.
+- ✅ 2026-03-03: `MessageItem`/`TextMessageItem` now classify sender ownership using an injected current-user ID instead of direct `FirebaseAuth` access, with regression coverage in `MessageItemTest` to keep message rendering free of static Firebase auth lookups.
 
 ## Reliability Hardening (Legacy Maintenance Track)
 - The sections below are historical reliability work and maintenance backlog/history. They are no longer the default autowork target unless they meet the blocker criteria above.
