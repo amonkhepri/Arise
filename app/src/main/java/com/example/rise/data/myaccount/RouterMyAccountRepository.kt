@@ -17,6 +17,7 @@ import com.example.rise.transport.router.TransportRouter
 import com.example.rise.featureflags.BriarTransportMode
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -34,11 +35,11 @@ class RouterMyAccountRepository(
 
     override suspend fun fetchCurrentUser(): User = withContext(ioDispatcher) {
         if (transportBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY) {
-            val identityResult = runCatching { transportRouter.ensureCurrentIdentity() }
-            val identity = identityResult.getOrNull()
-                ?: identityRegistry.currentIdentitySnapshot()
-                ?: throw (identityResult.exceptionOrNull()
-                    ?: IllegalStateException("Unable to resolve current identity in BRIAR_ONLY mode"))
+            val identity = runCatching { transportRouter.ensureCurrentIdentity() }
+                .getOrElse { error ->
+                    if (error is CancellationException) throw error
+                    identityRegistry.currentIdentitySnapshot() ?: throw error
+                }
             val record = identityRegistry.identitiesSnapshot()
                 .firstOrNull { it.canonicalIdentity.id == identity.id }
             val profile = record?.profile ?: IdentityProfile()

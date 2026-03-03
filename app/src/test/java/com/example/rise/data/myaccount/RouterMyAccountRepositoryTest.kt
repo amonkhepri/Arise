@@ -34,6 +34,7 @@ import com.example.rise.transport.router.TransportConnector
 import com.example.rise.transport.router.TransportConversationId
 import com.example.rise.transport.router.TransportId
 import com.example.rise.transport.router.TransportRouter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -407,6 +408,33 @@ class RouterMyAccountRepositoryTest {
         assertEquals("Cached User", result.name)
         assertEquals("Cached bio", result.bio)
         assertEquals("cached-path", result.profilePicturePath)
+    }
+
+    @Test
+    fun `briar only mode fetchCurrentUser rethrows cancellation from router lookup`() = runTest {
+        val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Cached User")
+        val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+        identityRegistry.upsertIdentity(
+            identity = canonicalIdentity,
+            aliases = mapOf(TransportId.BRIAR to canonicalIdentity.id),
+            profile = IdentityProfile(bio = "Cached bio", profilePicturePath = "cached-path"),
+            setAsCurrent = true,
+        )
+        val bridge = FakeTransportRuntimeBridge().apply { setMode(BriarTransportMode.BRIAR_ONLY) }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = ThrowingIdentityTransportRouter(CancellationException("cancelled")),
+            connectorRegistry = FakeConnectorRegistry(FakeAccountConnector()),
+            transportBridge = bridge,
+            identityRegistry = identityRegistry,
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val failure = runCatching { repository.fetchCurrentUser() }.exceptionOrNull()
+
+        assertTrue(failure is CancellationException)
     }
 
     @Test
