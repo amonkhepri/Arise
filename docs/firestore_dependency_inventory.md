@@ -28,7 +28,7 @@ router data-shape details). This inventory focuses on dependency surfaces and mi
 - Auth/sign-in flows still depend on Firebase auth APIs and Firebase-issued custom tokens.
 - Firestore remains the legacy transport connector implementation for contacts/messages/account.
 - People sync still contains a Firestore-specific sync implementation and Firestore exception classification logic.
-- Chat and some UI code still reference Firebase types directly (`FirebaseAuth`, Firestore query/adapters).
+- Some UI code still references Firebase types directly (Firestore query/adapters and `FirebaseAuth` usage in legacy alarm adapters).
 - Dashboard/alarm flows remain Firestore-native and leak Firestore query types into repository contracts.
 
 ## Inventory (Core + Secondary Production Surfaces)
@@ -52,7 +52,7 @@ router data-shape details). This inventory focuses on dependency surfaces and mi
 | FCM service entrypoint | `app/src/main/AndroidManifest.xml`, `app/src/main/java/com/example/rise/services/MyFirebaseMessagingService.kt` | Manifest registers Firebase messaging service; service stores FCM tokens via sign-in repository. | `temporary-legacy` | Keep while push/token strategy remains FCM-backed; reassess after auth/account/chat cutover. |
 | Chat remote adapter | `app/src/main/java/com/example/rise/data/firestore/FirebaseChatRemoteDataSource.kt` | Direct Firestore channel/message/user-name reads/writes/listeners. | `temporary-legacy` | Keep behind `ChatRemoteDataSource` only; remove once connector/chat stack no longer needs Firestore transport. |
 | Chat remote abstraction (Firestore semantics in docs) | `app/src/main/java/com/example/rise/data/firestore/ChatRemoteDataSource.kt` | Interface comments and method semantics are Firestore-collection/channel specific. | `temporary-legacy` | Generalize contract wording once alternative connector chat backing is primary. |
-| Chat UI auth leakage | `app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatActivity.kt` | Direct `FirebaseAuth` injection to resolve current user for alarm scheduling payloads. | `migrate-now` | Route current user identity through viewmodel/auth abstraction instead of FirebaseAuth in activity. |
+| Chat UI auth leakage | `app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatActivity.kt` | ✅ Removed direct `FirebaseAuth` injection on 2026-03-03; chat rendering + scheduled-message identity now resolve through `AuthenticationService`. | `temporary-legacy` | Keep chat identity sourcing behind auth abstractions and avoid reintroducing Firebase auth SDK references in activity/UI code. |
 | Message rendering sender ownership | `app/src/main/java/com/example/rise/item/MessageItem.kt`, `app/src/main/java/com/example/rise/item/TextMessageItem.kt` | ✅ Removed direct `FirebaseAuth.getInstance()` lookup on 2026-03-03; sender-vs-self rendering now uses injected current-user identity from UI state. | `temporary-legacy` | Keep renderer identity sourcing behind UI/viewmodel/auth abstractions and avoid reintroducing static Firebase auth lookups in item classes. |
 | Alarm repository (secondary but direct) | `app/src/main/java/com/example/rise/data/dashboard/FirestoreAlarmRepository.kt` | Firestore-native alarm storage/query implementation and Firestore gating via `requireFirestore`. | `temporary-legacy` | Keep out of first migration wave if needed, but plan connector/local-store-backed alarm repository to eliminate Firestore query coupling. |
 | Alarm repository contract leakage | `app/src/main/java/com/example/rise/data/dashboard/AlarmRepository.kt` | Interface returns `AlarmQuery` exposing `asFirestoreQuery(): Query`. | `migrate-now` | Replace Firestore query leakage with backend-neutral paging/list contract. |
@@ -68,7 +68,7 @@ router data-shape details). This inventory focuses on dependency surfaces and mi
 - people/account Firestore fallback behavior (`FirestorePeopleSync`, `RouterMyAccountRepository`, transport gating assumptions)
 
 2. `migrate-now` UI/domain leakage cleanup
-- `MessageItem` and `ChatActivity` direct `FirebaseAuth` access
+- `MessageItem` and `ChatActivity` direct `FirebaseAuth` access (✅ removed 2026-03-03)
 - `AlarmRepository` Firestore query leakage (`asFirestoreQuery`)
 - Firestore annotations in app models (`Alarm`)
 

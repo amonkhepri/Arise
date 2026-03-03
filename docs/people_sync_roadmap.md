@@ -29,6 +29,7 @@
 - ✅ 2026-03-03: `RouterMyAccountRepository.accountConnector()` now prefers non-Firestore `AccountConnector` implementations in `HYBRID`/`BRIAR_ONLY`, keeping Firestore as legacy fallback only when no connector-native account capability is available; covered by `RouterMyAccountRepositoryTest`.
 - ✅ 2026-03-03: `MessageItem`/`TextMessageItem` now classify sender ownership using an injected current-user ID instead of direct `FirebaseAuth` access, with regression coverage in `MessageItemTest` to keep message rendering free of static Firebase auth lookups.
 - ✅ 2026-03-03: `ChatActivity.renderState()` now refreshes message rows when either message content or injected current-user ID changes (not only when item count changes), preventing stale sender-vs-self alignment when identity loads after messages; covered by `ChatActivityRenderStateTest`.
+- ✅ 2026-03-03: `ChatActivity` now resolves current-user identity and scheduled-message sender name through `AuthenticationService` instead of direct `FirebaseAuth` injection, with regression coverage in `ChatActivityRenderStateTest` for state-vs-auth user-id fallback and sender-name resolution.
 
 ## Reliability Hardening (Legacy Maintenance Track)
 - The sections below are historical reliability work and maintenance backlog/history. They are no longer the default autowork target unless they meet the blocker criteria above.

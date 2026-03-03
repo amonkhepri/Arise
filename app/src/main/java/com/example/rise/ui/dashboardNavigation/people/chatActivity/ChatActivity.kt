@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.R
+import com.example.rise.auth.AuthenticationService
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.data.dashboard.AlarmRepository
@@ -26,7 +27,6 @@ import com.example.rise.item.TextMessageItem
 import com.example.rise.ui.alarm.models.Alarm
 import com.example.rise.ui.common.toDisplayColor
 import com.example.rise.ui.common.toDisplayText
-import com.google.firebase.auth.FirebaseAuth
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
 import com.xwray.groupie.Section
@@ -42,7 +42,7 @@ class ChatActivity : BaseActivity() {
     }
 
     private val alarmRepository: AlarmRepository by inject()
-    private val auth: FirebaseAuth by inject()
+    private val authenticationService: AuthenticationService by inject()
 
     private lateinit var binding: ActivityChatBinding
     private val messagesSection = Section()
@@ -123,7 +123,10 @@ class ChatActivity : BaseActivity() {
         setTitleColor()
         binding.toolbar.subtitle = state.presence.toDisplayText(this)
         binding.toolbar.setSubtitleTextColor(state.presence.toDisplayColor(this))
-        val currentUserId = state.currentUser?.id ?: auth.currentUser?.uid
+        val currentUserId = resolveCurrentUserId(
+            stateCurrentUserId = state.currentUser?.id,
+            authenticatedUser = authenticationService.currentUser(),
+        )
         val nextRenderState = MessageListRenderState(
             messages = state.messages,
             currentUserId = currentUserId,
@@ -182,15 +185,15 @@ class ChatActivity : BaseActivity() {
     private fun handleDelayedMessage(event: ChatViewModel.ChatEvent.ScheduleDelayedMessage) {
         lifecycleScope.launch {
             try {
-                val userId = auth.currentUser?.uid ?: return@launch
+                val authenticatedUser = authenticationService.currentUser() ?: return@launch
                 val alarm = Alarm(
                     idTimeStamp = System.currentTimeMillis().toInt(),
                     timeInMiliseconds = event.timeInMillis,
-                    userName = auth.currentUser?.displayName.orEmpty(),
+                    userName = resolveScheduledMessageSenderName(authenticatedUser),
                     chatChannel = event.conversationId,
                     messsage = event.message,
                 )
-                alarmRepository.saveAlarm(userId, alarm)
+                alarmRepository.saveAlarm(authenticatedUser.id, alarm)
                 scheduleNextMessage(alarm)
                 Toast.makeText(this@ChatActivity, "Message scheduled", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
@@ -229,3 +232,12 @@ internal fun shouldUpdateMessageRows(
     previousState: MessageListRenderState?,
     nextState: MessageListRenderState,
 ): Boolean = previousState != nextState
+
+internal fun resolveCurrentUserId(
+    stateCurrentUserId: String?,
+    authenticatedUser: AuthenticationService.User?,
+): String? = stateCurrentUserId ?: authenticatedUser?.id
+
+internal fun resolveScheduledMessageSenderName(
+    authenticatedUser: AuthenticationService.User?,
+): String = authenticatedUser?.displayName.orEmpty()
