@@ -51,7 +51,24 @@ class RouterMyAccountRepository(
                 registrationTokens = mutableListOf(),
             )
         }
-        accountConnector().fetchAccountProfile()
+        val selectedConnector = accountConnector()
+        val selectedTransport = selectedConnector as? TransportConnector
+        runCatching { selectedConnector.fetchAccountProfile() }
+            .getOrElse { error ->
+                if (error is CancellationException) throw error
+                val fallbackConnector = fetchFallbackConnector(selectedConnector)
+                if (fallbackConnector != null) {
+                    val selectedTransportId = selectedTransport?.transport ?: "unknown"
+                    Timber.tag(TAG).w(
+                        error,
+                        "Primary account fetch failed for %s; falling back to %s",
+                        selectedTransportId,
+                        fallbackConnector.first.transport,
+                    )
+                    return@withContext fallbackConnector.second.fetchAccountProfile()
+                }
+                throw error
+            }
     }
 
     override suspend fun updateCurrentUser(
@@ -168,6 +185,23 @@ class RouterMyAccountRepository(
             ?: throw IllegalStateException(
                 "No connector supports account profiles for mode=$mode primary=${primaryConnector.transport}"
             )
+    }
+
+    private fun fetchFallbackConnector(
+        primary: AccountConnector,
+    ): Pair<TransportConnector, AccountConnector>? {
+        val primaryTransport = primary as? TransportConnector ?: return null
+        val mode = transportBridge.currentMode.value
+        if (mode != BriarTransportMode.FIRESTORE || primaryTransport.transport != TransportId.FIRESTORE) {
+            return null
+        }
+        val readyFallbacks = connectorRegistry.connectors.mapNotNull { candidate ->
+            val account = candidate as? AccountConnector ?: return@mapNotNull null
+            candidate to account
+        }.filter { (connector, account) ->
+            account !== primary && connector.isReadyForAccountRouting()
+        }
+        return readyFallbacks.firstOrNull { it.first.transport != TransportId.FIRESTORE }
     }
 
     private fun TransportConnector.isReadyForAccountRouting(): Boolean {

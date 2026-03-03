@@ -353,6 +353,41 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `firestore mode fetchCurrentUser falls back when firestore connector fails at runtime`() = runTest {
+        val briarAccountConnector = FakeAccountConnector(transport = TransportId.BRIAR).apply {
+            profile = profile.copy(name = "Briar Account Connector")
+        }
+        val failingFirestoreConnector = FakeAccountConnector(
+            transport = TransportId.FIRESTORE,
+            lifecycleState = ConnectorLifecycleState.READY,
+            statusState = ConnectorStatus.ACTIVE,
+            fetchFailure = IllegalStateException("Firestore account connector runtime failure"),
+        )
+        val registry = OrderedFallbackConnectorRegistry(
+            primary = NonAccountConnector(TransportId.BRIAR),
+            firstFallback = briarAccountConnector,
+            secondFallback = failingFirestoreConnector,
+        )
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.FIRESTORE)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val fetched = repository.fetchCurrentUser()
+
+        assertEquals("Briar Account Connector", fetched.name)
+    }
+
+    @Test
     fun `briar only mode returns identity registry profile`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Briar User")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
