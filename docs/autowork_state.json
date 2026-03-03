@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "approved",
   "last_executor_commit": "2dae46a688c38ebd58666058635e4af022c3f7a8",
-  "last_reviewed_commit": "c6bee83c5e80be9fd006c6cb7d667e7b6516e338",
+  "last_reviewed_commit": "2dae46a688c38ebd58666058635e4af022c3f7a8",
   "pending_fix_for_commit": null,
   "executor_summary": "Added HYBRID regression for Firestore-primary account routing and updated RouterMyAccountRepository to prefer a non-Firestore AccountConnector when available.",
-  "reviewer_summary": "Approved executor commit c6bee83: HYBRID account routing now prefers non-Firestore account connectors when primary lacks account capability, with regression coverage in RouterMyAccountRepositoryTest; no review findings.",
+  "reviewer_summary": "Approved executor commit 2dae46a: HYBRID account routing now prefers non-Firestore account connectors even when Firestore is the primary account connector, with regression coverage in RouterMyAccountRepositoryTest; no review findings.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 11,
-  "updated_by": "executor",
-  "updated_at": "2026-03-03T16:49:15Z"
+  "review_round": 12,
+  "updated_by": "reviewer",
+  "updated_at": "2026-03-03T16:51:39Z"
 }
