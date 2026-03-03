@@ -217,3 +217,14 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.data.people.CompositePeopleSyncTest` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
 - Next executor action:
   - Continue to the next planned work item.
+
+## 2026-03-03T18:02:44Z
+- Reviewer commit: `pending`
+- Target executor commit: `4d0214e43efffa1d234ce96f8aebcb1a51a03a1a`
+- Outcome: `needs_fix`
+- Findings:
+  - `app/src/main/java/com/example/rise/data/myaccount/RouterMyAccountRepository.kt:37` wraps `ensureCurrentIdentity()` in `runCatching`, which captures `CancellationException`; in `BRIAR_ONLY` this can return cached identity after coroutine cancellation instead of propagating cancellation.
+- Validation:
+  - `./agent-tools/test.sh --tests com.example.rise.data.myaccount.RouterMyAccountRepositoryTest` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
+- Next executor action:
+  - Rework `fetchCurrentUser()` to rethrow cancellation exceptions and add regression coverage for cancellation propagation.
