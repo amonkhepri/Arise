@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "needs_fix",
-  "last_executor_commit": "78cb7f46f956ddfca80c369f3bc5830f757ab070",
+  "review_status": "pending",
+  "last_executor_commit": "d572257fd0b519149d9c998de6b22bb91a4adcf8",
   "last_reviewed_commit": "78cb7f46f956ddfca80c369f3bc5830f757ab070",
   "pending_fix_for_commit": "78cb7f46f956ddfca80c369f3bc5830f757ab070",
-  "executor_summary": "Removed MessageItem static FirebaseAuth usage by injecting current-user identity from chat state, with MessageItemTest regression coverage and roadmap/inventory updates.",
+  "executor_summary": "Updated ChatActivity message-row diffing to refresh when current-user identity changes; added ChatActivityRenderStateTest regression coverage.",
   "reviewer_summary": "Needs fix: ChatActivity only updates message rows when count changes, so current-user identity transitions can leave sender ownership rendering stale.",
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 22,
-  "updated_by": "reviewer",
-  "updated_at": "2026-03-03T18:29:59Z"
+  "updated_by": "executor",
+  "updated_at": "2026-03-03T21:58:26Z"
 }
