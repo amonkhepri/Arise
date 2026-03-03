@@ -47,6 +47,7 @@ class ChatActivity : BaseActivity() {
     private lateinit var binding: ActivityChatBinding
     private val messagesSection = Section()
     private val adapter = GroupAdapter<GroupieViewHolder>().apply { add(messagesSection) }
+    private var lastMessageListRenderState: MessageListRenderState? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,14 +124,19 @@ class ChatActivity : BaseActivity() {
         binding.toolbar.subtitle = state.presence.toDisplayText(this)
         binding.toolbar.setSubtitleTextColor(state.presence.toDisplayColor(this))
         val currentUserId = state.currentUser?.id ?: auth.currentUser?.uid
+        val nextRenderState = MessageListRenderState(
+            messages = state.messages,
+            currentUserId = currentUserId,
+        )
         val items = state.messages.map { message ->
             TextMessageItem(message = message, currentUserId = currentUserId)
         }
 
-        // Only update if the list actually changed
-        if (messagesSection.itemCount != items.size) {
+        if (shouldUpdateMessageRows(previousState = lastMessageListRenderState, nextState = nextRenderState)) {
+            val previousCount = messagesSection.itemCount
             messagesSection.update(items)
-            if (items.isNotEmpty()) {
+            lastMessageListRenderState = nextRenderState
+            if (items.isNotEmpty() && previousCount != items.size) {
                 binding.recyclerViewMessages.scrollToPosition(items.lastIndex)
             }
         }
@@ -213,3 +219,13 @@ class ChatActivity : BaseActivity() {
         }
     }
 }
+
+internal data class MessageListRenderState(
+    val messages: List<com.example.rise.models.TextMessage>,
+    val currentUserId: String?,
+)
+
+internal fun shouldUpdateMessageRows(
+    previousState: MessageListRenderState?,
+    nextState: MessageListRenderState,
+): Boolean = previousState != nextState
