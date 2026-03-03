@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "approved",
   "last_executor_commit": "c6bee83c5e80be9fd006c6cb7d667e7b6516e338",
-  "last_reviewed_commit": "57e8bd83ff810babae0afd55971ed1aa97c3c032",
+  "last_reviewed_commit": "c6bee83c5e80be9fd006c6cb7d667e7b6516e338",
   "pending_fix_for_commit": null,
   "executor_summary": "Added HYBRID account fallback regression and updated account connector selection to prefer non-Firestore connectors before legacy Firestore fallback.",
-  "reviewer_summary": "Approved executor commit 57e8bd8: reprioritized roadmap/agent guidance toward connector-first Firestore removal and added a first-pass Firestore dependency inventory; no review findings. Validation: none (docs-only change).",
+  "reviewer_summary": "Approved executor commit c6bee83: HYBRID account routing now prefers non-Firestore account connectors when primary lacks account capability, with regression coverage in RouterMyAccountRepositoryTest; no review findings.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 10,
-  "updated_by": "executor",
-  "updated_at": "2026-03-03T16:41:05Z"
+  "review_round": 11,
+  "updated_by": "reviewer",
+  "updated_at": "2026-03-03T16:43:11Z"
 }
