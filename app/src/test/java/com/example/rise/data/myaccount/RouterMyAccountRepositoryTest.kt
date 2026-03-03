@@ -381,6 +381,35 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `briar only mode fetchCurrentUser falls back to cached identity when router lookup fails`() = runTest {
+        val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Cached User")
+        val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+        identityRegistry.upsertIdentity(
+            identity = canonicalIdentity,
+            aliases = mapOf(TransportId.BRIAR to canonicalIdentity.id),
+            profile = IdentityProfile(bio = "Cached bio", profilePicturePath = "cached-path"),
+            setAsCurrent = true,
+        )
+        val bridge = FakeTransportRuntimeBridge().apply { setMode(BriarTransportMode.BRIAR_ONLY) }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = ThrowingIdentityTransportRouter(IllegalStateException("runtime not ready")),
+            connectorRegistry = FakeConnectorRegistry(FakeAccountConnector()),
+            transportBridge = bridge,
+            identityRegistry = identityRegistry,
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val result = repository.fetchCurrentUser()
+
+        assertEquals("Cached User", result.name)
+        assertEquals("Cached bio", result.bio)
+        assertEquals("cached-path", result.profilePicturePath)
+    }
+
+    @Test
     fun `briar only mode fetchCurrentUser uses registry display name after local profile update`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Router Name")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
@@ -602,6 +631,19 @@ class RouterMyAccountRepositoryTest {
     ) : TransportRouter {
         override val currentIdentity: Flow<CanonicalIdentity> = MutableStateFlow(identity)
         override suspend fun ensureCurrentIdentity(): CanonicalIdentity = identity
+        override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation =
+            throw UnsupportedOperationException()
+
+        override fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>> = emptyFlow()
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
+        override suspend fun reset() = Unit
+    }
+
+    private class ThrowingIdentityTransportRouter(
+        private val failure: Throwable,
+    ) : TransportRouter {
+        override val currentIdentity: Flow<CanonicalIdentity> = emptyFlow()
+        override suspend fun ensureCurrentIdentity(): CanonicalIdentity = throw failure
         override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation =
             throw UnsupportedOperationException()
 
