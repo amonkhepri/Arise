@@ -15,6 +15,7 @@
 - [ ] Define explicit cutover criteria for people flows: what must pass in `HYBRID` and `BRIAR_ONLY` for Firestore to stop being required in core people sync behavior.
 - [ ] Add/expand regression coverage proving core people/account flows continue to work when Firestore is unavailable/disabled but connector-based paths are available.
 - ✅ 2026-03-03: Expanded `RouterMyAccountRepositoryTest` coverage for HYBRID account routing when Firestore is primary but a non-Firestore `AccountConnector` is available; `RouterMyAccountRepository.accountConnector()` now routes fetch/update through the non-Firestore connector first in that scenario.
+- ✅ 2026-03-03: `RouterMyAccountRepository.updateCurrentUser()` now skips identity-registry writes for no-op (all-blank) profile updates in `BRIAR_ONLY`, with regression coverage in `RouterMyAccountRepositoryTest` to keep account updates Firestore-independent in connector-only mode.
 - [ ] Prioritize deleting or isolating direct Firestore SDK calls from UI/domain-facing layers; Firestore code should remain behind connector/adaptor boundaries only.
 - [ ] Record each Firestore surface-area reduction here (date + affected classes) so this roadmap tracks removal progress, not only reliability keyword additions.
 - ✅ 2026-03-03: `RouterMyAccountRepository.accountConnector()` now prefers non-Firestore `AccountConnector` implementations in `HYBRID`/`BRIAR_ONLY`, keeping Firestore as legacy fallback only when no connector-native account capability is available; covered by `RouterMyAccountRepositoryTest`.

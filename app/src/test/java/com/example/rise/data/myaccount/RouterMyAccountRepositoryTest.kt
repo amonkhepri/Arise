@@ -303,6 +303,39 @@ class RouterMyAccountRepositoryTest {
         assertEquals("Briar bio", result.bio)
     }
 
+    @Test
+    fun `briar only mode skips identity upsert when profile update is empty`() = runTest {
+        val store = InMemoryIdentityRegistryStore()
+        val identityRegistry = IdentityRegistryImpl(store)
+        val canonicalIdentity = CanonicalIdentity(id = "briar-self", displayName = "Briar User")
+        identityRegistry.upsertIdentity(
+            identity = canonicalIdentity,
+            aliases = mapOf(TransportId.BRIAR to canonicalIdentity.id),
+            profile = IdentityProfile(bio = "Existing bio", profilePicturePath = "existing-path"),
+            setAsCurrent = true,
+        )
+        store.resetPersistCount()
+        val bridge = FakeTransportRuntimeBridge().apply { setMode(BriarTransportMode.BRIAR_ONLY) }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = IdentityAwareTransportRouter(canonicalIdentity),
+            connectorRegistry = FakeConnectorRegistry(FakeAccountConnector()),
+            transportBridge = bridge,
+            identityRegistry = identityRegistry,
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        repository.updateCurrentUser(name = " ", bio = "", profilePicturePath = " ")
+
+        assertEquals(0, store.persistCount)
+        val record = identityRegistry.identitiesSnapshot().single()
+        assertEquals("Briar User", record.canonicalIdentity.displayName)
+        assertEquals("Existing bio", record.profile.bio)
+        assertEquals("existing-path", record.profile.profilePicturePath)
+    }
+
     private class FakeConnectorRegistry(
         private val primary: TransportConnector,
     ) : ConnectorRegistry {
@@ -436,11 +469,18 @@ class RouterMyAccountRepositoryTest {
         initialState: IdentityRegistryStore.StoredState = IdentityRegistryStore.StoredState(emptyMap(), null)
     ) : IdentityRegistryStore {
         private var state: IdentityRegistryStore.StoredState = initialState
+        var persistCount: Int = 0
+            private set
 
         override fun load(): IdentityRegistryStore.StoredState = state
 
         override fun persist(records: Map<String, IdentityRecord>, currentIdentityId: String?) {
+            persistCount += 1
             state = IdentityRegistryStore.StoredState(records.toMap(), currentIdentityId)
+        }
+
+        fun resetPersistCount() {
+            persistCount = 0
         }
     }
 

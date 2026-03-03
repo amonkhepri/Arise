@@ -52,6 +52,9 @@ class RouterMyAccountRepository(
     ) {
         withContext(ioDispatcher) {
             if (transportBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY) {
+                if (name.isBlank() && bio.isBlank() && profilePicturePath.isNullOrBlank()) {
+                    return@withContext
+                }
                 val identity = transportRouter.ensureCurrentIdentity()
                 val record = identityRegistry.identitiesSnapshot()
                     .firstOrNull { it.canonicalIdentity.id == identity.id }
