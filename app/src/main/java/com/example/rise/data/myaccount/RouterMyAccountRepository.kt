@@ -69,7 +69,9 @@ class RouterMyAccountRepository(
                 val existingProfile = record?.profile ?: IdentityProfile()
                 val updatedIdentity = if (name.isNotBlank()) {
                     identity.copy(displayName = name)
-                } else identity
+                } else {
+                    record?.canonicalIdentity ?: identity
+                }
                 val updatedProfile = existingProfile.copy(
                     bio = bio.takeIf { it.isNotBlank() } ?: existingProfile.bio,
                     profilePicturePath = profilePicturePath?.takeIf { it.isNotBlank() }

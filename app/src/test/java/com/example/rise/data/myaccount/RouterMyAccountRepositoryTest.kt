@@ -411,6 +411,36 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `briar only mode keeps registry display name when updating bio with blank name`() = runTest {
+        val registryIdentity = CanonicalIdentity(id = "briar-123", displayName = "Registry Name")
+        val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+        identityRegistry.upsertIdentity(
+            identity = registryIdentity,
+            aliases = mapOf(TransportId.BRIAR to registryIdentity.id),
+            profile = IdentityProfile(bio = "Existing bio"),
+            setAsCurrent = true,
+        )
+        val bridge = FakeTransportRuntimeBridge().apply { setMode(BriarTransportMode.BRIAR_ONLY) }
+        val staleRouterIdentity = CanonicalIdentity(id = "briar-123", displayName = "Stale Router Name")
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = IdentityAwareTransportRouter(staleRouterIdentity),
+            connectorRegistry = FakeConnectorRegistry(FakeAccountConnector()),
+            transportBridge = bridge,
+            identityRegistry = identityRegistry,
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        repository.updateCurrentUser(name = "", bio = "Updated bio")
+
+        val updatedRecord = identityRegistry.identitiesSnapshot().single()
+        assertEquals("Registry Name", updatedRecord.canonicalIdentity.displayName)
+        assertEquals("Updated bio", updatedRecord.profile.bio)
+    }
+
+    @Test
     fun `briar only mode skips identity upsert when profile update is empty`() = runTest {
         val store = InMemoryIdentityRegistryStore()
         val identityRegistry = IdentityRegistryImpl(store)
