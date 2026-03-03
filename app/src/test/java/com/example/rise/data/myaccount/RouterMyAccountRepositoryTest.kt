@@ -438,6 +438,35 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `briar only mode updateCurrentUser falls back to cached identity when router lookup fails`() = runTest {
+        val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Cached User")
+        val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+        identityRegistry.upsertIdentity(
+            identity = canonicalIdentity,
+            aliases = mapOf(TransportId.BRIAR to canonicalIdentity.id),
+            profile = IdentityProfile(bio = "Cached bio"),
+            setAsCurrent = true,
+        )
+        val bridge = FakeTransportRuntimeBridge().apply { setMode(BriarTransportMode.BRIAR_ONLY) }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = ThrowingIdentityTransportRouter(IllegalStateException("runtime not ready")),
+            connectorRegistry = FakeConnectorRegistry(FakeAccountConnector()),
+            transportBridge = bridge,
+            identityRegistry = identityRegistry,
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        repository.updateCurrentUser(name = "", bio = "Updated bio")
+
+        val updatedRecord = identityRegistry.identitiesSnapshot().single()
+        assertEquals("Cached User", updatedRecord.canonicalIdentity.displayName)
+        assertEquals("Updated bio", updatedRecord.profile.bio)
+    }
+
+    @Test
     fun `briar only mode fetchCurrentUser uses registry display name after local profile update`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Router Name")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())

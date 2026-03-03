@@ -64,7 +64,11 @@ class RouterMyAccountRepository(
                 if (name.isBlank() && bio.isBlank() && profilePicturePath.isNullOrBlank()) {
                     return@withContext
                 }
-                val identity = transportRouter.ensureCurrentIdentity()
+                val identity = runCatching { transportRouter.ensureCurrentIdentity() }
+                    .getOrElse { error ->
+                        if (error is CancellationException) throw error
+                        identityRegistry.currentIdentitySnapshot() ?: throw error
+                    }
                 val record = identityRegistry.identitiesSnapshot()
                     .firstOrNull { it.canonicalIdentity.id == identity.id }
                 val aliases = record?.aliases?.toMutableMap() ?: mutableMapOf()
