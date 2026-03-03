@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "pending",
+  "review_status": "approved",
   "last_executor_commit": "30116aa0f093e5698ca801083fdb4433ff9af7e9",
-  "last_reviewed_commit": "d572257fd0b519149d9c998de6b22bb91a4adcf8",
+  "last_reviewed_commit": "30116aa0f093e5698ca801083fdb4433ff9af7e9",
   "pending_fix_for_commit": null,
   "executor_summary": "Replaced ChatActivity FirebaseAuth usage with AuthenticationService-backed identity resolution, with ChatActivityRenderStateTest regression coverage.",
-  "reviewer_summary": "Approved executor commit d572257: ChatActivity now refreshes message rows when either messages or current-user identity change, with regression coverage.",
+  "reviewer_summary": "Approved executor commit 30116aa: ChatActivity now resolves current-user identity and scheduled-message sender details through AuthenticationService with regression coverage.",
   "review_notes_ref": "docs/autowork_review_log.md",
-  "review_round": 23,
-  "updated_by": "executor",
-  "updated_at": "2026-03-03T22:05:39Z"
+  "review_round": 24,
+  "updated_by": "reviewer",
+  "updated_at": "2026-03-03T22:07:30Z"
 }
