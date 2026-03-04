@@ -57,6 +57,7 @@ Additional rules:
 
 ## Current Architecture Direction (High Priority)
 - Read `README.md` before making product-level or architecture-level changes. Treat it as the current vision and migration context.
+- Immediate delivery priority: enable adding a Briar user via invitation link and starting chat from that onboarding path. For autonomous runs, prioritize tasks from `docs/briar_invitation_chat_roadmap.md` until the first end-to-end invitation→chat slice is complete.
 - Firestore/Firebase dependency removal from core application flows is the current top priority. Prefer work that removes, replaces, or isolates Firestore usage over adding more legacy Firestore reliability heuristics.
 - For autonomous/continuous agent runs, prioritize connector-first migration tasks (people sync, account, auth, presence, routing) before Firestore retry-classifier/string-variant expansions.
 - Firestore/Firebase usage is legacy and is being phased out. Do not introduce new Firestore or Firebase dependencies, auth flows, repositories, listeners, or schema coupling unless the user explicitly asks for legacy maintenance.

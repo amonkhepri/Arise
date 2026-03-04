@@ -1,14 +1,19 @@
 {
   "version": 1,
-  "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "approved",
-  "last_executor_commit": "89dee1ae34eff818fc55397e47b3d3ac09d9038c",
+  "active_plan_file": "docs/briar_invitation_chat_roadmap.md",
+  "review_status": "pending",
+  "last_executor_commit": "1c55f8e6602a5a5ab106a5cb02a6117aa4b44cbf",
   "last_reviewed_commit": "89dee1ae34eff818fc55397e47b3d3ac09d9038c",
   "pending_fix_for_commit": null,
-  "executor_summary": "No-op: review_status is pending; waiting for reviewer output on executor commit 89dee1a530d4e2294d8bd98816836d85d0bca4f4 before starting the next task.",
+  "executor_summary": "Priority switched: invitation-link onboarding to Briar chat is now the active plan.",
   "reviewer_summary": "Approved executor commit 89dee1a: FIRESTORE-mode runtime account fallback now prefers ConnectorRegistry.primaryFor(FIRESTORE) when it is a READY non-Firestore AccountConnector, with RouterMyAccountRepositoryTest coverage.",
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 28,
-  "updated_by": "reviewer",
-  "updated_at": "2026-03-04T09:21:11Z"
+  "updated_by": "executor",
+  "updated_at": "2026-03-04T09:31:59Z",
+  "review_status_reason": "Awaiting reviewer output for executor commit 1c55f8e6602a5a5ab106a5cb02a6117aa4b44cbf.",
+  "pending_review_for_commit": "1c55f8e6602a5a5ab106a5cb02a6117aa4b44cbf",
+  "feedback": "Prioritize invitation-link onboarding so users can add Briar contacts and chat.",
+  "next_action_owner": "reviewer",
+  "next_action": "Review pending executor commit 1c55f8e6602a5a5ab106a5cb02a6117aa4b44cbf and set approved or needs_fix; if approved, executor starts docs/briar_invitation_chat_roadmap.md item 1."
 }

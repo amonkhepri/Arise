@@ -4,6 +4,11 @@
 - Current Firestore roster listener now propagates failures and retries with exponential backoff.
 - Firestore and Briar roster listeners now apply jittered retry timing to reduce reconnect bursts.
 
+## Priority Update (2026-03-04): Invitation-Link Onboarding for Briar Chat
+- Immediate execution priority is now enabling: invitation link -> add Briar contact -> open chat.
+- Active implementation plan is `docs/briar_invitation_chat_roadmap.md`.
+- Firestore-removal and other migration backlog items remain important, but are temporarily secondary until the first end-to-end invitation-to-chat slice is complete.
+
 ## Priority Reset (2026-02-24): Remove Firestore Dependency First
 - Firestore dependency removal from core flows is now the top priority for this roadmap.
 - Additional Firestore/Briar retry-string micro-hardening is maintenance-only from this point onward. Only do it when it is explicitly requested, fixes a user-visible regression, or unblocks connector migration work.

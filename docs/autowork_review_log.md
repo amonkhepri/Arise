@@ -13,6 +13,10 @@ Entry template:
 - Reviewer commit: `<sha>` (or `none`)
 - Target executor commit: `<sha>` (or `none`)
 - Outcome: `approved|needs_fix|no-op`
+- Status reason:
+  - `<one line reason for current status>`
+- Feedback:
+  - `<one actionable line>`
 - Findings:
   - `none`
 - Validation:
