@@ -26,6 +26,7 @@
 - Maintain strict TDD for each backlog item (failing test first, minimal fix, tests green).
 
 ## Progress Log
+- 2026-03-04: Added `SplashActivity` invitation `VIEW` intent filters for `arise://briar/invite` and `https://(www.)arise.app/briar/invite`, plus unit coverage for manifest contract and HTTPS onboarding action routing.
 - 2026-03-04: Added `BriarInvitationLinkParser` contract + unit coverage and documented the supported invitation link shapes in `docs/briar_invitation_link_contract.md`.
 - 2026-03-04: Roadmap created and set as active execution plan for autowork.
 - 2026-03-04: Added Splash deep-link routing for invitation links into a dedicated `MainActivity` onboarding action payload (`BriarInvitationOnboardingAction`) with unit coverage in `SplashActivityViewModelTest`.

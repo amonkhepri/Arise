@@ -57,6 +57,24 @@ class SplashActivityViewModelTest {
         }
     }
 
+    @Test
+    fun `routes valid https invitation deep link to main when user signed out`() = runTest {
+        val viewModel = SplashActivityViewModel(FakeAuthStateProvider(isSignedIn = false))
+        val deepLink = "https://arise.app/briar/invite?link=${encode("briar://abc123")}&alias=${encode("Alice")}&invite_id=INV-99"
+
+        viewModel.events.test {
+            viewModel.determineDestination(rawDeepLink = deepLink)
+
+            val event = awaitItem()
+            assertTrue(event is SplashActivityViewModel.NavigationEvent.ToMain)
+            event as SplashActivityViewModel.NavigationEvent.ToMain
+            assertEquals("briar://abc123", event.onboardingAction?.briarLink)
+            assertEquals("Alice", event.onboardingAction?.alias)
+            assertEquals("invite:inv-99", event.onboardingAction?.duplicateKey)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun encode(value: String): String {
         return URLEncoder.encode(value, StandardCharsets.UTF_8.toString())
     }
