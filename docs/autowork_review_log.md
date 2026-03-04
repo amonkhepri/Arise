@@ -342,3 +342,14 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.data.myaccount.RouterMyAccountRepositoryTest` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
 - Next executor action:
   - Start `docs/briar_invitation_chat_roadmap.md` item 1 (invitation-link onboarding path to add a Briar user and open chat).
+
+## 2026-03-04T09:51:30Z
+- Reviewer commit: `pending`
+- Target executor commit: `71cda39045ce577ab58f6d7f4fc42a1880fc860f`
+- Outcome: `approved`
+- Findings:
+  - `none`
+- Validation:
+  - `./agent-tools/test.sh --tests com.example.rise.transport.briar.invite.BriarInvitationLinkParserTest --timeout 300` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
+- Next executor action:
+  - Implement the deep-link entrypoint that routes invitation links into the onboarding action path (`docs/briar_invitation_chat_roadmap.md` item 2).
