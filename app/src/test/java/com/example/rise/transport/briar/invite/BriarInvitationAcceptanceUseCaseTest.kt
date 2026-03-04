@@ -70,6 +70,22 @@ class BriarInvitationAcceptanceUseCaseTest {
     }
 
     @Test
+    fun `accept does not set invited contact as current identity when registry has no current user`() = runTest {
+        val service = RecordingContactService(isAvailable = true)
+        val contactRepository = BriarContactRepository(fakeBridge(service))
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        val useCase = BriarInvitationAcceptanceUseCase(
+            contactRepository = contactRepository,
+            identityRegistry = identityRegistry,
+        )
+
+        val result = useCase.accept("arise://briar/invite?link=${encode(validLink())}&alias=${encode("Alice")}&inviteId=INV-42")
+
+        assertTrue(result is BriarInvitationAcceptanceResult.Accepted)
+        assertEquals(null, identityRegistry.currentIdentitySnapshot())
+    }
+
+    @Test
     fun `accept returns invalid when link parsing fails`() = runTest {
         val service = RecordingContactService(isAvailable = true)
         val contactRepository = BriarContactRepository(fakeBridge(service))

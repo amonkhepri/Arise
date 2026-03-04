@@ -88,8 +88,6 @@ class IdentityRegistryImpl(
             _records.value = updated
             if (setAsCurrent) {
                 _currentIdentity.value = identity
-            } else if (_currentIdentity.value == null) {
-                _currentIdentity.value = identity
             }
             store.persist(updated, _currentIdentity.value?.id)
         }
