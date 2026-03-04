@@ -10,6 +10,10 @@ import com.example.rise.briar.runtime.NoOpBriarChatGateway
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.briar.BriarContactRepository
+import com.example.rise.transport.router.IdentityRecord
+import com.example.rise.transport.router.IdentityRegistryImpl
+import com.example.rise.transport.router.IdentityRegistryStore
+import com.example.rise.transport.router.TransportId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -41,6 +45,28 @@ class BriarInvitationAcceptanceUseCaseTest {
         assertEquals("Alice", result.invitation.alias)
         assertEquals("invite:inv-42", result.invitation.duplicateKey)
         assertEquals(listOf(validLink() to "Alice"), service.calls)
+    }
+
+    @Test
+    fun `accept persists invitation identity mapping for stable lookup`() = runTest {
+        val service = RecordingContactService(isAvailable = true)
+        val contactRepository = BriarContactRepository(fakeBridge(service))
+        val identityStore = FakeIdentityRegistryStore()
+        val identityRegistry = IdentityRegistryImpl(identityStore)
+        val useCase = BriarInvitationAcceptanceUseCase(
+            contactRepository = contactRepository,
+            identityRegistry = identityRegistry,
+        )
+        val rawLink = "arise://briar/invite?link=${encode(validLink())}&alias=${encode("Alice")}&inviteId=INV-42"
+
+        val result = useCase.accept(rawLink)
+
+        assertTrue(result is BriarInvitationAcceptanceResult.Accepted)
+        val record = identityRegistry.identitiesSnapshot().single()
+        assertEquals("invite:inv-42", record.canonicalIdentity.id)
+        assertEquals("Alice", record.canonicalIdentity.displayName)
+        assertEquals(validLink(), record.aliases[TransportId.BRIAR])
+        assertTrue(identityStore.state.records.containsKey("invite:inv-42"))
     }
 
     @Test
@@ -110,5 +136,25 @@ class BriarInvitationAcceptanceUseCaseTest {
         }
 
         override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
+    }
+
+    private class FakeIdentityRegistryStore(
+        initialState: IdentityRegistryStore.StoredState = IdentityRegistryStore.StoredState(emptyMap(), null),
+    ) : IdentityRegistryStore {
+        var state: IdentityRegistryStore.StoredState = initialState
+            private set
+
+        override fun load(): IdentityRegistryStore.StoredState = state
+
+        override fun persist(records: Map<String, IdentityRecord>, currentIdentityId: String?) {
+            val recordsCopy = records.mapValues { (_, record) ->
+                IdentityRecord(
+                    canonicalIdentity = record.canonicalIdentity,
+                    aliases = record.aliases.toMap(),
+                    profile = record.profile,
+                )
+            }
+            state = IdentityRegistryStore.StoredState(recordsCopy, currentIdentityId)
+        }
     }
 }
