@@ -69,6 +69,7 @@ import com.example.rise.transport.store.ChatCacheDao
 import com.example.rise.transport.store.RoomConversationStore
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.TransportRuntimeBridgeImpl
+import com.example.rise.transport.briar.invite.BriarInvitationLinkParser
 import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.data.firestore.FirebaseUserRemoteDataSource
 import com.example.rise.data.firestore.ChatRemoteDataSource
@@ -78,6 +79,7 @@ import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
+import com.example.rise.ui.mainActivity.BriarInvitationDeepLinkEntrypoint
 import com.example.rise.ui.mainActivity.MainActivityViewModel
 import com.example.rise.ui.signInActivity.SignInViewModel
 import com.google.firebase.FirebaseApp
@@ -111,6 +113,8 @@ class App: Application() {
         single<TransportRuntimeBridge> { TransportRuntimeBridgeImpl(get(), get(), get()) }
 
         single<AuthStateProvider> { FirebaseAuthStateProvider(get()) }
+        factory { BriarInvitationLinkParser() }
+        factory { BriarInvitationDeepLinkEntrypoint(parser = get()) }
         single<SignInRepository> {
             FirebaseSignInRepository(
                 messaging = get(),
