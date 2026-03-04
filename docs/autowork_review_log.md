@@ -364,3 +364,14 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.ui.SplashActivityViewModelTest` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
 - Next executor action:
   - Add invitation deep-link intent filters to `SplashActivity` and test the external-link entrypoint path into onboarding routing.
+
+## 2026-03-04T10:19:32Z
+- Reviewer commit: `pending`
+- Target executor commit: `a1c99711505b4f9eb6781d7e12e781c109c90ec1`
+- Outcome: `approved`
+- Findings:
+  - `none`
+- Validation:
+  - `./agent-tools/test.sh --tests com.example.rise.ui.SplashActivity*Test --timeout 300` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
+- Next executor action:
+  - Continue `docs/briar_invitation_chat_roadmap.md` with the next invitation-to-chat migration task.
