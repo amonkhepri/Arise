@@ -12,7 +12,7 @@
 
 ## Priority Backlog (Ordered)
 - [x] Define and document invitation-link contract + parser behaviour (required fields, invalid states, duplicate handling) with unit tests.
-- [ ] Add/verify deep-link entrypoint that routes invitation links into a dedicated onboarding action path.
+- [x] Add/verify deep-link entrypoint that routes invitation links into a dedicated onboarding action path.
 - [ ] Implement invitation acceptance use case in the connector/router layer (no UI-layer Briar internals).
 - [ ] Ensure identity mapping is persisted (`IdentityRegistry`) so accepted invites resolve to stable people/chat identity keys.
 - [ ] Bootstrap or resolve conversation for accepted contact and navigate directly into chat.
@@ -28,3 +28,4 @@
 ## Progress Log
 - 2026-03-04: Added `BriarInvitationLinkParser` contract + unit coverage and documented the supported invitation link shapes in `docs/briar_invitation_link_contract.md`.
 - 2026-03-04: Roadmap created and set as active execution plan for autowork.
+- 2026-03-04: Added Splash deep-link routing for invitation links into a dedicated `MainActivity` onboarding action payload (`BriarInvitationOnboardingAction`) with unit coverage in `SplashActivityViewModelTest`.

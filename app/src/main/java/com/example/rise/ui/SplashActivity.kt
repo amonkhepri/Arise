@@ -26,7 +26,11 @@ class SplashActivity : BaseActivity() {
                 viewModel.events.collect { event ->
                     when (event) {
                         NavigationEvent.ToSignIn -> startActivity(Intent(this@SplashActivity, SignInActivity::class.java))
-                        NavigationEvent.ToMain -> startActivity(Intent(this@SplashActivity, MainActivity::class.java))
+                        is NavigationEvent.ToMain -> {
+                            val intent = Intent(this@SplashActivity, MainActivity::class.java)
+                            event.onboardingAction?.applyTo(intent)
+                            startActivity(intent)
+                        }
                     }
                     finish()
                 }
@@ -36,6 +40,6 @@ class SplashActivity : BaseActivity() {
 
     override fun onStart() {
         super.onStart()
-        viewModel.determineDestination()
+        viewModel.determineDestination(rawDeepLink = intent?.dataString)
     }
 }
