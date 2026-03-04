@@ -10,9 +10,14 @@ import com.example.rise.briar.runtime.NoOpBriarChatGateway
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.briar.BriarContactRepository
+import com.example.rise.transport.router.CanonicalConversation
+import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.CanonicalMessage
+import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.IdentityRecord
 import com.example.rise.transport.router.IdentityRegistryImpl
 import com.example.rise.transport.router.IdentityRegistryStore
+import com.example.rise.transport.router.TransportRouter
 import com.example.rise.transport.router.TransportId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -83,6 +88,31 @@ class BriarInvitationAcceptanceUseCaseTest {
 
         assertTrue(result is BriarInvitationAcceptanceResult.Accepted)
         assertEquals(null, identityRegistry.currentIdentitySnapshot())
+    }
+
+    @Test
+    fun `accept bootstraps canonical conversation when transport router is provided`() = runTest {
+        val service = RecordingContactService(isAvailable = true)
+        val contactRepository = BriarContactRepository(fakeBridge(service))
+        val transportRouter = RecordingTransportRouter(
+            conversation = CanonicalConversation(
+                id = "conversation-42",
+                participants = setOf("self", "invite:inv-42"),
+                title = "Alice",
+            ),
+        )
+        val useCase = BriarInvitationAcceptanceUseCase(
+            contactRepository = contactRepository,
+            transportRouter = transportRouter,
+        )
+
+        val result = useCase.accept("arise://briar/invite?link=${encode(validLink())}&alias=${encode("Alice")}&inviteId=INV-42")
+
+        assertTrue(result is BriarInvitationAcceptanceResult.Accepted)
+        result as BriarInvitationAcceptanceResult.Accepted
+        assertEquals("conversation-42", result.conversationId)
+        assertEquals("invite:inv-42", transportRouter.requestedIdentity?.id)
+        assertEquals("Alice", transportRouter.requestedIdentity?.displayName)
     }
 
     @Test
@@ -172,5 +202,28 @@ class BriarInvitationAcceptanceUseCaseTest {
             }
             state = IdentityRegistryStore.StoredState(recordsCopy, currentIdentityId)
         }
+    }
+
+    private class RecordingTransportRouter(
+        private val conversation: CanonicalConversation,
+    ) : TransportRouter {
+        var requestedIdentity: CanonicalIdentity? = null
+
+        override val currentIdentity: Flow<CanonicalIdentity> =
+            flowOf(CanonicalIdentity(id = "self", displayName = "Self"))
+
+        override suspend fun ensureCurrentIdentity(): CanonicalIdentity =
+            CanonicalIdentity(id = "self", displayName = "Self")
+
+        override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
+            requestedIdentity = otherIdentity
+            return conversation
+        }
+
+        override fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>> = flowOf(emptyList())
+
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
+
+        override suspend fun reset() = Unit
     }
 }

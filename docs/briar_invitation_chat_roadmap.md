@@ -27,6 +27,7 @@
 - Maintain strict TDD for each backlog item (failing test first, minimal fix, tests green).
 
 ## Progress Log
+- 2026-03-04: Extended `BriarInvitationAcceptanceUseCase` to optionally bootstrap a canonical conversation via `TransportRouter.ensureConversation` and return the resolved `conversationId` in `Accepted`, with regression coverage.
 - 2026-03-04: Fixed invite-acceptance identity regression by ensuring `IdentityRegistryImpl.upsertIdentity(setAsCurrent = false)` never mutates `currentIdentity`; added regression coverage in `BriarInvitationAcceptanceUseCaseTest` to keep current identity unset after accepting an invite.
 - 2026-03-04: Persisted accepted invitation identity mapping in `BriarInvitationAcceptanceUseCase` by upserting a deterministic canonical record in `IdentityRegistry` (duplicate key + Briar link alias), with regression unit coverage.
 - 2026-03-04: Fixed startup crash (`NoDefinitionFoundException` for `BriarInvitationDeepLinkEntrypoint`) by adding Koin bindings in `App.appModule`, plus a regression test (`AppModuleInvitationBindingsTest`) to ensure the entrypoint remains resolvable.

@@ -3,6 +3,7 @@ package com.example.rise.transport.briar.invite
 import com.example.rise.transport.briar.BriarContactRepository
 import com.example.rise.transport.router.CanonicalIdentity
 import com.example.rise.transport.router.IdentityRegistry
+import com.example.rise.transport.router.TransportRouter
 import com.example.rise.transport.router.TransportId
 import kotlinx.coroutines.CancellationException
 
@@ -10,6 +11,7 @@ class BriarInvitationAcceptanceUseCase(
     private val contactRepository: BriarContactRepository,
     private val parser: BriarInvitationLinkParser = BriarInvitationLinkParser(),
     private val identityRegistry: IdentityRegistry? = null,
+    private val transportRouter: TransportRouter? = null,
 ) {
 
     suspend fun accept(rawLink: String): BriarInvitationAcceptanceResult {
@@ -20,17 +22,22 @@ class BriarInvitationAcceptanceUseCase(
 
         parsed as BriarInvitationLinkParseResult.Success
         val invitation = parsed.invitation
+        val peerIdentity = CanonicalIdentity(
+            id = invitation.duplicateKey,
+            displayName = invitation.alias ?: invitation.duplicateKey,
+        )
         return try {
             contactRepository.addContactByLink(invitation.briarLink, invitation.alias)
             identityRegistry?.upsertIdentity(
-                identity = CanonicalIdentity(
-                    id = invitation.duplicateKey,
-                    displayName = invitation.alias ?: invitation.duplicateKey,
-                ),
+                identity = peerIdentity,
                 aliases = mapOf(TransportId.BRIAR to invitation.briarLink),
                 setAsCurrent = false,
             )
-            BriarInvitationAcceptanceResult.Accepted(invitation)
+            val conversation = transportRouter?.ensureConversation(peerIdentity)
+            BriarInvitationAcceptanceResult.Accepted(
+                invitation = invitation,
+                conversationId = conversation?.id,
+            )
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
             BriarInvitationAcceptanceResult.Failed(invitation, error)
@@ -39,7 +46,10 @@ class BriarInvitationAcceptanceUseCase(
 }
 
 sealed interface BriarInvitationAcceptanceResult {
-    data class Accepted(val invitation: BriarInvitationLink) : BriarInvitationAcceptanceResult
+    data class Accepted(
+        val invitation: BriarInvitationLink,
+        val conversationId: String? = null,
+    ) : BriarInvitationAcceptanceResult
     data class InvalidLink(
         val reason: BriarInvitationLinkParseResult.InvalidReason,
     ) : BriarInvitationAcceptanceResult
