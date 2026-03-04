@@ -11,7 +11,7 @@
 - Sending the first message from that opened chat succeeds in `HYBRID` and `BRIAR_ONLY`.
 
 ## Priority Backlog (Ordered)
-- [ ] Define and document invitation-link contract + parser behaviour (required fields, invalid states, duplicate handling) with unit tests.
+- [x] Define and document invitation-link contract + parser behaviour (required fields, invalid states, duplicate handling) with unit tests.
 - [ ] Add/verify deep-link entrypoint that routes invitation links into a dedicated onboarding action path.
 - [ ] Implement invitation acceptance use case in the connector/router layer (no UI-layer Briar internals).
 - [ ] Ensure identity mapping is persisted (`IdentityRegistry`) so accepted invites resolve to stable people/chat identity keys.
@@ -26,4 +26,5 @@
 - Maintain strict TDD for each backlog item (failing test first, minimal fix, tests green).
 
 ## Progress Log
+- 2026-03-04: Added `BriarInvitationLinkParser` contract + unit coverage and documented the supported invitation link shapes in `docs/briar_invitation_link_contract.md`.
 - 2026-03-04: Roadmap created and set as active execution plan for autowork.
