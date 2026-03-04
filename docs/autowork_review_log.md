@@ -386,3 +386,14 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.AppModuleInvitationBindingsTest` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
 - Next executor action:
   - Continue `docs/briar_invitation_chat_roadmap.md` with identity mapping persistence (`IdentityRegistry`) for accepted invites.
+
+## 2026-03-04T10:50:58Z
+- Reviewer commit: `pending`
+- Target executor commit: `4c14223eb2b48074ca9cd8d4f02f7e6ac9a1f757`
+- Outcome: `needs_fix`
+- Findings:
+  - `app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt:25` upserts invite identity with `setAsCurrent=false`, but `IdentityRegistryImpl.upsertIdentity()` still sets `_currentIdentity` whenever it is null (`IdentityRegistryImpl.kt:91-93`), so accepting an invite on an empty registry can incorrectly mark the invited contact as the signed-in/current identity.
+- Validation:
+  - `./agent-tools/test.sh --tests com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCaseTest` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
+- Next executor action:
+  - Prevent invitation acceptance from changing `currentIdentity` when it is unset and add a regression test proving invite acceptance keeps the current-user identity unchanged.
