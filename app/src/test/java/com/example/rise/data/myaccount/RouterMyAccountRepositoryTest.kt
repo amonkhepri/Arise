@@ -425,6 +425,56 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `firestore mode runtime fallback prefers registry primary connector`() = runTest {
+        val mirrorBriarConnector = FakeAccountConnector(transport = TransportId.BRIAR).apply {
+            profile = profile.copy(name = "Mirror Briar Connector")
+        }
+        val primaryBriarConnector = FakeAccountConnector(transport = TransportId.BRIAR).apply {
+            profile = profile.copy(name = "Primary Briar Connector")
+        }
+        val failingFirestoreConnector = FakeAccountConnector(
+            transport = TransportId.FIRESTORE,
+            lifecycleState = ConnectorLifecycleState.READY,
+            statusState = ConnectorStatus.ACTIVE,
+            fetchFailure = IllegalStateException("Firestore account connector runtime failure"),
+        )
+        val registry = object : ConnectorRegistry {
+            private val ordered = linkedSetOf(
+                mirrorBriarConnector,
+                primaryBriarConnector,
+                failingFirestoreConnector,
+            )
+
+            override val connectors: Set<TransportConnector> = ordered
+
+            override fun connectorFor(transportId: TransportId): TransportConnector? {
+                return ordered.firstOrNull { it.transport == transportId }
+            }
+
+            override fun primaryFor(mode: BriarTransportMode): TransportConnector = primaryBriarConnector
+
+            override fun mirrorsFor(mode: BriarTransportMode): List<TransportConnector> = emptyList()
+        }
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.FIRESTORE)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val result = repository.fetchCurrentUser()
+
+        assertEquals("Primary Briar Connector", result.name)
+    }
+
+    @Test
     fun `briar only mode returns identity registry profile`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Briar User")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())

@@ -212,6 +212,17 @@ class RouterMyAccountRepository(
         if (mode != BriarTransportMode.FIRESTORE || primaryTransport.transport != TransportId.FIRESTORE) {
             return null
         }
+        val modePrimaryFallback = connectorRegistry.primaryFor(mode)
+            .takeIf { candidate ->
+                candidate !== primaryTransport &&
+                    candidate.transport != TransportId.FIRESTORE &&
+                    candidate.isReadyForAccountRouting()
+            }
+            ?.let { candidate ->
+                val account = candidate as? AccountConnector ?: return@let null
+                candidate to account
+            }
+        if (modePrimaryFallback != null) return modePrimaryFallback
         val readyFallbacks = connectorRegistry.connectors.mapNotNull { candidate ->
             val account = candidate as? AccountConnector ?: return@mapNotNull null
             candidate to account
