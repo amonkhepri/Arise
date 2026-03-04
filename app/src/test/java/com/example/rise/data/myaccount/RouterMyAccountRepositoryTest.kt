@@ -475,6 +475,111 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `firestore mode fetchCurrentUser falls back to secondary connector when primary fallback fails`() = runTest {
+        val secondaryBriarConnector = FakeAccountConnector(transport = TransportId.BRIAR).apply {
+            profile = profile.copy(name = "Secondary Briar Connector")
+        }
+        val failingPrimaryBriarConnector = FakeAccountConnector(
+            transport = TransportId.BRIAR,
+            fetchFailure = IllegalStateException("Primary Briar connector runtime failure"),
+        )
+        val failingFirestoreConnector = FakeAccountConnector(
+            transport = TransportId.FIRESTORE,
+            lifecycleState = ConnectorLifecycleState.READY,
+            statusState = ConnectorStatus.ACTIVE,
+            fetchFailure = IllegalStateException("Firestore account connector runtime failure"),
+        )
+        val registry = object : ConnectorRegistry {
+            private val ordered = linkedSetOf(
+                secondaryBriarConnector,
+                failingPrimaryBriarConnector,
+                failingFirestoreConnector,
+            )
+
+            override val connectors: Set<TransportConnector> = ordered
+
+            override fun connectorFor(transportId: TransportId): TransportConnector? {
+                return ordered.firstOrNull { it.transport == transportId }
+            }
+
+            override fun primaryFor(mode: BriarTransportMode): TransportConnector = failingPrimaryBriarConnector
+
+            override fun mirrorsFor(mode: BriarTransportMode): List<TransportConnector> = emptyList()
+        }
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.FIRESTORE)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val result = repository.fetchCurrentUser()
+
+        assertEquals("Secondary Briar Connector", result.name)
+    }
+
+    @Test
+    fun `firestore mode updateCurrentUser falls back to secondary connector when primary fallback fails`() = runTest {
+        val secondaryBriarConnector = FakeAccountConnector(transport = TransportId.BRIAR)
+        val failingPrimaryBriarConnector = FakeAccountConnector(
+            transport = TransportId.BRIAR,
+            updateFailure = IllegalStateException("Primary Briar connector runtime failure"),
+        )
+        val failingFirestoreConnector = FakeAccountConnector(
+            transport = TransportId.FIRESTORE,
+            lifecycleState = ConnectorLifecycleState.READY,
+            statusState = ConnectorStatus.ACTIVE,
+            updateFailure = IllegalStateException("Firestore account connector runtime failure"),
+        )
+        val registry = object : ConnectorRegistry {
+            private val ordered = linkedSetOf(
+                secondaryBriarConnector,
+                failingPrimaryBriarConnector,
+                failingFirestoreConnector,
+            )
+
+            override val connectors: Set<TransportConnector> = ordered
+
+            override fun connectorFor(transportId: TransportId): TransportConnector? {
+                return ordered.firstOrNull { it.transport == transportId }
+            }
+
+            override fun primaryFor(mode: BriarTransportMode): TransportConnector = failingPrimaryBriarConnector
+
+            override fun mirrorsFor(mode: BriarTransportMode): List<TransportConnector> = emptyList()
+        }
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.FIRESTORE)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        repository.updateCurrentUser(name = "Nova", bio = "Fallback bio")
+
+        assertEquals(1, secondaryBriarConnector.updates.size)
+        assertTrue(failingPrimaryBriarConnector.updates.isEmpty())
+        assertTrue(failingFirestoreConnector.updates.isEmpty())
+        val update = secondaryBriarConnector.updates.single()
+        assertEquals("Nova", update.name)
+        assertEquals("Fallback bio", update.bio)
+    }
+
+    @Test
     fun `briar only mode returns identity registry profile`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Briar User")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())

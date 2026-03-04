@@ -56,16 +56,25 @@ class RouterMyAccountRepository(
         runCatching { selectedConnector.fetchAccountProfile() }
             .getOrElse { error ->
                 if (error is CancellationException) throw error
-                val fallbackConnector = fetchFallbackConnector(selectedConnector)
-                if (fallbackConnector != null) {
+                val fallbackConnectors = fetchFallbackConnectors(selectedConnector)
+                if (fallbackConnectors.isNotEmpty()) {
                     val selectedTransportId = selectedTransport?.transport ?: "unknown"
-                    Timber.tag(TAG).w(
-                        error,
-                        "Primary account fetch failed for %s; falling back to %s",
-                        selectedTransportId,
-                        fallbackConnector.first.transport,
-                    )
-                    return@withContext fallbackConnector.second.fetchAccountProfile()
+                    var lastError: Throwable = error
+                    for ((fallbackTransport, fallbackConnector) in fallbackConnectors) {
+                        Timber.tag(TAG).w(
+                            lastError,
+                            "Primary account fetch failed for %s; falling back to %s",
+                            selectedTransportId,
+                            fallbackTransport.transport,
+                        )
+                        try {
+                            return@withContext fallbackConnector.fetchAccountProfile()
+                        } catch (fallbackError: Throwable) {
+                            if (fallbackError is CancellationException) throw fallbackError
+                            lastError = fallbackError
+                        }
+                    }
+                    throw lastError
                 }
                 throw error
             }
@@ -123,16 +132,26 @@ class RouterMyAccountRepository(
             runCatching { selectedConnector.updateAccountProfile(update) }
                 .getOrElse { error ->
                     if (error is CancellationException) throw error
-                    val fallbackConnector = fetchFallbackConnector(selectedConnector)
-                    if (fallbackConnector != null) {
+                    val fallbackConnectors = fetchFallbackConnectors(selectedConnector)
+                    if (fallbackConnectors.isNotEmpty()) {
                         val selectedTransportId = selectedTransport?.transport ?: "unknown"
-                        Timber.tag(TAG).w(
-                            error,
-                            "Primary account update failed for %s; falling back to %s",
-                            selectedTransportId,
-                            fallbackConnector.first.transport,
-                        )
-                        return@withContext fallbackConnector.second.updateAccountProfile(update)
+                        var lastError: Throwable = error
+                        for ((fallbackTransport, fallbackConnector) in fallbackConnectors) {
+                            Timber.tag(TAG).w(
+                                lastError,
+                                "Primary account update failed for %s; falling back to %s",
+                                selectedTransportId,
+                                fallbackTransport.transport,
+                            )
+                            try {
+                                fallbackConnector.updateAccountProfile(update)
+                                return@withContext
+                            } catch (fallbackError: Throwable) {
+                                if (fallbackError is CancellationException) throw fallbackError
+                                lastError = fallbackError
+                            }
+                        }
+                        throw lastError
                     }
                     throw error
                 }
@@ -204,14 +223,15 @@ class RouterMyAccountRepository(
             )
     }
 
-    private fun fetchFallbackConnector(
+    private fun fetchFallbackConnectors(
         primary: AccountConnector,
-    ): Pair<TransportConnector, AccountConnector>? {
-        val primaryTransport = primary as? TransportConnector ?: return null
+    ): List<Pair<TransportConnector, AccountConnector>> {
+        val primaryTransport = primary as? TransportConnector ?: return emptyList()
         val mode = transportBridge.currentMode.value
         if (mode != BriarTransportMode.FIRESTORE || primaryTransport.transport != TransportId.FIRESTORE) {
-            return null
+            return emptyList()
         }
+        val orderedFallbacks = linkedMapOf<TransportConnector, AccountConnector>()
         val modePrimaryFallback = connectorRegistry.primaryFor(mode)
             .takeIf { candidate ->
                 candidate !== primaryTransport &&
@@ -222,14 +242,20 @@ class RouterMyAccountRepository(
                 val account = candidate as? AccountConnector ?: return@let null
                 candidate to account
             }
-        if (modePrimaryFallback != null) return modePrimaryFallback
-        val readyFallbacks = connectorRegistry.connectors.mapNotNull { candidate ->
+        modePrimaryFallback?.let { (connector, account) ->
+            orderedFallbacks[connector] = account
+        }
+        connectorRegistry.connectors.mapNotNull { candidate ->
             val account = candidate as? AccountConnector ?: return@mapNotNull null
             candidate to account
         }.filter { (connector, account) ->
-            account !== primary && connector.isReadyForAccountRouting()
+            account !== primary &&
+                connector.transport != TransportId.FIRESTORE &&
+                connector.isReadyForAccountRouting()
+        }.forEach { (connector, account) ->
+            orderedFallbacks.putIfAbsent(connector, account)
         }
-        return readyFallbacks.firstOrNull { it.first.transport != TransportId.FIRESTORE }
+        return orderedFallbacks.entries.map { (connector, account) -> connector to account }
     }
 
     private fun TransportConnector.isReadyForAccountRouting(): Boolean {
