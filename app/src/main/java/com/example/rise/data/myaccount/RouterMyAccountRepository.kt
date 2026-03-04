@@ -118,7 +118,24 @@ class RouterMyAccountRepository(
                 profilePicturePath = profilePicturePath?.takeIf { it.isNotBlank() },
             )
             if (update.isEmpty()) return@withContext
-            accountConnector().updateAccountProfile(update)
+            val selectedConnector = accountConnector()
+            val selectedTransport = selectedConnector as? TransportConnector
+            runCatching { selectedConnector.updateAccountProfile(update) }
+                .getOrElse { error ->
+                    if (error is CancellationException) throw error
+                    val fallbackConnector = fetchFallbackConnector(selectedConnector)
+                    if (fallbackConnector != null) {
+                        val selectedTransportId = selectedTransport?.transport ?: "unknown"
+                        Timber.tag(TAG).w(
+                            error,
+                            "Primary account update failed for %s; falling back to %s",
+                            selectedTransportId,
+                            fallbackConnector.first.transport,
+                        )
+                        return@withContext fallbackConnector.second.updateAccountProfile(update)
+                    }
+                    throw error
+                }
         }
     }
 

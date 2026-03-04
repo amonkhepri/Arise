@@ -388,6 +388,43 @@ class RouterMyAccountRepositoryTest {
     }
 
     @Test
+    fun `firestore mode updateCurrentUser falls back when firestore connector fails at runtime`() = runTest {
+        val briarAccountConnector = FakeAccountConnector(transport = TransportId.BRIAR)
+        val failingFirestoreConnector = FakeAccountConnector(
+            transport = TransportId.FIRESTORE,
+            lifecycleState = ConnectorLifecycleState.READY,
+            statusState = ConnectorStatus.ACTIVE,
+            updateFailure = IllegalStateException("Firestore account connector runtime failure"),
+        )
+        val registry = OrderedFallbackConnectorRegistry(
+            primary = NonAccountConnector(TransportId.BRIAR),
+            firstFallback = briarAccountConnector,
+            secondFallback = failingFirestoreConnector,
+        )
+        val transportBridge = FakeTransportRuntimeBridge().apply {
+            setMode(BriarTransportMode.FIRESTORE)
+        }
+        val repository = RouterMyAccountRepository(
+            authService = authService,
+            peopleSync = RecordingPeopleSync(),
+            transportRouter = RecordingTransportRouter(),
+            connectorRegistry = registry,
+            transportBridge = transportBridge,
+            identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore()),
+            briarRuntimeManager = runtimeManager,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        repository.updateCurrentUser(name = "Nova", bio = "Fallback bio")
+
+        assertEquals(1, briarAccountConnector.updates.size)
+        assertTrue(failingFirestoreConnector.updates.isEmpty())
+        val update = briarAccountConnector.updates.single()
+        assertEquals("Nova", update.name)
+        assertEquals("Fallback bio", update.bio)
+    }
+
+    @Test
     fun `briar only mode returns identity registry profile`() = runTest {
         val canonicalIdentity = CanonicalIdentity(id = "briar-123", displayName = "Briar User")
         val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
