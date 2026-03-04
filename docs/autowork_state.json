@@ -1,14 +1,14 @@
 {
   "version": 1,
   "active_plan_file": "docs/people_sync_roadmap.md",
-  "review_status": "approved",
-  "last_executor_commit": "d14c2b5d52957692b6fdae1b66922593947cd20e",
+  "review_status": "pending",
+  "last_executor_commit": "89dee1a530d4e2294d8bd98816836d85d0bca4f4",
   "last_reviewed_commit": "d14c2b5d52957692b6fdae1b66922593947cd20e",
   "pending_fix_for_commit": null,
-  "executor_summary": "Added FIRESTORE-mode runtime fallback for account profile updates to a READY non-Firestore connector, with RouterMyAccountRepositoryTest regression coverage.",
+  "executor_summary": "Added FIRESTORE-mode account fetch fallback preference for ConnectorRegistry primary non-Firestore connector to avoid set-order routing, with RouterMyAccountRepositoryTest coverage.",
   "reviewer_summary": "Approved executor commit d14c2b5: FIRESTORE-mode account profile updates now fall back to a READY non-Firestore connector when runtime Firestore update fails, with RouterMyAccountRepositoryTest coverage.",
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 27,
-  "updated_by": "reviewer",
-  "updated_at": "2026-03-04T09:09:01Z"
+  "updated_by": "executor",
+  "updated_at": "2026-03-04T09:15:15Z"
 }
