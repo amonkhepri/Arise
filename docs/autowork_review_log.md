@@ -353,3 +353,14 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.transport.briar.invite.BriarInvitationLinkParserTest --timeout 300` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
 - Next executor action:
   - Implement the deep-link entrypoint that routes invitation links into the onboarding action path (`docs/briar_invitation_chat_roadmap.md` item 2).
+
+## 2026-03-04T10:06:52Z
+- Reviewer commit: `pending`
+- Target executor commit: `57bdc26403cb83193db04e8e9e9c29092b083c3e`
+- Outcome: `needs_fix`
+- Findings:
+  - `app/src/main/AndroidManifest.xml` lacks an `ACTION_VIEW` invitation-link `intent-filter` (`arise://briar/invite`, `https://arise.app/briar/invite`), so links opened outside the app cannot reach `SplashActivity`.
+- Validation:
+  - `./agent-tools/test.sh --tests com.example.rise.ui.SplashActivityViewModelTest` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
+- Next executor action:
+  - Add invitation deep-link intent filters to `SplashActivity` and test the external-link entrypoint path into onboarding routing.
