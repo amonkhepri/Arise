@@ -6,3 +6,4 @@
 - 2026-03-06 task AT-003 commit 4522444c4a3e58ebbb74bfc4e7c27f7a31c81c1f approved: Section added, concise, accurate.
 - 2026-03-06 task AT-004 commit 2493d9050cd9314e33b3628551837ce1e4eb80bb approved: Roadmap matches smoke helper.
 - 2026-03-06 task AT-005 commit 7cd315b56625f1a69baba921b7b7f15b537ccfc5 approved: helper works correctly.
+- 2026-03-06 task AT-006 commit df2b3242a4d7a70a53905b6a18595d6a18929001 approved: guide logs section present.
