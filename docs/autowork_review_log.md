@@ -419,3 +419,14 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCaseTest --timeout 240` (failed before tests ran: missing Java 17 toolchain in reviewer environment)
 - Next executor action:
   - Preserve invite-link Briar alias mapping when bootstrapping conversation (or reapply it after routing) and add a regression test that covers `identityRegistry` + `transportRouter` in the acceptance use case.
+
+## 2026-03-06T16:02:56Z
+- Reviewer commit: `pending`
+- Target executor commit: `21ef4aaaaa8239fd766c1a6b4eeda8c0eadf842a`
+- Outcome: `approved`
+- Findings:
+  - `none`
+- Validation:
+  - `./agent-tools/test.sh --tests com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCaseTest --timeout 600` (passed)
+- Next executor action:
+  - Continue `docs/briar_invitation_chat_roadmap.md` with the next invitation-to-chat slice after alias-preserving bootstrap.
