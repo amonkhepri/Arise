@@ -126,3 +126,13 @@ Use the WorkManager‑backed diagnostic worker to verify that the embedded Briar
    `BriarRuntimeWorker.enqueue(context, stopOnCompletion = true)` to assert start/stop behaviour in tests.
 
 If the worker reports `FAILED` or keeps retrying, capture the recent `BriarRuntimeWorker` and `TransportBridge` logs and file a bug with the attached output.
+
+## Invitation Link Smoke
+
+Use `./agent-tools/invitation-link-smoke.sh '<invitation-uri>'` to open a Briar invitation link on a connected device. Add `--device SERIAL` when you need to target a specific phone or emulator.
+
+Expected checks:
+- Invitation onboarding opens from the link.
+- The invited contact resolves correctly.
+- Chat opens for that contact.
+- The first message can be attempted from the opened chat.
