@@ -28,12 +28,11 @@ class BriarInvitationAcceptanceUseCase(
         )
         return try {
             contactRepository.addContactByLink(invitation.briarLink, invitation.alias)
-            identityRegistry?.upsertIdentity(
-                identity = peerIdentity,
-                aliases = mapOf(TransportId.BRIAR to invitation.briarLink),
-                setAsCurrent = false,
-            )
+            persistInvitationIdentity(peerIdentity, invitation.briarLink)
             val conversation = transportRouter?.ensureConversation(peerIdentity)
+            if (conversation != null) {
+                persistInvitationIdentity(peerIdentity, invitation.briarLink)
+            }
             BriarInvitationAcceptanceResult.Accepted(
                 invitation = invitation,
                 conversationId = conversation?.id,
@@ -42,6 +41,17 @@ class BriarInvitationAcceptanceUseCase(
             if (error is CancellationException) throw error
             BriarInvitationAcceptanceResult.Failed(invitation, error)
         }
+    }
+
+    private suspend fun persistInvitationIdentity(
+        identity: CanonicalIdentity,
+        briarLink: String,
+    ) {
+        identityRegistry?.upsertIdentity(
+            identity = identity,
+            aliases = mapOf(TransportId.BRIAR to briarLink),
+            setAsCurrent = false,
+        )
     }
 }
 

@@ -13,12 +13,22 @@ import com.example.rise.transport.briar.BriarContactRepository
 import com.example.rise.transport.router.CanonicalConversation
 import com.example.rise.transport.router.CanonicalIdentity
 import com.example.rise.transport.router.CanonicalMessage
+import com.example.rise.transport.router.CapabilityDescriptor
+import com.example.rise.transport.router.ConnectorCapabilities
+import com.example.rise.transport.router.ConnectorInboundMessage
+import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorOutboundMessage
+import com.example.rise.transport.router.ConnectorStatus
+import com.example.rise.transport.router.DefaultConnectorRegistry
 import com.example.rise.transport.router.IdentityRecord
 import com.example.rise.transport.router.IdentityRegistryImpl
 import com.example.rise.transport.router.IdentityRegistryStore
+import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.TransportConversationId
+import com.example.rise.transport.router.TransportRouterImpl
 import com.example.rise.transport.router.TransportRouter
 import com.example.rise.transport.router.TransportId
+import com.example.rise.transport.store.ConversationStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -113,6 +123,33 @@ class BriarInvitationAcceptanceUseCaseTest {
         assertEquals("conversation-42", result.conversationId)
         assertEquals("invite:inv-42", transportRouter.requestedIdentity?.id)
         assertEquals("Alice", transportRouter.requestedIdentity?.displayName)
+    }
+
+    @Test
+    fun `accept preserves invitation briar alias after bootstrapping conversation`() = runTest {
+        val service = RecordingContactService(isAvailable = true)
+        val contactRepository = BriarContactRepository(fakeBridge(service))
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        val transportRouter = TransportRouterImpl(
+            transportBridge = fakeBridge(service),
+            connectorRegistry = DefaultConnectorRegistry(setOf(ReadyBriarConnector())),
+            conversationStore = InMemoryConversationStore(),
+            identityRegistry = identityRegistry,
+        )
+        val useCase = BriarInvitationAcceptanceUseCase(
+            contactRepository = contactRepository,
+            identityRegistry = identityRegistry,
+            transportRouter = transportRouter,
+        )
+
+        val result = useCase.accept("arise://briar/invite?link=${encode(validLink())}&alias=${encode("Alice")}&inviteId=INV-42")
+
+        assertTrue(result is BriarInvitationAcceptanceResult.Accepted)
+        result as BriarInvitationAcceptanceResult.Accepted
+        assertEquals("conversation-42", result.conversationId)
+        val invitedRecord = identityRegistry.identitiesSnapshot()
+            .first { it.canonicalIdentity.id == "invite:inv-42" }
+        assertEquals(validLink(), invitedRecord.aliases[TransportId.BRIAR])
     }
 
     @Test
@@ -225,5 +262,64 @@ class BriarInvitationAcceptanceUseCaseTest {
         override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
 
         override suspend fun reset() = Unit
+    }
+
+    private class ReadyBriarConnector : TransportConnector {
+        override val transport: TransportId = TransportId.BRIAR
+        override val status: StateFlow<ConnectorStatus> = MutableStateFlow(ConnectorStatus.ACTIVE)
+        override val lifecycle: StateFlow<ConnectorLifecycleState> = MutableStateFlow(ConnectorLifecycleState.READY)
+        override val capabilities: StateFlow<ConnectorCapabilities> = MutableStateFlow(
+            ConnectorCapabilities(
+                entries = mapOf(
+                    "messages" to CapabilityDescriptor(
+                        version = 1,
+                        properties = mapOf("enabled" to "true"),
+                    ),
+                ),
+            ),
+        )
+
+        override suspend fun currentIdentity(): CanonicalIdentity =
+            CanonicalIdentity(id = "self", displayName = "Self")
+
+        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId {
+            return TransportConversationId(
+                canonicalId = "conversation-42",
+                transportConversationId = "briar-conversation-42",
+            )
+        }
+
+        override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> =
+            flowOf(emptyList())
+
+        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
+    }
+
+    private class InMemoryConversationStore : ConversationStore {
+        private val conversations = mutableMapOf<String, CanonicalConversation>()
+        private val aliases = mutableMapOf<Pair<String, TransportId>, String>()
+
+        override suspend fun upsertConversation(conversation: CanonicalConversation) {
+            conversations[conversation.id] = conversation
+        }
+
+        override suspend fun upsertMessages(conversationId: String, messages: List<CanonicalMessage>) = Unit
+
+        override fun observeMessages(conversationId: String): Flow<List<CanonicalMessage>> = flowOf(emptyList())
+
+        override suspend fun getConversation(conversationId: String): CanonicalConversation? =
+            conversations[conversationId]
+
+        override suspend fun upsertAlias(conversationId: String, transportId: TransportId, alias: String) {
+            aliases[conversationId to transportId] = alias
+        }
+
+        override suspend fun getAlias(conversationId: String, transportId: TransportId): String? =
+            aliases[conversationId to transportId]
+
+        override suspend fun clearAll() {
+            conversations.clear()
+            aliases.clear()
+        }
     }
 }
