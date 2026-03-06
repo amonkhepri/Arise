@@ -10,3 +10,4 @@
 - 2026-03-06 task AT-007 commit 2c0964736727ea6b5fd20ce76d8fac1aa7917f5c approved: All checks passed.
 - 2026-03-06 task AT-008 commit f8147ef5c9cb0e283434307006ffdea63731fc73 approved: Invitation capture docs correct.
 - 2026-03-06 task AT-009 commit 35f21125e394f39064ca16c1c46316002756ea5e approved: All good.
+- 2026-03-06 task AT-010 commit b69c6a8b94c6219b0434fc880acc58acd0a65f4e approved: validation commands passed and commit stayed within allowed paths.
