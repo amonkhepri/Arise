@@ -5,3 +5,4 @@
 - 2026-03-06 task AT-002 commit a0880d37545817b767f659153d84ca730529c194 approved: Helper wraps open-deep-link and prints checklist.
 - 2026-03-06 task AT-003 commit 4522444c4a3e58ebbb74bfc4e7c27f7a31c81c1f approved: Section added, concise, accurate.
 - 2026-03-06 task AT-004 commit 2493d9050cd9314e33b3628551837ce1e4eb80bb approved: Roadmap matches smoke helper.
+- 2026-03-06 task AT-005 commit 7cd315b56625f1a69baba921b7b7f15b537ccfc5 approved: helper works correctly.
