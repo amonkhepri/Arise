@@ -158,3 +158,22 @@ The script filters on keywords such as `BriarInvitation`, `TransportRouter`, and
 ## Invitation Capture Bundle
 
 Use `./agent-tools/invitation-link-capture.sh '<invitation-uri>'` to run the smoke helper, save filtered invitation logs, and capture a screenshot under `agent-tools/screenshots/` in one pass. Add `--device SERIAL` to target a specific device.
+
+## Invitation Artifact Lookup
+
+Use this helper to locate the most recent invitation capture artifacts.
+Run the script as:
+
+```bash
+./agent-tools/invitation-link-artifacts.sh
+```
+
+The script will print the paths to the newest log and screenshot files, e.g.:
+
+```
+LOG: /path/to/20260406-123456-invitation-logcat.txt
+SCREENSHOT: /path/to/20260406-123456-invitation.png
+```
+
+This is useful after running `invitation-link-capture.sh` to quickly find the artifacts.
+
