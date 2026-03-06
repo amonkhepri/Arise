@@ -27,6 +27,7 @@
 - Maintain strict TDD for each backlog item (failing test first, minimal fix, tests green).
 
 ## Progress Log
+- 2026-03-06: Added `agent-tools/invitation-link-logcat.sh` and `agent-tools/invitation-link-capture.sh` so invitation smoke runs can collect filtered logs and screenshots without ad-hoc adb commands.
 - 2026-03-06: Added `agent-tools/invitation-link-smoke.sh` and a matching quick-guide section so invitation-link smoke checks can be launched consistently from local agent tools.
 - 2026-03-06: Preserved the invite-link Briar alias after canonical conversation bootstrap so accepted invites keep stable lookup keys even when `TransportRouterImpl.ensureConversation()` runs, with regression coverage wired through the real router path.
 - 2026-03-04: Extended `BriarInvitationAcceptanceUseCase` to optionally bootstrap a canonical conversation via `TransportRouter.ensureConversation` and return the resolved `conversationId` in `Accepted`, with regression coverage.
