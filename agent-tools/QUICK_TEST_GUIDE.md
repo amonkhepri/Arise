@@ -177,3 +177,14 @@ SCREENSHOT: /path/to/20260406-123456-invitation.png
 
 This is useful after running `invitation-link-capture.sh` to quickly find the artifacts.
 
+
+## Invitation Artifact Summary
+
+Use this helper to get a summary of the latest invitation artifacts. Run the script as:
+
+```bash
+./agent-tools/invitation-link-summary.sh
+```
+
+It prints the path to the log and screenshot files and the last 20 lines of the log.
+
