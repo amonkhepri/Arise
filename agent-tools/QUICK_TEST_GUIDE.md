@@ -136,3 +136,21 @@ Expected checks:
 - The invited contact resolves correctly.
 - Chat opens for that contact.
 - The first message can be attempted from the opened chat.
+## Invitation Link Logs
+
+Use `./agent-tools/invitation-link-logcat.sh [--device SERIAL] [--clear]` to print filtered logcat entries related to invitation flows.
+
+Examples:
+
+```bash
+# View recent invitation‑related logcat lines on the default device
+./agent-tools/invitation-link-logcat.sh
+
+# Target a specific emulator or phone
+./agent-tools/invitation-link-logcat.sh --device emulator-5554
+
+# Clear the device logcat before exiting
+./agent-tools/invitation-link-logcat.sh --clear
+```
+
+The script filters on keywords such as `BriarInvitation`, `TransportRouter`, and `BriarContact`. Use it in conjunction with the smoke test script to verify that invitation processing occurs as expected.
