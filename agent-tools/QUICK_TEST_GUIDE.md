@@ -154,3 +154,7 @@ Examples:
 ```
 
 The script filters on keywords such as `BriarInvitation`, `TransportRouter`, and `BriarContact`. Use it in conjunction with the smoke test script to verify that invitation processing occurs as expected.
+
+## Invitation Capture Bundle
+
+Use `./agent-tools/invitation-link-capture.sh '<invitation-uri>'` to run the smoke helper, save filtered invitation logs, and capture a screenshot under `agent-tools/screenshots/` in one pass. Add `--device SERIAL` to target a specific device.
