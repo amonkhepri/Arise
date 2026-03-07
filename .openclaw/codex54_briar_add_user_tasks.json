@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "id": "BU-001",
+      "status": "needs_fix",
+      "title": "Expose outgoing Briar handshake link from BriarContactService",
+      "allowedPaths": [
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/BriarContactService.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/RealBriarContactService.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/NoOpBriarContactService.kt",
+        "briar-runtime/src/test/java/com/example/rise/briar/runtime/RealBriarContactServiceTest.kt"
+      ],
+      "contextFiles": [
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/BriarContactService.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/RealBriarContactService.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/NoOpBriarContactService.kt",
+        "briar/bramble-api/src/main/java/org/briarproject/bramble/api/contact/ContactManager.java",
+        "briar/bramble-core/src/main/java/org/briarproject/bramble/contact/ContactManagerImpl.java",
+        "briar-runtime/src/test/java/com/example/rise/briar/runtime/RealBriarContactServiceTest.kt"
+      ],
+      "instructions": [
+        "Extend the Briar contact service contract with a method that returns the local users raw briar handshake link when the runtime is ready.",
+        "Implement the method in RealBriarContactService by delegating to ContactManager.getHandshakeLink() and keep the not-ready error explicit.",
+        "Mirror the contract in NoOpBriarContactService and add focused unit coverage for ready and not-ready behavior without changing addContactByLink semantics."
+      ],
+      "validation": [
+        "./agent-tools/test-briar-runtime.sh --tests com.example.rise.briar.runtime.RealBriarContactServiceTest --timeout 600"
+      ],
+      "commitMessage": "autowork(briar-runtime): expose local handshake link",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-001",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-001",
+      "reviewFocus": [
+        "Check that the new contract is additive and does not break existing contact observation or addContactByLink behavior.",
+        "Check that runtime-not-ready behavior remains explicit in both real and no-op implementations.",
+        "Check that the implementation delegates to ContactManager.getHandshakeLink() rather than inventing a parallel link format."
+      ],
+      "executorCommit": "a2b5bfad316cf3a14dc527ea2570fa412d02913e"
+    },
+    {
+      "id": "BU-002",
+      "status": "blocked",
+      "blockedBy": "BU-001",
+      "title": "Expose handshake link retrieval through BriarContactRepository",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/transport/briar/BriarContactRepository.kt",
+        "app/src/test/java/com/example/rise/transport/briar/BriarContactRepositoryTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/transport/briar/BriarContactRepository.kt",
+        "app/src/test/java/com/example/rise/transport/briar/BriarContactRepositoryTest.kt",
+        "app/src/main/java/com/example/rise/transport/TransportRuntimeBridge.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/BriarContactService.kt"
+      ],
+      "instructions": [
+        "Add an app-facing repository method that returns the local raw briar handshake link via the transport runtime bridge.",
+        "Keep runtime-not-ready and service error propagation behavior aligned with addContactByLink.",
+        "Cover the new method in BriarContactRepositoryTest using the existing fake bridge patterns."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.transport.briar.BriarContactRepositoryTest --timeout 300"
+      ],
+      "commitMessage": "autowork(briar): expose handshake link repository API",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-002",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-002",
+      "reviewFocus": [
+        "Check that the repository API is additive and mirrors the runtime contract cleanly.",
+        "Check that runtime-not-ready behavior is still explicit.",
+        "Check that the repository test covers both success and failure paths."
+      ]
+    },
+    {
+      "id": "BU-003",
+      "status": "blocked",
+      "blockedBy": "BU-002",
+      "title": "Add manual add-by-link coordinator that reuses invitation acceptance flow",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatLaunchContract.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatActivity.kt"
+      ],
+      "instructions": [
+        "Introduce a small people-screen coordinator that accepts a raw briar invitation link string, delegates to BriarInvitationAcceptanceUseCase, and returns either a ChatLaunchContract or explicit invalid/failed outcomes.",
+        "Reuse the same raw briar acceptance semantics as the existing invitation parser instead of inventing wrapped-link behavior.",
+        "Cover accepted, invalid, and failed outcomes in a focused coordinator test."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarManualInvitationCoordinatorTest --timeout 300"
+      ],
+      "commitMessage": "autowork(invite): add manual raw-link coordinator",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-003",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-003",
+      "reviewFocus": [
+        "Check that manual add-by-link reuses the invitation acceptance use case instead of creating a second acceptance path.",
+        "Check that the coordinator deals in raw briar links only.",
+        "Check that the coordinator returns explicit invalid and failed states."
+      ]
+    },
+    {
+      "id": "BU-004",
+      "status": "blocked",
+      "blockedBy": "BU-003",
+      "title": "Extend PeopleViewModel with raw invite-share and add-by-link actions",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt",
+        "app/src/main/java/com/example/rise/App.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt",
+        "app/src/main/java/com/example/rise/transport/briar/BriarContactRepository.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/App.kt"
+      ],
+      "instructions": [
+        "Add explicit people-screen events for share-my-raw-briar-link, prompt-add-by-link, launch-chat-from-added-link, and user-visible error messages.",
+        "Fetch the shareable raw briar link through BriarContactRepository and use the manual coordinator for pasted raw links.",
+        "Keep the existing contact-list observation and open-chat-on-person-select behavior unchanged and cover the new actions in PeopleViewModelTest."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModelTest --timeout 300"
+      ],
+      "commitMessage": "autowork(people): add raw briar invite actions to viewmodel",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-004",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-004",
+      "reviewFocus": [
+        "Check that the new events are explicit and test-covered.",
+        "Check that raw-link sharing comes from BriarContactRepository rather than ad-hoc string assembly.",
+        "Check that existing person selection behavior is still intact."
+      ]
+    },
+    {
+      "id": "BU-005",
+      "status": "blocked",
+      "blockedBy": "BU-004",
+      "title": "Wire People screen UI for raw briar invite share and add-by-link",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleFragment.kt",
+        "app/src/main/res/layout/fragment_people.xml",
+        "app/src/main/res/values/values.xml",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleFragmentInviteActionsTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleFragment.kt",
+        "app/src/main/res/layout/fragment_people.xml",
+        "app/src/main/res/values/values.xml",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatActivity.kt"
+      ],
+      "instructions": [
+        "Add visible people-screen affordances for sharing the local raw briar link and adding a contact by pasting a raw briar link.",
+        "Handle the new PeopleViewModel events by launching the Android share sheet with the raw link, showing an input prompt for pasted raw links, opening chat on success, and surfacing invalid or failed outcomes to the user.",
+        "Add focused UI coverage for the invite actions instead of relying on manual inspection."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleFragmentInviteActionsTest --timeout 300",
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModelTest --timeout 300"
+      ],
+      "commitMessage": "autowork(people): add raw briar invite UI",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-005",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-005",
+      "reviewFocus": [
+        "Check that the People screen now exposes both raw-link sharing and raw-link add-user entry points.",
+        "Check that the fragment shares the raw briar link exactly as returned rather than wrapping it in a custom scheme.",
+        "Check that invalid and failed link submissions surface clear feedback."
+      ]
+    },
+    {
+      "id": "BU-006",
+      "status": "blocked",
+      "blockedBy": "BU-005",
+      "title": "Add BRIAR_ONLY add-user-to-first-message integration coverage from People screen",
+      "allowedPaths": [
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarPeopleAddUserFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/testutil/BriarStubs.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatViewModel.kt"
+      ],
+      "instructions": [
+        "Add a focused integration-style test for the BRIAR_ONLY happy path starting from pasted raw briar link on the people screen through accepted contact, opened chat, and first outbound message.",
+        "Reuse the existing router and Briar stubs instead of adding a parallel fake stack."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowBriarOnlyTest --timeout 600"
+      ],
+      "commitMessage": "autowork(test): cover briar-only raw-link add-user flow",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-006",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-006",
+      "reviewFocus": [
+        "Check that the test starts from the people-screen raw-link add path, not the old wrapped deep-link path.",
+        "Check that BRIAR_ONLY sends only through Briar in the final assertion set.",
+        "Check that the test reuses existing stubs and transport fixtures."
+      ]
+    },
+    {
+      "id": "BU-007",
+      "status": "blocked",
+      "blockedBy": "BU-006",
+      "title": "Add HYBRID add-user-to-first-message integration coverage from People screen",
+      "allowedPaths": [
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarPeopleAddUserFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/testutil/BriarStubs.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatViewModel.kt"
+      ],
+      "instructions": [
+        "Add the same focused people-screen raw-link add-user to first-message flow in HYBRID mode.",
+        "Assert that the first outbound message mirrors through both connectors where HYBRID requires it and that the launched chat is already tied to the resolved canonical conversation."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowHybridTest --timeout 600"
+      ],
+      "commitMessage": "autowork(test): cover hybrid raw-link add-user flow",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-007",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-007",
+      "reviewFocus": [
+        "Check that the test exercises the people-screen raw-link add path rather than the wrapped deep-link route.",
+        "Check that HYBRID still mirrors the first send across the expected connectors.",
+        "Check that the task stays limited to the new test and shared Briar stubs if needed."
+      ]
+    }
+  ]
+}
