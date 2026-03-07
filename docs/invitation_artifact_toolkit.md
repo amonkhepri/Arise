@@ -19,3 +19,19 @@ The script is intentionally lightweight and can be invoked from build scripts, C
 ---
 
 For more details, see the implementation in the `scripts` directory.
+## Invitation Artifact Bundles
+
+This section explains how to list recent invitation bundles using the
+`agent-tools/invitation-link-bundles.sh` script. The script outputs a
+list of invitation bundle identifiers, optionally limited with the
+`--limit` flag.
+
+### Usage
+
+```sh
+# List the 10 most recent bundles
+./agent-tools/invitation-link-bundles.sh --limit 10
+# → bundle12345
+```
+
+The output is suitable for use in scripts or manual inspection.
