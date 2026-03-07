@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
+import org.briarproject.bramble.api.contact.HandshakeLinkConstants
 
 /**
  * Mirrors [NoOpBriarChatGateway] for the contact surface so consumers can observe
@@ -23,7 +24,10 @@ object NoOpBriarContactService : BriarContactService {
     }
 
     override fun getHandshakeLink(): String {
-        throw IllegalStateException("Briar runtime is not ready")
+        if (!readiness.value) {
+            throw IllegalStateException("Briar runtime is not ready")
+        }
+        return PLACEHOLDER_HANDSHAKE_LINK
     }
 
     override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
@@ -35,4 +39,7 @@ object NoOpBriarContactService : BriarContactService {
     fun markReady() {
         readiness.value = true
     }
+
+    private val PLACEHOLDER_HANDSHAKE_LINK =
+        "briar://${"a".repeat(HandshakeLinkConstants.BASE32_LINK_BYTES)}"
 }

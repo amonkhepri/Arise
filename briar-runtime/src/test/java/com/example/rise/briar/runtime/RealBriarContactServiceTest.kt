@@ -30,6 +30,7 @@ class RealBriarContactServiceTest {
     fun setUp() {
         everyAddListener()
         everyContacts(emptyList())
+        NoOpBriarContactService.reset()
     }
 
     @org.junit.Test
@@ -103,6 +104,35 @@ class RealBriarContactServiceTest {
 
         assertEquals(expected, actual)
         verify(exactly = 1) { contactManager.getHandshakeLink() }
+    }
+
+    @org.junit.Test
+    fun `no op getHandshakeLink throws when runtime not ready`() {
+        val error = assertFailsWith<IllegalStateException> {
+            NoOpBriarContactService.getHandshakeLink()
+        }
+
+        assertEquals("Briar runtime is not ready", error.message)
+    }
+
+    @org.junit.Test
+    fun `no op getHandshakeLink returns placeholder link when marked ready`() {
+        NoOpBriarContactService.markReady()
+
+        val actual = NoOpBriarContactService.getHandshakeLink()
+
+        assertEquals(validLink(), actual)
+    }
+
+    @org.junit.Test
+    fun `no op addContactByLink still throws when marked ready`() = runTest {
+        NoOpBriarContactService.markReady()
+
+        val error = assertFailsWith<IllegalStateException> {
+            NoOpBriarContactService.addContactByLink(validLink(), "Alias")
+        }
+
+        assertEquals("Briar runtime is not ready", error.message)
     }
 
     private fun buildService(): RealBriarContactService {
