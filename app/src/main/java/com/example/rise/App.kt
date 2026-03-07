@@ -69,6 +69,7 @@ import com.example.rise.transport.store.ChatCacheDao
 import com.example.rise.transport.store.RoomConversationStore
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.TransportRuntimeBridgeImpl
+import com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCase
 import com.example.rise.transport.briar.invite.BriarInvitationLinkParser
 import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.data.firestore.FirebaseUserRemoteDataSource
@@ -78,6 +79,7 @@ import com.example.rise.ui.SplashActivityViewModel
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
+import com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarManualInvitationCoordinator
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
 import com.example.rise.ui.mainActivity.BriarInvitationDeepLinkEntrypoint
 import com.example.rise.ui.mainActivity.MainActivityViewModel
@@ -89,6 +91,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -151,6 +154,7 @@ class App: Application() {
         single<BriarChatAdapter> { DefaultBriarChatAdapter(get()) }
         single<BriarContactAdapter> { DefaultBriarContactAdapter(get()) }
         single { BriarContactRepository(get()) }
+        factory { BriarManualInvitationCoordinator(useCase = get<BriarInvitationAcceptanceUseCase>()) }
         single {
             FirestoreConnector(
                 authService = get(),
@@ -248,7 +252,13 @@ class App: Application() {
         viewModelOf(::MyAccountViewModel)
         viewModelOf(::DashboardViewModel)
         viewModelOf(::ChatViewModel)
-        viewModelOf(::PeopleViewModel)
+        viewModel {
+            PeopleViewModel(
+                routerPeopleRepository = get<RouterPeopleRepository>(),
+                briarContactRepository = get<BriarContactRepository>(),
+                briarManualInvitationCoordinator = get<BriarManualInvitationCoordinator>(),
+            )
+        }
         viewModelOf(::MainActivityViewModel)
         viewModelOf(::SignInViewModel)
         viewModelOf(::FeatureFlagsViewModel)

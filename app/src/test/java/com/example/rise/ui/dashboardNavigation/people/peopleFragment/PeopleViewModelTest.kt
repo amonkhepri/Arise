@@ -3,16 +3,18 @@ package com.example.rise.ui.dashboardNavigation.people.peopleFragment
 import app.cash.turbine.test
 import com.example.rise.data.people.PersonSummary
 import com.example.rise.data.people.RouterPeopleRepository
+import com.example.rise.transport.briar.invite.BriarInvitationLinkParseResult
 import com.example.rise.transport.router.PresenceStatus
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Rule
+import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatLaunchContract
 import com.example.rise.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Rule
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PeopleViewModelTest {
@@ -75,6 +77,115 @@ class PeopleViewModelTest {
 
         assertEquals("boom", viewModel.uiState.value.errorMessage)
     }
+
+    @org.junit.Test
+    fun `onShareMyRawBriarLinkRequested emits share event with raw link`() = runTest {
+        val repository = FakeRouterPeopleRepository()
+        val viewModel = createViewModel(
+            repository = repository,
+            shareMyRawBriarLink = { "briar://raw-link" },
+        )
+
+        viewModel.events.test {
+            viewModel.onShareMyRawBriarLinkRequested()
+            advanceUntilIdle()
+
+            assertEquals(
+                PeopleViewModel.PeopleEvent.ShareMyRawBriarLink("briar://raw-link"),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @org.junit.Test
+    fun `onAddByLinkRequested emits prompt event`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.onAddByLinkRequested()
+
+            assertEquals(PeopleViewModel.PeopleEvent.PromptAddByLink, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @org.junit.Test
+    fun `onRawBriarLinkSubmitted launches chat for accepted invitation`() = runTest {
+        val launchContract = ChatLaunchContract(
+            userId = "duplicate-key",
+            userName = "Alice",
+            conversationId = "conversation-1",
+        )
+        val viewModel = createViewModel(
+            addByRawBriarLink = { rawLink ->
+                assertEquals("briar://invite", rawLink)
+                BriarManualInvitationCoordinator.Result.LaunchChat(launchContract)
+            },
+        )
+
+        viewModel.events.test {
+            viewModel.onRawBriarLinkSubmitted("  briar://invite  ")
+            advanceUntilIdle()
+
+            assertEquals(
+                PeopleViewModel.PeopleEvent.LaunchChatFromAddedLink(launchContract),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @org.junit.Test
+    fun `onRawBriarLinkSubmitted emits message for invalid invitation`() = runTest {
+        val invalidReason = enumValues<BriarInvitationLinkParseResult.InvalidReason>().first()
+        val viewModel = createViewModel(
+            addByRawBriarLink = {
+                BriarManualInvitationCoordinator.Result.InvalidInvitation(invalidReason)
+            },
+        )
+
+        viewModel.events.test {
+            viewModel.onRawBriarLinkSubmitted("briar://bad")
+            advanceUntilIdle()
+
+            assertEquals(
+                PeopleViewModel.PeopleEvent.ShowMessage("Invalid Briar invitation link."),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @org.junit.Test
+    fun `onShareMyRawBriarLinkRequested emits message when sharing fails`() = runTest {
+        val viewModel = createViewModel(
+            shareMyRawBriarLink = { throw IllegalStateException("runtime unavailable") },
+        )
+
+        viewModel.events.test {
+            viewModel.onShareMyRawBriarLinkRequested()
+            advanceUntilIdle()
+
+            assertEquals(
+                PeopleViewModel.PeopleEvent.ShowMessage("runtime unavailable"),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    private fun createViewModel(
+        repository: FakeRouterPeopleRepository = FakeRouterPeopleRepository(),
+        shareMyRawBriarLink: suspend () -> String = { "briar://self-link" },
+        addByRawBriarLink: suspend (String) -> BriarManualInvitationCoordinator.Result = {
+            BriarManualInvitationCoordinator.Result.InvitationFailed(IllegalStateException("unused"))
+        },
+    ): PeopleViewModel = PeopleViewModel(
+        routerPeopleRepository = repository,
+        shareMyRawBriarLink = shareMyRawBriarLink,
+        addByRawBriarLink = addByRawBriarLink,
+    )
 
     private class FakeRouterPeopleRepository : RouterPeopleRepository {
         private val people = MutableSharedFlow<List<PersonSummary>>(replay = 1)
