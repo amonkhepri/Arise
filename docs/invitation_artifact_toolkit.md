@@ -60,3 +60,16 @@ The `agent-tools/invitation-link-log-search.sh` script allows searching the most
 ```
 
 The script prints the log file location and each matching line with its line number. If no matches are found, it exits with a non‑zero status.
+## Invitation Artifact Report
+
+The `agent-tools/invitation-link-report.sh` script prints a Markdown summary for the most recent invitation capture bundle. It includes the bundle prefix, the log file path, a screenshot reference, and a tail of the log.
+
+**Usage**
+
+```sh
+./agent-tools/invitation-link-report.sh [--lines N]
+```
+
+* `--lines N` – number of log lines to include in the log tail (default 20).
+
+The output is ready to be copied into Markdown documentation or displayed directly in the terminal.
