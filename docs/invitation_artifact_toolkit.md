@@ -45,3 +45,18 @@ The `agent-tools/invitation-link-log-tail.sh` script prints the tail of the late
 ```
 
 This helper is useful for debugging or inspecting the most recent invitation capture without scrolling through the entire log file.
+## Invitation Log Search
+
+The `agent-tools/invitation-link-log-search.sh` script allows searching the most recent invitation capture log for a specific pattern. It accepts a mandatory `PATTERN` argument and optional `--ignore-case` flag.
+
+```sh
+# Search for the token `abc123` case‑sensitively
+./agent-tools/invitation-link-log-search.sh abc123
+# → LOG: /path/to/log
+# 123: https://example.com/invite/abc123
+
+# Search ignoring case
+./agent-tools/invitation-link-log-search.sh --ignore-case "invitation token"
+```
+
+The script prints the log file location and each matching line with its line number. If no matches are found, it exits with a non‑zero status.
