@@ -13,10 +13,32 @@ import com.example.rise.briar.runtime.BriarRuntimePhase
 import com.example.rise.briar.runtime.BriarRuntimeStatus
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.router.CanonicalConversation
+import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.CanonicalMessage
+import com.example.rise.transport.router.CapabilityDescriptor
+import com.example.rise.transport.router.ConnectorCapabilities
+import com.example.rise.transport.router.ConnectorInboundMessage
+import com.example.rise.transport.router.ConnectorLifecycleState
+import com.example.rise.transport.router.ConnectorOutboundMessage
+import com.example.rise.transport.router.ConnectorStatus
+import com.example.rise.transport.router.DefaultConnectorRegistry
+import com.example.rise.transport.router.IdentityRecord
+import com.example.rise.transport.router.IdentityRegistryImpl
+import com.example.rise.transport.router.IdentityRegistryStore
+import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.TransportConversationId
+import com.example.rise.transport.router.TransportId
+import com.example.rise.transport.router.TransportRouterImpl
+import com.example.rise.transport.store.ConversationStore
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 
 fun stubBriarChatGateway(
     isAvailable: Boolean = false,
@@ -90,3 +112,161 @@ fun briarContact(
     displayName = alias,
     presence = presence,
 )
+
+data class RecordingTransportRouterFixture(
+    val router: TransportRouterImpl,
+    val identityRegistry: IdentityRegistryImpl,
+    val briarConnector: RecordingTransportConnector,
+    val firestoreConnector: RecordingTransportConnector,
+)
+
+fun createRecordingTransportRouterFixture(
+    transportBridge: TransportRuntimeBridge,
+    testScheduler: TestCoroutineScheduler,
+): RecordingTransportRouterFixture {
+    val identityRegistry = IdentityRegistryImpl(InMemoryIdentityRegistryStore())
+    val briarConnector = RecordingTransportConnector(transport = TransportId.BRIAR)
+    val firestoreConnector = RecordingTransportConnector(transport = TransportId.FIRESTORE).apply {
+        transportAliasGenerator = { canonicalId -> "firestore-$canonicalId" }
+    }
+    val router = TransportRouterImpl(
+        transportBridge = transportBridge,
+        connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+        conversationStore = InMemoryConversationStore(),
+        identityRegistry = identityRegistry,
+        dispatcher = StandardTestDispatcher(testScheduler),
+    )
+    return RecordingTransportRouterFixture(
+        router = router,
+        identityRegistry = identityRegistry,
+        briarConnector = briarConnector,
+        firestoreConnector = firestoreConnector,
+    )
+}
+
+class RecordingTransportConnector(
+    override val transport: TransportId,
+) : TransportConnector {
+    private val statusFlow = MutableStateFlow(ConnectorStatus.ACTIVE)
+    private val lifecycleFlow = MutableStateFlow(ConnectorLifecycleState.READY)
+    private val capabilityFlow = MutableStateFlow(
+        ConnectorCapabilities(
+            mapOf("messages" to CapabilityDescriptor(1, mapOf("enabled" to "true"))),
+        ),
+    )
+    private val messagesFlow =
+        MutableSharedFlow<List<ConnectorInboundMessage>>(replay = 1, extraBufferCapacity = 1)
+
+    var ensureConversationCalls = 0
+    val sentMessages = mutableListOf<ConnectorOutboundMessage>()
+    var transportAliasGenerator: ((String) -> String)? = null
+
+    override val status: StateFlow<ConnectorStatus>
+        get() = statusFlow
+
+    override val lifecycle: StateFlow<ConnectorLifecycleState>
+        get() = lifecycleFlow
+
+    override val capabilities: StateFlow<ConnectorCapabilities>
+        get() = capabilityFlow
+
+    override suspend fun currentIdentity(): CanonicalIdentity =
+        CanonicalIdentity(id = "self", displayName = "Self")
+
+    override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId {
+        ensureConversationCalls += 1
+        val canonicalId = conversation.id.ifBlank { "conversation-1" }
+        val transportAlias = transportAliasGenerator?.invoke(canonicalId) ?: canonicalId
+        return TransportConversationId(
+            canonicalId = canonicalId,
+            transportConversationId = transportAlias,
+        )
+    }
+
+    override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> =
+        messagesFlow
+
+    override suspend fun sendMessage(message: ConnectorOutboundMessage) {
+        sentMessages += message
+    }
+}
+
+private class InMemoryConversationStore : ConversationStore {
+    private val conversations = ConcurrentHashMap<String, CanonicalConversation>()
+    private val messages = ConcurrentHashMap<String, MutableList<CanonicalMessage>>()
+    private val observers = ConcurrentHashMap<String, MutableSharedFlow<List<CanonicalMessage>>>()
+    private val aliases = ConcurrentHashMap<Pair<String, TransportId>, String>()
+
+    override suspend fun upsertConversation(conversation: CanonicalConversation) {
+        conversations[conversation.id] = conversation
+    }
+
+    override suspend fun upsertMessages(conversationId: String, messages: List<CanonicalMessage>) {
+        if (messages.isEmpty()) {
+            this.messages.remove(conversationId)
+            observers[conversationId]?.emit(emptyList())
+            return
+        }
+        val list = this.messages.getOrPut(conversationId) { mutableListOf() }
+        messages.forEach { message ->
+            val existingIndex = list.indexOfFirst { it.canonicalMessageId == message.canonicalMessageId }
+            if (existingIndex >= 0) {
+                list[existingIndex] = message
+            } else {
+                list += message
+            }
+        }
+        observers[conversationId]?.emit(list.toList())
+    }
+
+    override fun observeMessages(conversationId: String): Flow<List<CanonicalMessage>> {
+        val flow = observers.getOrPut(conversationId) { MutableSharedFlow(replay = 1) }
+        flow.tryEmit(messages[conversationId]?.toList().orEmpty())
+        return flow
+    }
+
+    override suspend fun getConversation(conversationId: String): CanonicalConversation? {
+        return conversations[conversationId]
+    }
+
+    override suspend fun upsertAlias(
+        conversationId: String,
+        transportId: TransportId,
+        alias: String,
+    ) {
+        aliases[conversationId to transportId] = alias
+    }
+
+    override suspend fun getAlias(
+        conversationId: String,
+        transportId: TransportId,
+    ): String? = aliases[conversationId to transportId]
+
+    override suspend fun clearAll() {
+        conversations.clear()
+        messages.clear()
+        observers.values.forEach { it.tryEmit(emptyList()) }
+        observers.clear()
+        aliases.clear()
+    }
+}
+
+private class InMemoryIdentityRegistryStore(
+    initialState: IdentityRegistryStore.StoredState =
+        IdentityRegistryStore.StoredState(emptyMap(), null),
+) : IdentityRegistryStore {
+    private var state: IdentityRegistryStore.StoredState = initialState
+
+    override fun load(): IdentityRegistryStore.StoredState = state
+
+    override fun persist(records: Map<String, IdentityRecord>, currentIdentityId: String?) {
+        val copiedRecords = records.mapValues { (_, record) ->
+            IdentityRecord(
+                canonicalIdentity = record.canonicalIdentity,
+                aliases = record.aliases.toMap(),
+                profile = record.profile,
+            )
+        }
+        state = IdentityRegistryStore.StoredState(copiedRecords, currentIdentityId)
+    }
+}
