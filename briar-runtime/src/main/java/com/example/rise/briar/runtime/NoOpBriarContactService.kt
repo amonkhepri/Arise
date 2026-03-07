@@ -22,6 +22,10 @@ object NoOpBriarContactService : BriarContactService {
         throw IllegalStateException("Briar runtime is not ready")
     }
 
+    override fun getHandshakeLink(): String {
+        throw IllegalStateException("Briar runtime is not ready")
+    }
+
     override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
 
     fun reset() {

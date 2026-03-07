@@ -20,6 +20,9 @@ interface BriarContactService {
      */
     suspend fun addContactByLink(link: String, alias: String? = null)
 
+    /** Returns the local user's Briar handshake link when the runtime is ready. */
+    fun getHandshakeLink(): String = throw IllegalStateException("Briar runtime is not ready")
+
     /**
      * Streams the list of Briar contacts, emitting whenever the runtime reports a change so callers
      * can keep their canonical directories synchronized.

@@ -80,6 +80,31 @@ class RealBriarContactServiceTest {
         assertEquals("Contact", aliasSlot.captured)
     }
 
+    @org.junit.Test
+    fun `getHandshakeLink throws when runtime not ready`() {
+        val service = buildService()
+
+        val error = assertFailsWith<IllegalStateException> {
+            service.getHandshakeLink()
+        }
+
+        assertEquals("Briar runtime is not ready", error.message)
+        verify(exactly = 0) { contactManager.getHandshakeLink() }
+    }
+
+    @org.junit.Test
+    fun `getHandshakeLink delegates to contact manager when ready`() {
+        readiness.value = BriarReadinessStatus.Ready
+        val expected = validLink()
+        everyHandshakeLinkReturns(expected)
+        val service = buildService()
+
+        val actual = service.getHandshakeLink()
+
+        assertEquals(expected, actual)
+        verify(exactly = 1) { contactManager.getHandshakeLink() }
+    }
+
     private fun buildService(): RealBriarContactService {
         return RealBriarContactService(readiness.asStateFlow(), contactManager, eventBus)
     }
@@ -115,5 +140,9 @@ class RealBriarContactServiceTest {
         } else {
             io.mockk.every { contactManager.addPendingContact(any(), capture(aliasSlot)) } returns contact
         }
+    }
+
+    private fun everyHandshakeLinkReturns(link: String) {
+        io.mockk.every { contactManager.getHandshakeLink() } returns link
     }
 }

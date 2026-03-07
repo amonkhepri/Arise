@@ -63,6 +63,13 @@ class RealBriarContactService(
         contactManager.addPendingContact(link, aliasToUse)
     }
 
+    override fun getHandshakeLink(): String {
+        if (readiness.value !is BriarReadinessStatus.Ready) {
+            throw IllegalStateException("Briar runtime is not ready")
+        }
+        return contactManager.getHandshakeLink()
+    }
+
     override fun eventOccurred(e: Event) {
         if (readiness.value !is BriarReadinessStatus.Ready) return
         when (e) {
