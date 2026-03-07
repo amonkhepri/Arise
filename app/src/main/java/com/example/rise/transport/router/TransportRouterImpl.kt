@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
+import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 
@@ -98,6 +99,9 @@ class TransportRouterImpl(
         ) { primaryConnector ->
             val primaryAlias = resolveTransportAlias(canonicalConversationId, primaryConnector)
             primaryConnector.sendMessage(message.copy(conversationId = primaryAlias))
+            if (primaryConnector.transport == TransportId.BRIAR) {
+                persistOptimisticMessage(message.toOptimisticCanonical(primaryConnector.transport))
+            }
             connectorRegistry
                 .mirrorsFor(transportMode)
                 .filter { mirror -> mirror.transport != primaryConnector.transport }
@@ -253,7 +257,9 @@ class TransportRouterImpl(
                         val canonicalConnectorMessages = messages.map {
                             it.copy(conversationId = conversationId)
                         }
-                        val canonicalMessages = canonicalConnectorMessages.map { it.toCanonical() }
+                        val canonicalMessages = canonicalConnectorMessages.map {
+                            it.toCanonical(identityRegistry.currentIdentitySnapshot()?.id)
+                        }
                         persistMergedMessages(conversationId, connector.transport, canonicalMessages)
                         if (canonicalMessages.isNotEmpty()) {
                             bridgeOrchestrator.onMessagesReceived(
@@ -309,17 +315,36 @@ class TransportRouterImpl(
             val transportSnapshots = snapshots.getOrPut(transportId) { mutableMapOf() }
             transportSnapshots.clear()
             messages.forEach { transportSnapshots[it.canonicalMessageId] = it }
-            val merged = snapshots.values
-                .flatMap { it.values }
-                .sortedWith(
-                    compareBy<CanonicalMessage> { it.timestamp }
-                        .thenBy { it.canonicalMessageId }
-                )
-            conversationStore.upsertMessages(conversationId, merged)
-            if (merged.isEmpty()) {
-                messageSnapshots.remove(conversationId)
-                messageSnapshotLocks.remove(conversationId, lock)
-            }
+            persistMessageSnapshots(conversationId, lock, snapshots)
+        }
+    }
+
+    private suspend fun persistOptimisticMessage(message: CanonicalMessage) {
+        val conversationId = message.conversationId
+        val lock = messageSnapshotLocks.computeIfAbsent(conversationId) { Mutex() }
+        lock.withLock {
+            val snapshots = messageSnapshots.getOrPut(conversationId) { mutableMapOf() }
+            val transportSnapshots = snapshots.getOrPut(message.transport) { mutableMapOf() }
+            transportSnapshots[message.canonicalMessageId] = message
+            persistMessageSnapshots(conversationId, lock, snapshots)
+        }
+    }
+
+    private suspend fun persistMessageSnapshots(
+        conversationId: String,
+        lock: Mutex,
+        snapshots: MutableMap<TransportId, MutableMap<String, CanonicalMessage>>,
+    ) {
+        val merged = snapshots.values
+            .flatMap { it.values }
+            .sortedWith(
+                compareBy<CanonicalMessage> { it.timestamp }
+                    .thenBy { it.canonicalMessageId }
+            )
+        conversationStore.upsertMessages(conversationId, merged)
+        if (merged.isEmpty()) {
+            messageSnapshots.remove(conversationId)
+            messageSnapshotLocks.remove(conversationId, lock)
         }
     }
 
@@ -377,8 +402,18 @@ class TransportRouterImpl(
         return fallbackConnector
     }
 
-    private fun ConnectorInboundMessage.toCanonical(): CanonicalMessage {
-        val canonicalMessageId = "${transport.name}:${messageId}"
+    private fun ConnectorInboundMessage.toCanonical(selfIdentityId: String?): CanonicalMessage {
+        val canonicalMessageId = if (transport == TransportId.BRIAR && senderId == selfIdentityId) {
+            briarSelfCanonicalMessageId(
+                conversationId = conversationId,
+                senderId = senderId,
+                recipientIds = recipientId.takeIf { it.isNotEmpty() }?.let(::setOf).orEmpty(),
+                body = body,
+                timestamp = timestamp,
+            )
+        } else {
+            "${transport.name}:${messageId}"
+        }
         return CanonicalMessage(
             canonicalMessageId = canonicalMessageId,
             conversationId = conversationId,
@@ -390,6 +425,50 @@ class TransportRouterImpl(
             timestamp = timestamp,
         )
     }
+
+    private fun ConnectorOutboundMessage.toOptimisticCanonical(transport: TransportId): CanonicalMessage {
+        return CanonicalMessage(
+            canonicalMessageId = briarSelfCanonicalMessageId(
+                conversationId = conversationId,
+                senderId = senderId,
+                recipientIds = recipientIds,
+                body = body,
+                timestamp = timestamp,
+            ),
+            conversationId = conversationId,
+            senderId = senderId,
+            recipientId = recipientIds.sorted().firstOrNull().orEmpty(),
+            senderName = senderName,
+            body = body,
+            transport = transport,
+            timestamp = timestamp,
+        )
+    }
+
+    private fun briarSelfCanonicalMessageId(
+        conversationId: String,
+        senderId: String,
+        recipientIds: Set<String>,
+        body: String,
+        timestamp: Date,
+    ): String {
+        val recipients = recipientIds.toList().sorted().joinToString(separator = ",")
+        return buildString {
+            append(TransportId.BRIAR.name)
+            append(":self:")
+            append(encodeCanonicalIdPart(conversationId))
+            append(':')
+            append(encodeCanonicalIdPart(senderId))
+            append(':')
+            append(encodeCanonicalIdPart(recipients))
+            append(':')
+            append(timestamp.time)
+            append(':')
+            append(encodeCanonicalIdPart(body))
+        }
+    }
+
+    private fun encodeCanonicalIdPart(value: String): String = "${value.length}:$value"
 
     private fun ConnectorLifecycleState.isOperational(): Boolean {
         return this == ConnectorLifecycleState.READY || this == ConnectorLifecycleState.DEGRADED

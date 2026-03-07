@@ -331,6 +331,73 @@ class TransportRouterImplTest {
     }
 
     @Test
+    fun `sendMessage persists optimistic briar message until connector echo replaces it`() = scope.runTest {
+        val store = InMemoryConversationStore()
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        val briarConnector = RecordingConnector(TransportId.BRIAR).apply {
+            emitLocalEchoOnSend = false
+        }
+        val firestoreConnector = RecordingConnector(TransportId.FIRESTORE).apply {
+            setLifecycle(ConnectorLifecycleState.AUTHENTICATING)
+        }
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.HYBRID),
+            connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
+        val outbound = ConnectorOutboundMessage(
+            conversationId = conversation.id,
+            senderId = "self",
+            senderName = "Self",
+            recipientIds = setOf("other"),
+            body = "hello from briar",
+            timestamp = Date(0),
+        )
+
+        router.observeConversation(conversation.id).test {
+            advanceUntilIdle()
+            assertTrue(awaitItem().isEmpty())
+
+            router.sendMessage(outbound)
+            advanceUntilIdle()
+
+            var timeline = awaitItem()
+            assertEquals(1, timeline.size)
+            assertEquals("hello from briar", timeline.single().body)
+            val optimisticMessageId = timeline.single().canonicalMessageId
+
+            briarConnector.emitMessages(
+                listOf(
+                    ConnectorInboundMessage(
+                        messageId = "remote-briar-id",
+                        conversationId = conversation.id,
+                        senderId = "self",
+                        recipientId = "other",
+                        senderName = "Self",
+                        body = "hello from briar",
+                        transport = TransportId.BRIAR,
+                        timestamp = Date(0),
+                    )
+                )
+            )
+            advanceUntilIdle()
+
+            timeline = awaitItem()
+            assertEquals(1, timeline.size)
+            assertEquals(optimisticMessageId, timeline.single().canonicalMessageId)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(1, briarConnector.sentMessages.size)
+    }
+
+    @Test
     fun `observeConversation subscribes connectors using transport aliases`() = scope.runTest {
         val store = InMemoryConversationStore()
         val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
@@ -1692,6 +1759,7 @@ class TransportRouterImplTest {
         var identityError: Throwable? = null
         var transportAliasGenerator: ((String) -> String)? = null
         var sendError: Throwable? = null
+        var emitLocalEchoOnSend: Boolean = true
 
         fun emitMessages(messages: List<ConnectorInboundMessage>) {
             messagesFlow.tryEmit(messages)
@@ -1725,20 +1793,22 @@ class TransportRouterImplTest {
         override suspend fun sendMessage(message: ConnectorOutboundMessage) {
             sendError?.let { throw it }
             sentMessages += message
-            messagesFlow.tryEmit(
-                listOf(
-                    ConnectorInboundMessage(
-                        messageId = "local-outbound-${transport.name.lowercase()}-${sentMessages.size}",
-                        conversationId = message.conversationId,
-                        senderId = message.senderId,
-                        recipientId = message.recipientIds.firstOrNull().orEmpty(),
-                        senderName = message.senderName,
-                        body = message.body,
-                        transport = transport,
-                        timestamp = message.timestamp,
+            if (emitLocalEchoOnSend) {
+                messagesFlow.tryEmit(
+                    listOf(
+                        ConnectorInboundMessage(
+                            messageId = "local-outbound-${transport.name.lowercase()}-${sentMessages.size}",
+                            conversationId = message.conversationId,
+                            senderId = message.senderId,
+                            recipientId = message.recipientIds.firstOrNull().orEmpty(),
+                            senderName = message.senderName,
+                            body = message.body,
+                            transport = transport,
+                            timestamp = message.timestamp,
+                        )
                     )
                 )
-            )
+            }
         }
 
     }
