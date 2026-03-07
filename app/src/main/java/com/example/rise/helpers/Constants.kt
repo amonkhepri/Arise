@@ -4,6 +4,7 @@ package com.example.rise.helpers
 object AppConstants {
     const val USER_NAME = "USER_NAME"
     const val USER_ID = "USER_ID"
+    const val CONVERSATION_ID = "CONVERSATION_ID"
 }
 
 const val SD_CARD_PATH = "sd_card_path_2"
@@ -14,6 +15,5 @@ val MESSAGE_CONTENT="message"
 const val OTG_PARTITION = "otg_partition_2"
 fun isMarshmallowPlus() = true
 const val PREFS_KEY = "Prefs"
-
 
 

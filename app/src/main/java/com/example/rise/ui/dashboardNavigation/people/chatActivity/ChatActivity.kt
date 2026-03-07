@@ -1,5 +1,7 @@
 package com.example.rise.ui.dashboardNavigation.people.chatActivity
 
+import android.content.Context
+import android.content.Intent
 import android.app.TimePickerDialog
 import android.graphics.Typeface
 import android.os.Build
@@ -37,6 +39,17 @@ import java.util.*
 
 class ChatActivity : BaseActivity() {
 
+    companion object {
+        internal fun createLaunchIntent(
+            context: Context,
+            launchContract: ChatLaunchContract,
+        ): Intent = Intent(context, ChatActivity::class.java).apply {
+            launchContract.toExtras().forEach { (key, value) ->
+                putExtra(key, value)
+            }
+        }
+    }
+
     private val viewModel: ChatViewModel by viewModels {
         koinViewModelFactory(ChatViewModel::class)
     }
@@ -64,9 +77,12 @@ class ChatActivity : BaseActivity() {
             window.isNavigationBarContrastEnforced = false
         }
 
-        val otherUserId = intent.getStringExtra(AppConstants.USER_ID).orEmpty()
-        val otherUserName = intent.getStringExtra(AppConstants.USER_NAME).orEmpty()
-        supportActionBar?.title = otherUserName
+        val launchContract = resolveChatLaunchContract(
+            userId = intent.getStringExtra(AppConstants.USER_ID),
+            userName = intent.getStringExtra(AppConstants.USER_NAME),
+            conversationId = intent.getStringExtra(AppConstants.CONVERSATION_ID),
+        )
+        supportActionBar?.title = launchContract.userName
         setTitleColor()
 
         setupRecyclerView()
@@ -91,7 +107,7 @@ class ChatActivity : BaseActivity() {
             }
         }
 
-        viewModel.initialiseConversation(otherUserId, otherUserName)
+        viewModel.initialiseConversation(launchContract.userId, launchContract.userName)
     }
 
     private fun setupRecyclerView() {
@@ -241,3 +257,28 @@ internal fun resolveCurrentUserId(
 internal fun resolveScheduledMessageSenderName(
     authenticatedUser: AuthenticationService.User?,
 ): String = authenticatedUser?.displayName.orEmpty()
+
+internal data class ChatLaunchContract(
+    val userId: String,
+    val userName: String,
+    val conversationId: String? = null,
+) {
+    fun toExtras(): Map<String, String> {
+        val extras = mutableMapOf(
+            AppConstants.USER_ID to userId,
+            AppConstants.USER_NAME to userName,
+        )
+        conversationId?.let { extras[AppConstants.CONVERSATION_ID] = it }
+        return extras
+    }
+}
+
+internal fun resolveChatLaunchContract(
+    userId: String?,
+    userName: String?,
+    conversationId: String?,
+): ChatLaunchContract = ChatLaunchContract(
+    userId = userId.orEmpty(),
+    userName = userName.orEmpty(),
+    conversationId = conversationId,
+)
