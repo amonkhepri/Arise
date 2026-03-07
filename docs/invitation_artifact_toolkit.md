@@ -73,3 +73,32 @@ The `agent-tools/invitation-link-report.sh` script prints a Markdown summary for
 * `--lines N` – number of log lines to include in the log tail (default 20).
 
 The output is ready to be copied into Markdown documentation or displayed directly in the terminal.
+## Invitation Artifact JSON
+
+The `agent-tools/invitation-link-json.sh` script prints JSON metadata for the latest invitation capture bundle. The output includes the following fields:
+
+- `prefix`: bundle prefix
+- `log`: path to the log file
+- `screenshot`: path to the screenshot image
+- `logBytes`: size of the log file in bytes
+- `screenshotBytes`: size of the screenshot in bytes
+
+**Usage**
+
+```sh
+./agent-tools/invitation-link-json.sh
+```
+
+**Example Output**
+
+```json
+{
+  "prefix": "https://example.com/invite",
+  "log": "/tmp/invitation-2026-03-07.log",
+  "screenshot": "/tmp/invitation-2026-03-07.png",
+  "logBytes": 12345,
+  "screenshotBytes": 6789
+}
+```
+
+The JSON output is convenient for programmatic consumption or embedding in documentation.
