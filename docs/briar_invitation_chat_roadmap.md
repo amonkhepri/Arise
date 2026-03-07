@@ -42,5 +42,6 @@
 - 2026-03-06: Added `agent-tools/invitation-link-artifacts.sh` as invitation artifact locator helper.
 - 2026-03-06: Added `agent-tools/invitation-link-prefix.sh` and documented it in `docs/invitation_artifact_toolkit.md`.
 - 2026-03-06: Added `agent-tools/invitation-link-bundles.sh` and documented bundle lookup in `docs/invitation_artifact_toolkit.md`
+- 2026-03-06: Added `agent-tools/invitation-link-log-tail.sh` and documented usage in `docs/invitation_artifact_toolkit.md`
 
 2026-03-06: Added \`agent-tools/invitation-link-summary.sh\` as invitation artifact summary helper
