@@ -44,4 +44,22 @@ class ChatActivityIntentContractTest {
             contract.toExtras(),
         )
     }
+
+    @Test
+    fun `launch contract keeps canonical conversation id when preparing chat initialisation`() {
+        val contract = ChatLaunchContract(
+            userId = "user-123",
+            userName = "Alex",
+            conversationId = "conversation-456",
+        )
+
+        assertEquals(
+            ChatConversationInitialisation(
+                userId = "user-123",
+                userName = "Alex",
+                conversationId = "conversation-456",
+            ),
+            contract.toConversationInitialisation(),
+        )
+    }
 }

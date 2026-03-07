@@ -82,6 +82,7 @@ class ChatActivity : BaseActivity() {
             userName = intent.getStringExtra(AppConstants.USER_NAME),
             conversationId = intent.getStringExtra(AppConstants.CONVERSATION_ID),
         )
+        val conversationInitialisation = launchContract.toConversationInitialisation()
         supportActionBar?.title = launchContract.userName
         setTitleColor()
 
@@ -107,7 +108,11 @@ class ChatActivity : BaseActivity() {
             }
         }
 
-        viewModel.initialiseConversation(launchContract.userId, launchContract.userName)
+        viewModel.initialiseConversation(
+            conversationInitialisation.userId,
+            conversationInitialisation.userName,
+            conversationInitialisation.conversationId,
+        )
     }
 
     private fun setupRecyclerView() {
@@ -271,7 +276,20 @@ internal data class ChatLaunchContract(
         conversationId?.let { extras[AppConstants.CONVERSATION_ID] = it }
         return extras
     }
+
+    fun toConversationInitialisation(): ChatConversationInitialisation =
+        ChatConversationInitialisation(
+            userId = userId,
+            userName = userName,
+            conversationId = conversationId,
+        )
 }
+
+internal data class ChatConversationInitialisation(
+    val userId: String,
+    val userName: String,
+    val conversationId: String?,
+)
 
 internal fun resolveChatLaunchContract(
     userId: String?,
