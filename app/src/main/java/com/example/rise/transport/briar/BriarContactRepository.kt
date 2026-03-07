@@ -16,4 +16,10 @@ class BriarContactRepository(
         if (!service.isAvailable) throw runtimeNotReadyError()
         service.addContactByLink(link, alias)
     }
+
+    fun getHandshakeLink(): String {
+        val service = transportRuntimeBridge.briarContactService.value
+        if (!service.isAvailable) throw runtimeNotReadyError()
+        return service.getHandshakeLink()
+    }
 }

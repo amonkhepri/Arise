@@ -70,6 +70,61 @@ class BriarContactRepositoryTest {
         assertTrue(error is IllegalArgumentException)
     }
 
+    @Test
+    fun `getHandshakeLink delegates to contact service when available`() = runTest {
+        val service = RecordingContactService(
+            isAvailable = true,
+            handshakeLink = validLink(),
+        )
+        val repository = BriarContactRepository(fakeBridge(service))
+
+        val result = repository.getHandshakeLink()
+
+        assertEquals(validLink(), result)
+        assertEquals(1, service.getHandshakeLinkCalls)
+    }
+
+    @Test
+    fun `getHandshakeLink throws when runtime not ready`() = runTest {
+        val service = RecordingContactService(
+            isAvailable = false,
+            handshakeLink = validLink(),
+        )
+        val repository = BriarContactRepository(fakeBridge(service))
+
+        val error = try {
+            repository.getHandshakeLink()
+            null
+        } catch (t: Throwable) {
+            t
+        }
+
+        assertTrue(error is IllegalStateException)
+        assertEquals(0, service.getHandshakeLinkCalls)
+    }
+
+    @Test
+    fun `getHandshakeLink propagates service errors`() = runTest {
+        val service = object : BriarContactService {
+            override val isAvailable: Boolean = true
+            override fun getHandshakeLink(): String {
+                throw IllegalArgumentException("link unavailable")
+            }
+            override suspend fun addContactByLink(link: String, alias: String?) = Unit
+            override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
+        }
+        val repository = BriarContactRepository(fakeBridge(service))
+
+        val error = try {
+            repository.getHandshakeLink()
+            null
+        } catch (t: Throwable) {
+            t
+        }
+
+        assertTrue(error is IllegalArgumentException)
+    }
+
     private fun validLink(): String = "briar://${"b".repeat(53)}" // handshake link length
 
     private fun fakeBridge(service: BriarContactService): TransportRuntimeBridge {
@@ -89,10 +144,17 @@ class BriarContactRepositoryTest {
 
     private class RecordingContactService(
         override val isAvailable: Boolean,
+        private val handshakeLink: String = "briar://${"b".repeat(53)}",
     ) : BriarContactService {
         val calls = mutableListOf<Pair<String, String?>>()
+        var getHandshakeLinkCalls: Int = 0
         override suspend fun addContactByLink(link: String, alias: String?) {
             calls += link to alias
+        }
+
+        override fun getHandshakeLink(): String {
+            getHandshakeLinkCalls += 1
+            return handshakeLink
         }
 
         override fun observeContacts(): Flow<List<BriarContact>> = flowOf(
