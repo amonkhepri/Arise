@@ -48,3 +48,6 @@
 - 2026-03-06: Added `agent-tools/invitation-link-log-search.sh` and documented targeted invitation log search in `docs/invitation_artifact_toolkit.md`.
 
 - 2026-03-06: Added agent-tools/invitation-link-report.sh and documented latest bundle reporting in docs/invitation_artifact_toolkit.md
+
+- 2026-03-06: Added  and documented latest bundle JSON output in .
+- 2026-03-06: Added `agent-tools/invitation-link-json.sh` and documented latest bundle JSON output in `docs/invitation_artifact_toolkit.md`.
