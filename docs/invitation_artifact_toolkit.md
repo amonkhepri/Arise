@@ -35,3 +35,13 @@ list of invitation bundle identifiers, optionally limited with the
 ```
 
 The output is suitable for use in scripts or manual inspection.
+## Invitation Log Tail
+
+The `agent-tools/invitation-link-log-tail.sh` script prints the tail of the latest invitation capture log. It supports a `--lines` flag to specify how many lines to output (default is 40).
+
+```sh
+# Tail the last 40 lines of the most recent invitation log
+./agent-tools/invitation-link-log-tail.sh --lines 40
+```
+
+This helper is useful for debugging or inspecting the most recent invitation capture without scrolling through the entire log file.
