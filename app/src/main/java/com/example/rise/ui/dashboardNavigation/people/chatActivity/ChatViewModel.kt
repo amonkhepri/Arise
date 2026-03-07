@@ -59,9 +59,21 @@ class ChatViewModel(
     private var messagesJob: Job? = null
     private var presenceJob: Job? = null
 
-    fun initialiseConversation(otherUserId: String, otherUserName: String) {
+    fun initialiseConversation(
+        otherUserId: String,
+        otherUserName: String,
+        conversationId: String? = null,
+    ) {
         val currentState = _uiState.value
-        if (currentState.otherUserId == otherUserId && currentState.conversationId != null) {
+        val resolvedConversationId = conversationId?.takeIf { it.isNotBlank() }
+        if (
+            currentState.otherUserId == otherUserId &&
+            currentState.conversationId != null &&
+            (
+                resolvedConversationId == null ||
+                    currentState.conversationId == resolvedConversationId
+                )
+        ) {
             return
         }
         messagesJob?.cancel()
@@ -85,15 +97,17 @@ class ChatViewModel(
             }
             try {
                 val currentUserDeferred = async { chatRepository.getCurrentUser() }
-                val conversationId = chatRepository.getOrCreateConversation(otherUserId, otherUserName)
+                val activeConversationId =
+                    resolvedConversationId
+                        ?: chatRepository.getOrCreateConversation(otherUserId, otherUserName)
                 _uiState.update {
                     it.copy(
-                        conversationId = conversationId,
+                        conversationId = activeConversationId,
                         isLoading = false,
                     )
                 }
                 messagesJob = launch {
-                    chatRepository.observeMessages(conversationId).collect { messages ->
+                    chatRepository.observeMessages(activeConversationId).collect { messages ->
                         _uiState.update { state -> state.copy(messages = messages) }
                     }
                 }

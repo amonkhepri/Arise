@@ -56,6 +56,43 @@ class ChatViewModelTest {
     }
 
     @org.junit.Test
+    fun `initialiseConversation uses provided conversation id and still enables input plus message observation`() = runTest {
+        val repository = FakeChatRepository().apply {
+            messages.tryEmit(emptyList())
+        }
+        val peopleRepository = FakeRouterPeopleRepository()
+        val viewModel = ChatViewModel(repository, peopleRepository, fixedClock)
+        val resolvedConversationId = "resolved-conversation-456"
+
+        viewModel.initialiseConversation(
+            otherUserId = "other",
+            otherUserName = "Bob",
+            conversationId = resolvedConversationId,
+        )
+        advanceUntilIdle()
+
+        val initialState = viewModel.uiState.value
+        assertTrue("Expected input enabled. State: $initialState", initialState.inputEnabled)
+        assertEquals(
+            "Expected provided conversation id to be used. State: $initialState",
+            resolvedConversationId,
+            initialState.conversationId,
+        )
+        assertEquals(
+            "Expected getOrCreateConversation to be skipped when a conversation id is supplied.",
+            0,
+            repository.getOrCreateConversationCalls,
+        )
+        assertEquals(listOf(resolvedConversationId), repository.observedConversationIds)
+
+        val newMessages = listOf(repository.sampleMessage)
+        repository.messages.tryEmit(newMessages)
+        advanceUntilIdle()
+
+        assertEquals(newMessages, viewModel.uiState.value.messages)
+    }
+
+    @org.junit.Test
     fun `sendMessage delegates to repository`() = runTest {
         val repository = FakeChatRepository().apply { messages.tryEmit(emptyList()) }
         val peopleRepository = FakeRouterPeopleRepository()
@@ -145,9 +182,17 @@ class ChatViewModelTest {
         val messages = MutableSharedFlow<List<TextMessage>>(replay = 1)
         val sentMessages = mutableListOf<TextMessage>()
         val conversationId = "conversation-123"
+        val observedConversationIds = mutableListOf<String>()
+        var getOrCreateConversationCalls = 0
         override suspend fun getCurrentUser(): ChatUser = ChatUser(id = "self", displayName = "Alice")
-        override suspend fun getOrCreateConversation(otherUserId: String, otherUserName: String): String = conversationId
-        override fun observeMessages(conversationId: String) = messages
+        override suspend fun getOrCreateConversation(otherUserId: String, otherUserName: String): String {
+            getOrCreateConversationCalls += 1
+            return conversationId
+        }
+        override fun observeMessages(conversationId: String): Flow<List<TextMessage>> {
+            observedConversationIds += conversationId
+            return messages
+        }
         override suspend fun sendMessage(conversationId: String, message: TextMessage) {
             sentMessages += message
         }
