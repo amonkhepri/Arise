@@ -3,8 +3,10 @@ package com.example.rise.ui.mainActivity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.Lifecycle
@@ -19,12 +21,14 @@ import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.debug.FeatureFlagsActivity
+import com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCase
 import com.example.rise.ui.signInActivity.SignInActivity
 import com.example.rise.ui.mainActivity.MainActivityViewModel.MainActivityEvent
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.launch
 import com.example.rise.BuildConfig
+import org.koin.android.ext.android.get
 
 class MainActivity : BaseActivity() {
 
@@ -33,6 +37,9 @@ class MainActivity : BaseActivity() {
     }
 
     private lateinit var appBarConfiguration: AppBarConfiguration
+    private val briarInvitationOnboardingCoordinator by lazy(LazyThreadSafetyMode.NONE) {
+        BriarInvitationOnboardingCoordinator(get<BriarInvitationAcceptanceUseCase>())
+    }
 
     private val signInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -53,6 +60,7 @@ class MainActivity : BaseActivity() {
             val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
             navView.selectedItemId = R.id.navigation_dashboard
         }
+        handleBriarInvitationOnboardingIntent(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,6 +109,7 @@ class MainActivity : BaseActivity() {
             val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
             navView.selectedItemId = R.id.navigation_dashboard
         }
+        handleBriarInvitationOnboardingIntent(intent)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -130,7 +139,35 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    private fun handleBriarInvitationOnboardingIntent(intent: Intent?) {
+        val action = BriarInvitationOnboardingCoordinator.consumePendingAction(intent) ?: return
+        lifecycleScope.launch {
+            when (val result = briarInvitationOnboardingCoordinator.accept(this@MainActivity, action)) {
+                is BriarInvitationOnboardingCoordinator.Result.LaunchChat -> {
+                    startActivity(result.intent)
+                }
+                is BriarInvitationOnboardingCoordinator.Result.InvalidInvitation -> {
+                    Log.w(TAG, "Invalid Briar invitation onboarding action: ${result.reason}")
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Invalid Briar invitation link",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+                is BriarInvitationOnboardingCoordinator.Result.InvitationFailed -> {
+                    Log.e(TAG, "Failed to accept Briar invitation", result.error)
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Unable to add Briar contact",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
+    }
+
     private companion object {
         private const val FEATURE_FLAGS_MENU_ID = 1001
+        private const val TAG = "MainActivity"
     }
 }
