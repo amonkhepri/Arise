@@ -286,6 +286,51 @@ class TransportRouterImplTest {
     }
 
     @Test
+    fun `observeConversation surfaces outbound briar message before connector echo arrives`() = scope.runTest {
+        val store = InMemoryConversationStore()
+        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+        val briarConnector = RecordingConnector(TransportId.BRIAR)
+        val firestoreConnector = RecordingConnector(TransportId.FIRESTORE).apply {
+            setLifecycle(ConnectorLifecycleState.AUTHENTICATING)
+        }
+        val router = TransportRouterImpl(
+            transportBridge = fakeBridge(BriarTransportMode.HYBRID),
+            connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+            conversationStore = store,
+            identityRegistry = identityRegistry,
+            dispatcher = dispatcher,
+        )
+
+        val conversation = router.ensureConversation(CanonicalIdentity("other", "Other"))
+        advanceUntilIdle()
+
+        val outbound = ConnectorOutboundMessage(
+            conversationId = conversation.id,
+            senderId = "self",
+            senderName = "Self",
+            recipientIds = setOf("other"),
+            body = "hello from briar",
+            timestamp = Date(0),
+        )
+
+        router.observeConversation(conversation.id).test {
+            advanceUntilIdle()
+            assertTrue(awaitItem().isEmpty())
+
+            router.sendMessage(outbound)
+            advanceUntilIdle()
+
+            val timeline = awaitItem()
+            assertEquals(1, timeline.size)
+            assertEquals("hello from briar", timeline.single().body)
+            assertEquals(TransportId.BRIAR, timeline.single().transport)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(1, briarConnector.sentMessages.size)
+    }
+
+    @Test
     fun `observeConversation subscribes connectors using transport aliases`() = scope.runTest {
         val store = InMemoryConversationStore()
         val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
@@ -1391,6 +1436,9 @@ class TransportRouterImplTest {
             return flow
         }
 
+        fun currentMessages(conversationId: String): List<CanonicalMessage> =
+            messages[conversationId]?.toList().orEmpty()
+
         override suspend fun getConversation(conversationId: String): CanonicalConversation? {
             return conversations[conversationId]
         }
@@ -1677,6 +1725,20 @@ class TransportRouterImplTest {
         override suspend fun sendMessage(message: ConnectorOutboundMessage) {
             sendError?.let { throw it }
             sentMessages += message
+            messagesFlow.tryEmit(
+                listOf(
+                    ConnectorInboundMessage(
+                        messageId = "local-outbound-${transport.name.lowercase()}-${sentMessages.size}",
+                        conversationId = message.conversationId,
+                        senderId = message.senderId,
+                        recipientId = message.recipientIds.firstOrNull().orEmpty(),
+                        senderName = message.senderName,
+                        body = message.body,
+                        transport = transport,
+                        timestamp = message.timestamp,
+                    )
+                )
+            )
         }
 
     }
