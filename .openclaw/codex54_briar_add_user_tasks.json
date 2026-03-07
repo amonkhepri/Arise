@@ -25,7 +25,7 @@
         "Mirror the contract in NoOpBriarContactService and add focused unit coverage for ready and not-ready behavior without changing addContactByLink semantics."
       ],
       "validation": [
-        "./agent-tools/test-briar-runtime.sh --tests com.example.rise.briar.runtime.RealBriarContactServiceTest --timeout 600"
+        "JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./agent-tools/test-briar-runtime.sh --tests com.example.rise.briar.runtime.RealBriarContactServiceTest --timeout 600"
       ],
       "commitMessage": "autowork(briar-runtime): expose local handshake link",
       "reviewApproveMessage": "autowork(reviewer): approve BU-001",
