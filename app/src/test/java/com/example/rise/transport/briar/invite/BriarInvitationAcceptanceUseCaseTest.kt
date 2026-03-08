@@ -20,9 +20,6 @@ import com.example.rise.transport.router.ConnectorLifecycleState
 import com.example.rise.transport.router.ConnectorOutboundMessage
 import com.example.rise.transport.router.ConnectorStatus
 import com.example.rise.transport.router.DefaultConnectorRegistry
-import com.example.rise.transport.router.IdentityRecord
-import com.example.rise.transport.router.IdentityRegistryImpl
-import com.example.rise.transport.router.IdentityRegistryStore
 import com.example.rise.transport.router.TransportConnector
 import com.example.rise.transport.router.TransportConversationId
 import com.example.rise.transport.router.TransportRouterImpl
@@ -63,44 +60,6 @@ class BriarInvitationAcceptanceUseCaseTest {
     }
 
     @Test
-    fun `accept persists invitation identity mapping for stable lookup`() = runTest {
-        val service = RecordingContactService(isAvailable = true)
-        val contactRepository = BriarContactRepository(fakeBridge(service))
-        val identityStore = FakeIdentityRegistryStore()
-        val identityRegistry = IdentityRegistryImpl(identityStore)
-        val useCase = BriarInvitationAcceptanceUseCase(
-            contactRepository = contactRepository,
-            identityRegistry = identityRegistry,
-        )
-        val rawLink = "arise://briar/invite?link=${encode(validLink())}&alias=${encode("Alice")}&inviteId=INV-42"
-
-        val result = useCase.accept(rawLink)
-
-        assertTrue(result is BriarInvitationAcceptanceResult.Accepted)
-        val record = identityRegistry.identitiesSnapshot().single()
-        assertEquals("invite:inv-42", record.canonicalIdentity.id)
-        assertEquals("Alice", record.canonicalIdentity.displayName)
-        assertEquals(validLink(), record.aliases[TransportId.BRIAR])
-        assertTrue(identityStore.state.records.containsKey("invite:inv-42"))
-    }
-
-    @Test
-    fun `accept does not set invited contact as current identity when registry has no current user`() = runTest {
-        val service = RecordingContactService(isAvailable = true)
-        val contactRepository = BriarContactRepository(fakeBridge(service))
-        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
-        val useCase = BriarInvitationAcceptanceUseCase(
-            contactRepository = contactRepository,
-            identityRegistry = identityRegistry,
-        )
-
-        val result = useCase.accept("arise://briar/invite?link=${encode(validLink())}&alias=${encode("Alice")}&inviteId=INV-42")
-
-        assertTrue(result is BriarInvitationAcceptanceResult.Accepted)
-        assertEquals(null, identityRegistry.currentIdentitySnapshot())
-    }
-
-    @Test
     fun `accept bootstraps canonical conversation when transport router is provided`() = runTest {
         val service = RecordingContactService(isAvailable = true)
         val contactRepository = BriarContactRepository(fakeBridge(service))
@@ -126,19 +85,29 @@ class BriarInvitationAcceptanceUseCaseTest {
     }
 
     @Test
-    fun `accept preserves invitation briar alias after bootstrapping conversation`() = runTest {
+    fun `accept defers bootstrap when transport router needs numeric briar contact id`() = runTest {
         val service = RecordingContactService(isAvailable = true)
         val contactRepository = BriarContactRepository(fakeBridge(service))
-        val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
-        val transportRouter = TransportRouterImpl(
-            transportBridge = fakeBridge(service),
-            connectorRegistry = DefaultConnectorRegistry(setOf(ReadyBriarConnector())),
-            conversationStore = InMemoryConversationStore(),
-            identityRegistry = identityRegistry,
-        )
+        val transportRouter = object : TransportRouter {
+            override val currentIdentity: Flow<CanonicalIdentity> =
+                flowOf(CanonicalIdentity(id = "self", displayName = "Self"))
+
+            override suspend fun ensureCurrentIdentity(): CanonicalIdentity =
+                CanonicalIdentity(id = "self", displayName = "Self")
+
+            override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
+                throw IllegalArgumentException("Expected exactly one numeric Briar contact id")
+            }
+
+            override fun observeConversation(conversationId: String): Flow<List<CanonicalMessage>> =
+                flowOf(emptyList())
+
+            override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
+
+            override suspend fun reset() = Unit
+        }
         val useCase = BriarInvitationAcceptanceUseCase(
             contactRepository = contactRepository,
-            identityRegistry = identityRegistry,
             transportRouter = transportRouter,
         )
 
@@ -146,10 +115,8 @@ class BriarInvitationAcceptanceUseCaseTest {
 
         assertTrue(result is BriarInvitationAcceptanceResult.Accepted)
         result as BriarInvitationAcceptanceResult.Accepted
-        assertEquals("conversation-42", result.conversationId)
-        val invitedRecord = identityRegistry.identitiesSnapshot()
-            .first { it.canonicalIdentity.id == "invite:inv-42" }
-        assertEquals(validLink(), invitedRecord.aliases[TransportId.BRIAR])
+        assertEquals(null, result.conversationId)
+        assertEquals(listOf(validLink() to "Alice"), service.calls)
     }
 
     @Test
@@ -164,6 +131,84 @@ class BriarInvitationAcceptanceUseCaseTest {
         result as BriarInvitationAcceptanceResult.InvalidLink
         assertEquals(BriarInvitationLinkParseResult.InvalidReason.UNSUPPORTED_LINK, result.reason)
         assertEquals(emptyList<Pair<String, String?>>(), service.calls)
+    }
+
+    @Test
+    fun `accept returns duplicate rejection when contact repository reports reused invitation`() = runTest {
+        val expectedError = DuplicateInvitationException()
+        val service = object : BriarContactService {
+            override val isAvailable: Boolean = true
+
+            override suspend fun addContactByLink(link: String, alias: String?) {
+                throw expectedError
+            }
+
+            override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
+        }
+        val contactRepository = BriarContactRepository(fakeBridge(service))
+        val useCase = BriarInvitationAcceptanceUseCase(contactRepository)
+
+        val result = useCase.accept("arise://briar/invite?link=${encode(validLink())}&alias=${encode("Alice")}&inviteId=INV-42")
+
+        assertTrue(result is BriarInvitationAcceptanceResult.Failed)
+        result as BriarInvitationAcceptanceResult.Failed
+        assertTrue(result.error is BriarInvitationClassifiedFailure)
+        val classifiedError = result.error as BriarInvitationClassifiedFailure
+        assertEquals(BriarInvitationRejectionReason.DUPLICATE, classifiedError.reason)
+        assertEquals(expectedError, classifiedError.cause)
+        assertEquals(validLink(), result.invitation.briarLink)
+    }
+
+    @Test
+    fun `accept returns expired rejection when contact repository reports expired invitation`() = runTest {
+        val expectedError = ExpiredInvitationException()
+        val service = object : BriarContactService {
+            override val isAvailable: Boolean = true
+
+            override suspend fun addContactByLink(link: String, alias: String?) {
+                throw expectedError
+            }
+
+            override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
+        }
+        val contactRepository = BriarContactRepository(fakeBridge(service))
+        val useCase = BriarInvitationAcceptanceUseCase(contactRepository)
+
+        val result = useCase.accept("arise://briar/invite?link=${encode(validLink())}&alias=${encode("Alice")}&inviteId=INV-42")
+
+        assertTrue(result is BriarInvitationAcceptanceResult.Failed)
+        result as BriarInvitationAcceptanceResult.Failed
+        assertTrue(result.error is BriarInvitationClassifiedFailure)
+        val classifiedError = result.error as BriarInvitationClassifiedFailure
+        assertEquals(BriarInvitationRejectionReason.EXPIRED, classifiedError.reason)
+        assertEquals(expectedError, classifiedError.cause)
+        assertEquals(validLink(), result.invitation.briarLink)
+    }
+
+    @Test
+    fun `accept returns invalid rejection when contact repository reports invalid invitation`() = runTest {
+        val expectedError = InvalidInvitationException()
+        val service = object : BriarContactService {
+            override val isAvailable: Boolean = true
+
+            override suspend fun addContactByLink(link: String, alias: String?) {
+                throw expectedError
+            }
+
+            override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
+        }
+        val contactRepository = BriarContactRepository(fakeBridge(service))
+        val useCase = BriarInvitationAcceptanceUseCase(contactRepository)
+
+        val result = useCase.accept("arise://briar/invite?link=${encode(validLink())}&alias=${encode("Alice")}&inviteId=INV-42")
+
+        assertTrue(result is BriarInvitationAcceptanceResult.Failed)
+        result as BriarInvitationAcceptanceResult.Failed
+        assertTrue(result.error is BriarInvitationClassifiedFailure)
+        val classifiedError = result.error as BriarInvitationClassifiedFailure
+        assertEquals(BriarInvitationRejectionReason.INVALID, classifiedError.reason)
+        assertEquals(expectedError, classifiedError.cause)
+        assertEquals(validLink(), result.invitation.briarLink)
     }
 
     @Test
@@ -221,26 +266,6 @@ class BriarInvitationAcceptanceUseCaseTest {
         override fun observeContacts(): Flow<List<BriarContact>> = flowOf(emptyList())
     }
 
-    private class FakeIdentityRegistryStore(
-        initialState: IdentityRegistryStore.StoredState = IdentityRegistryStore.StoredState(emptyMap(), null),
-    ) : IdentityRegistryStore {
-        var state: IdentityRegistryStore.StoredState = initialState
-            private set
-
-        override fun load(): IdentityRegistryStore.StoredState = state
-
-        override fun persist(records: Map<String, IdentityRecord>, currentIdentityId: String?) {
-            val recordsCopy = records.mapValues { (_, record) ->
-                IdentityRecord(
-                    canonicalIdentity = record.canonicalIdentity,
-                    aliases = record.aliases.toMap(),
-                    profile = record.profile,
-                )
-            }
-            state = IdentityRegistryStore.StoredState(recordsCopy, currentIdentityId)
-        }
-    }
-
     private class RecordingTransportRouter(
         private val conversation: CanonicalConversation,
     ) : TransportRouter {
@@ -264,62 +289,13 @@ class BriarInvitationAcceptanceUseCaseTest {
         override suspend fun reset() = Unit
     }
 
-    private class ReadyBriarConnector : TransportConnector {
-        override val transport: TransportId = TransportId.BRIAR
-        override val status: StateFlow<ConnectorStatus> = MutableStateFlow(ConnectorStatus.ACTIVE)
-        override val lifecycle: StateFlow<ConnectorLifecycleState> = MutableStateFlow(ConnectorLifecycleState.READY)
-        override val capabilities: StateFlow<ConnectorCapabilities> = MutableStateFlow(
-            ConnectorCapabilities(
-                entries = mapOf(
-                    "messages" to CapabilityDescriptor(
-                        version = 1,
-                        properties = mapOf("enabled" to "true"),
-                    ),
-                ),
-            ),
-        )
+    private class DuplicateInvitationException :
+        IllegalStateException("Invitation already used for this contact")
 
-        override suspend fun currentIdentity(): CanonicalIdentity =
-            CanonicalIdentity(id = "self", displayName = "Self")
+    private class ExpiredInvitationException :
+        IllegalStateException("Invitation link expired before it could be accepted")
 
-        override suspend fun ensureConversation(conversation: CanonicalConversation): TransportConversationId {
-            return TransportConversationId(
-                canonicalId = "conversation-42",
-                transportConversationId = "briar-conversation-42",
-            )
-        }
+    private class InvalidInvitationException :
+        IllegalArgumentException("Invalid invitation link payload")
 
-        override fun observeMessages(conversationId: String): Flow<List<ConnectorInboundMessage>> =
-            flowOf(emptyList())
-
-        override suspend fun sendMessage(message: ConnectorOutboundMessage) = Unit
-    }
-
-    private class InMemoryConversationStore : ConversationStore {
-        private val conversations = mutableMapOf<String, CanonicalConversation>()
-        private val aliases = mutableMapOf<Pair<String, TransportId>, String>()
-
-        override suspend fun upsertConversation(conversation: CanonicalConversation) {
-            conversations[conversation.id] = conversation
-        }
-
-        override suspend fun upsertMessages(conversationId: String, messages: List<CanonicalMessage>) = Unit
-
-        override fun observeMessages(conversationId: String): Flow<List<CanonicalMessage>> = flowOf(emptyList())
-
-        override suspend fun getConversation(conversationId: String): CanonicalConversation? =
-            conversations[conversationId]
-
-        override suspend fun upsertAlias(conversationId: String, transportId: TransportId, alias: String) {
-            aliases[conversationId to transportId] = alias
-        }
-
-        override suspend fun getAlias(conversationId: String, transportId: TransportId): String? =
-            aliases[conversationId to transportId]
-
-        override suspend fun clearAll() {
-            conversations.clear()
-            aliases.clear()
-        }
-    }
 }

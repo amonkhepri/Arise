@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PersonSummary
 import com.example.rise.transport.briar.BriarContactRepository
+import com.example.rise.transport.briar.invite.BriarInvitationRejectionReason
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatLaunchContract
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -121,8 +122,13 @@ internal class PeopleViewModel internal constructor(
                         is BriarManualInvitationCoordinator.Result.LaunchChat -> {
                             _events.emit(PeopleEvent.LaunchChatFromAddedLink(result.launchContract))
                         }
-                        is BriarManualInvitationCoordinator.Result.InvalidInvitation -> {
-                            emitMessage(INVALID_INVITATION_MESSAGE)
+                        is BriarManualInvitationCoordinator.Result.ContactAddedPendingSync -> {
+                            emitMessage(
+                                "Briar contact added. Wait for ${result.displayName} to finish connecting, then open the chat from People."
+                            )
+                        }
+                        is BriarManualInvitationCoordinator.Result.RejectedInvitation -> {
+                            emitMessage(messageFor(result.reason))
                         }
                         is BriarManualInvitationCoordinator.Result.InvitationFailed -> {
                             emitMessage(result.error.message ?: "Unable to add Briar contact.")
@@ -144,7 +150,15 @@ internal class PeopleViewModel internal constructor(
         super.onCleared()
     }
 
+    private fun messageFor(reason: BriarInvitationRejectionReason): String = when (reason) {
+        BriarInvitationRejectionReason.DUPLICATE -> DUPLICATE_INVITATION_MESSAGE
+        BriarInvitationRejectionReason.EXPIRED -> EXPIRED_INVITATION_MESSAGE
+        BriarInvitationRejectionReason.INVALID -> INVALID_INVITATION_MESSAGE
+    }
+
     private companion object {
+        const val DUPLICATE_INVITATION_MESSAGE = "This Briar invitation link was already used."
+        const val EXPIRED_INVITATION_MESSAGE = "This Briar invitation link has expired. Ask for a new one."
         const val INVALID_INVITATION_MESSAGE = "Invalid Briar invitation link."
     }
 }

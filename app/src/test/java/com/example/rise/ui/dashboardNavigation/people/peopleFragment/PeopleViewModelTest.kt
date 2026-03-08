@@ -3,7 +3,7 @@ package com.example.rise.ui.dashboardNavigation.people.peopleFragment
 import app.cash.turbine.test
 import com.example.rise.data.people.PersonSummary
 import com.example.rise.data.people.RouterPeopleRepository
-import com.example.rise.transport.briar.invite.BriarInvitationLinkParseResult
+import com.example.rise.transport.briar.invite.BriarInvitationRejectionReason
 import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatLaunchContract
 import com.example.rise.util.MainDispatcherRule
@@ -137,11 +137,35 @@ class PeopleViewModelTest {
     }
 
     @org.junit.Test
+    fun `onRawBriarLinkSubmitted emits pending-sync message when contact is added without conversation`() = runTest {
+        val viewModel = createViewModel(
+            addByRawBriarLink = { rawLink ->
+                assertEquals("briar://invite", rawLink)
+                BriarManualInvitationCoordinator.Result.ContactAddedPendingSync("Alice")
+            },
+        )
+
+        viewModel.events.test {
+            viewModel.onRawBriarLinkSubmitted("briar://invite")
+            advanceUntilIdle()
+
+            assertEquals(
+                PeopleViewModel.PeopleEvent.ShowMessage(
+                    "Briar contact added. Wait for Alice to finish connecting, then open the chat from People."
+                ),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @org.junit.Test
     fun `onRawBriarLinkSubmitted emits message for invalid invitation`() = runTest {
-        val invalidReason = enumValues<BriarInvitationLinkParseResult.InvalidReason>().first()
         val viewModel = createViewModel(
             addByRawBriarLink = {
-                BriarManualInvitationCoordinator.Result.InvalidInvitation(invalidReason)
+                BriarManualInvitationCoordinator.Result.RejectedInvitation(
+                    BriarInvitationRejectionReason.INVALID,
+                )
             },
         )
 
@@ -151,6 +175,54 @@ class PeopleViewModelTest {
 
             assertEquals(
                 PeopleViewModel.PeopleEvent.ShowMessage("Invalid Briar invitation link."),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @org.junit.Test
+    fun `onRawBriarLinkSubmitted emits message for duplicate invitation`() = runTest {
+        val viewModel = createViewModel(
+            addByRawBriarLink = {
+                BriarManualInvitationCoordinator.Result.RejectedInvitation(
+                    BriarInvitationRejectionReason.DUPLICATE,
+                )
+            },
+        )
+
+        viewModel.events.test {
+            viewModel.onRawBriarLinkSubmitted("briar://duplicate")
+            advanceUntilIdle()
+
+            assertEquals(
+                PeopleViewModel.PeopleEvent.ShowMessage(
+                    "This Briar invitation link was already used."
+                ),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @org.junit.Test
+    fun `onRawBriarLinkSubmitted emits message for expired invitation`() = runTest {
+        val viewModel = createViewModel(
+            addByRawBriarLink = {
+                BriarManualInvitationCoordinator.Result.RejectedInvitation(
+                    BriarInvitationRejectionReason.EXPIRED,
+                )
+            },
+        )
+
+        viewModel.events.test {
+            viewModel.onRawBriarLinkSubmitted("briar://expired")
+            advanceUntilIdle()
+
+            assertEquals(
+                PeopleViewModel.PeopleEvent.ShowMessage(
+                    "This Briar invitation link has expired. Ask for a new one."
+                ),
                 awaitItem(),
             )
             cancelAndIgnoreRemainingEvents()

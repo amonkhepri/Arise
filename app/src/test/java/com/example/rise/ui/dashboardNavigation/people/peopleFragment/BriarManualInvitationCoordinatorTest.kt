@@ -1,8 +1,12 @@
 package com.example.rise.ui.dashboardNavigation.people.peopleFragment
 
 import com.example.rise.transport.briar.invite.BriarInvitationAcceptanceResult
+import com.example.rise.transport.briar.invite.BriarInvitationDuplicateFailure
+import com.example.rise.transport.briar.invite.BriarInvitationExpiredFailure
+import com.example.rise.transport.briar.invite.BriarInvitationInvalidFailure
 import com.example.rise.transport.briar.invite.BriarInvitationLink
 import com.example.rise.transport.briar.invite.BriarInvitationLinkParseResult
+import com.example.rise.transport.briar.invite.BriarInvitationRejectionReason
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatLaunchContract
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -41,6 +45,27 @@ class BriarManualInvitationCoordinatorTest {
   }
 
   @Test
+  fun accept_returnsPendingSync_whenContactWasAddedButConversationWasNotResolved() = runTest {
+    val coordinator = BriarManualInvitationCoordinator {
+      BriarInvitationAcceptanceResult.Accepted(
+        invitation = BriarInvitationLink(
+          briarLink = "briar://alice-link",
+          alias = "Alice",
+          duplicateKey = "link:briar://alice-link",
+        ),
+        conversationId = null,
+      )
+    }
+
+    val result = coordinator.accept("briar://alice-link")
+
+    assertEquals(
+      BriarManualInvitationCoordinator.Result.ContactAddedPendingSync("Alice"),
+      result,
+    )
+  }
+
+  @Test
   fun accept_returnsInvalidInvitation_whenUseCaseRejectsLink() = runTest {
     val coordinator = BriarManualInvitationCoordinator {
       BriarInvitationAcceptanceResult.InvalidLink(
@@ -51,8 +76,77 @@ class BriarManualInvitationCoordinatorTest {
     val result = coordinator.accept("not-a-briar-link")
 
     assertEquals(
-      BriarManualInvitationCoordinator.Result.InvalidInvitation(
-        BriarInvitationLinkParseResult.InvalidReason.INVALID_BRIAR_LINK,
+      BriarManualInvitationCoordinator.Result.RejectedInvitation(
+        BriarInvitationRejectionReason.INVALID,
+      ),
+      result,
+    )
+  }
+
+  @Test
+  fun accept_returnsDuplicateInvitation_whenUseCaseRejectsDuplicateLink() = runTest {
+    val coordinator = BriarManualInvitationCoordinator {
+      BriarInvitationAcceptanceResult.Failed(
+        invitation = BriarInvitationLink(
+          briarLink = "briar://alice-link",
+          alias = "Alice",
+          duplicateKey = "invite:alice",
+        ),
+        error = BriarInvitationDuplicateFailure(IllegalStateException("already used")),
+      )
+    }
+
+    val result = coordinator.accept("briar://alice-link")
+
+    assertEquals(
+      BriarManualInvitationCoordinator.Result.RejectedInvitation(
+        BriarInvitationRejectionReason.DUPLICATE,
+      ),
+      result,
+    )
+  }
+
+  @Test
+  fun accept_returnsInvalidInvitation_whenUseCaseFailsWithClassifiedInvalidLink() = runTest {
+    val coordinator = BriarManualInvitationCoordinator {
+      BriarInvitationAcceptanceResult.Failed(
+        invitation = BriarInvitationLink(
+          briarLink = "briar://alice-link",
+          alias = "Alice",
+          duplicateKey = "invite:alice",
+        ),
+        error = BriarInvitationInvalidFailure(IllegalArgumentException("invalid")),
+      )
+    }
+
+    val result = coordinator.accept("briar://alice-link")
+
+    assertEquals(
+      BriarManualInvitationCoordinator.Result.RejectedInvitation(
+        BriarInvitationRejectionReason.INVALID,
+      ),
+      result,
+    )
+  }
+
+  @Test
+  fun accept_returnsExpiredInvitation_whenUseCaseRejectsExpiredLink() = runTest {
+    val coordinator = BriarManualInvitationCoordinator {
+      BriarInvitationAcceptanceResult.Failed(
+        invitation = BriarInvitationLink(
+          briarLink = "briar://alice-link",
+          alias = "Alice",
+          duplicateKey = "invite:alice",
+        ),
+        error = BriarInvitationExpiredFailure(IllegalStateException("expired")),
+      )
+    }
+
+    val result = coordinator.accept("briar://alice-link")
+
+    assertEquals(
+      BriarManualInvitationCoordinator.Result.RejectedInvitation(
+        BriarInvitationRejectionReason.EXPIRED,
       ),
       result,
     )
