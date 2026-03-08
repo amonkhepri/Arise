@@ -49,6 +49,50 @@ class BriarInvitationOnboardingCoordinatorTest {
   }
 
   @Test
+  fun acceptRetriesRuntimeNotReadyFailuresForRawBriarLinksUntilInvitationSucceeds() = runBlocking {
+    val runtimeNotReady = IllegalStateException("Briar runtime is not ready")
+    var attempts = 0
+    val coordinator = BriarInvitationOnboardingCoordinator(
+      acceptInvitation = { rawLink ->
+        attempts += 1
+        if (attempts < 3) {
+          BriarInvitationAcceptanceResult.Failed(
+            invitation = invitation(
+              briarLink = rawLink,
+              alias = "Alice",
+              duplicateKey = "peer-123",
+            ),
+            error = runtimeNotReady,
+          )
+        } else {
+          BriarInvitationAcceptanceResult.Accepted(
+            invitation = invitation(
+              briarLink = rawLink,
+              alias = "Alice",
+              duplicateKey = "peer-123",
+            ),
+            conversationId = "conversation-42",
+          )
+        }
+      },
+      retryDelayMillis = 0L,
+    )
+
+    val result = coordinator.accept(
+      context,
+      onboardingAction(briarLink = "briar://abmpblthdxon5e3luksgivgvcfplw6mawzuumw6h54jxrvyvvohvy"),
+    )
+
+    assertEquals(3, attempts)
+    assertTrue(result is BriarInvitationOnboardingCoordinator.Result.LaunchChat)
+    val launchResult = result as BriarInvitationOnboardingCoordinator.Result.LaunchChat
+    assertEquals(ChatActivity::class.java.name, launchResult.intent.component?.className)
+    assertEquals("peer-123", launchResult.intent.getStringExtra(AppConstants.USER_ID))
+    assertEquals("Alice", launchResult.intent.getStringExtra(AppConstants.USER_NAME))
+    assertEquals("conversation-42", launchResult.intent.getStringExtra(AppConstants.CONVERSATION_ID))
+  }
+
+  @Test
   fun acceptInvalidInvitationReturnsExplicitInvalidResult() = runBlocking {
     val reason = enumValues<BriarInvitationLinkParseResult.InvalidReason>().first()
     val coordinator = BriarInvitationOnboardingCoordinator(
@@ -59,6 +103,29 @@ class BriarInvitationOnboardingCoordinatorTest {
 
     assertEquals(
       BriarInvitationOnboardingCoordinator.Result.InvalidInvitation(reason),
+      result,
+    )
+  }
+
+  @Test
+  fun acceptAcceptedInvitationReturnsPendingResultWhenConversationIsNotReady() = runBlocking {
+    val coordinator = BriarInvitationOnboardingCoordinator(
+      acceptInvitation = { rawLink ->
+        BriarInvitationAcceptanceResult.Accepted(
+          invitation = invitation(
+            briarLink = rawLink,
+            alias = "Alice",
+            duplicateKey = "peer-123",
+          ),
+          conversationId = null,
+        )
+      },
+    )
+
+    val result = coordinator.accept(context, onboardingAction())
+
+    assertEquals(
+      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync("Alice"),
       result,
     )
   }
@@ -82,8 +149,10 @@ class BriarInvitationOnboardingCoordinatorTest {
     assertSame(error, failedResult.error)
   }
 
-  private fun onboardingAction(): BriarInvitationOnboardingAction = BriarInvitationOnboardingAction(
-    briarLink = "briar://invite?c=abc",
+  private fun onboardingAction(
+    briarLink: String = "briar://invite?c=abc",
+  ): BriarInvitationOnboardingAction = BriarInvitationOnboardingAction(
+    briarLink = briarLink,
     alias = "Alice",
     duplicateKey = "peer-123",
   )

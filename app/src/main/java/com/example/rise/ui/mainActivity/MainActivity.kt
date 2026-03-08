@@ -26,6 +26,7 @@ import com.example.rise.ui.signInActivity.SignInActivity
 import com.example.rise.ui.mainActivity.MainActivityViewModel.MainActivityEvent
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import com.example.rise.BuildConfig
 import org.koin.android.ext.android.get
@@ -40,6 +41,8 @@ class MainActivity : BaseActivity() {
     private val briarInvitationOnboardingCoordinator by lazy(LazyThreadSafetyMode.NONE) {
         BriarInvitationOnboardingCoordinator(get<BriarInvitationAcceptanceUseCase>())
     }
+    private var pendingInvitationOnboardingJob: Job? = null
+    private var pendingInvitationOnboardingActionInFlight: BriarInvitationOnboardingAction? = null
 
     private val signInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -60,7 +63,7 @@ class MainActivity : BaseActivity() {
             val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
             navView.selectedItemId = R.id.navigation_dashboard
         }
-        handleBriarInvitationOnboardingIntent(intent)
+        queueBriarInvitationOnboardingIntent(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,12 +96,19 @@ class MainActivity : BaseActivity() {
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.events.collect { event ->
-                    when (event) {
-                        MainActivityEvent.LaunchSignIn -> {
-                            val intent = Intent(this@MainActivity, SignInActivity::class.java)
-                            signInLauncher.launch(intent)
+                launch {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            MainActivityEvent.LaunchSignIn -> {
+                                val intent = Intent(this@MainActivity, SignInActivity::class.java)
+                                signInLauncher.launch(intent)
+                            }
                         }
+                    }
+                }
+                launch {
+                    viewModel.uiState.collect { state ->
+                        maybeHandlePendingInvitationOnboarding(state)
                     }
                 }
             }
@@ -109,7 +119,7 @@ class MainActivity : BaseActivity() {
             val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
             navView.selectedItemId = R.id.navigation_dashboard
         }
-        handleBriarInvitationOnboardingIntent(intent)
+        queueBriarInvitationOnboardingIntent(intent)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -139,29 +149,60 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    private fun handleBriarInvitationOnboardingIntent(intent: Intent?) {
+    private fun queueBriarInvitationOnboardingIntent(intent: Intent?) {
         val action = BriarInvitationOnboardingCoordinator.consumePendingAction(intent) ?: return
-        lifecycleScope.launch {
-            when (val result = briarInvitationOnboardingCoordinator.accept(this@MainActivity, action)) {
-                is BriarInvitationOnboardingCoordinator.Result.LaunchChat -> {
-                    startActivity(result.intent)
+        viewModel.onPendingInvitationOnboarding(action)
+    }
+
+    private fun maybeHandlePendingInvitationOnboarding(
+        state: MainActivityViewModel.MainActivityUiState,
+    ) {
+        val action = state.pendingInvitationOnboardingAction ?: return
+        if (!state.isUserSignedIn) return
+        if (pendingInvitationOnboardingJob?.isActive == true &&
+            pendingInvitationOnboardingActionInFlight == action
+        ) {
+            return
+        }
+
+        pendingInvitationOnboardingJob?.cancel()
+        pendingInvitationOnboardingActionInFlight = action
+        pendingInvitationOnboardingJob = lifecycleScope.launch {
+            try {
+                when (val result = briarInvitationOnboardingCoordinator.accept(this@MainActivity, action)) {
+                    is BriarInvitationOnboardingCoordinator.Result.LaunchChat -> {
+                        startActivity(result.intent)
+                        viewModel.onPendingInvitationOnboardingHandled()
+                    }
+                    is BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync -> {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Briar contact added. Wait for ${result.displayName} to finish connecting, then open the chat from People.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        viewModel.onPendingInvitationOnboardingHandled()
+                    }
+                    is BriarInvitationOnboardingCoordinator.Result.InvalidInvitation -> {
+                        Log.w(TAG, "Invalid Briar invitation onboarding action: ${result.reason}")
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Invalid Briar invitation link",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        viewModel.onPendingInvitationOnboardingHandled()
+                    }
+                    is BriarInvitationOnboardingCoordinator.Result.InvitationFailed -> {
+                        Log.e(TAG, "Failed to accept Briar invitation", result.error)
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Unable to add Briar contact",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        viewModel.onPendingInvitationOnboardingHandled()
+                    }
                 }
-                is BriarInvitationOnboardingCoordinator.Result.InvalidInvitation -> {
-                    Log.w(TAG, "Invalid Briar invitation onboarding action: ${result.reason}")
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Invalid Briar invitation link",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-                is BriarInvitationOnboardingCoordinator.Result.InvitationFailed -> {
-                    Log.e(TAG, "Failed to accept Briar invitation", result.error)
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Unable to add Briar contact",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
+            } finally {
+                pendingInvitationOnboardingActionInFlight = null
             }
         }
     }
