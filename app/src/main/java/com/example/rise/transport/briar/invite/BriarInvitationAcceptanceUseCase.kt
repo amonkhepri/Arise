@@ -112,7 +112,7 @@ class BriarInvitationAcceptanceUseCase(
         needles.any { needle -> contains(needle, ignoreCase = true) }
 
     private companion object {
-        private const val MAX_DEFERRED_CONVERSATION_RETRIES = 40
+        private const val MAX_DEFERRED_CONVERSATION_RETRIES = 60
         private const val DEFERRED_CONVERSATION_RETRY_DELAY_MILLIS = 250L
     }
 }
