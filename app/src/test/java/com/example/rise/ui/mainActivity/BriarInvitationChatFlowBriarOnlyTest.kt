@@ -67,7 +67,7 @@ class BriarInvitationChatFlowBriarOnlyTest {
   private val fixedClock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC)
 
   @Test
-  fun `raw external briar invitation keeps retrying deferred conversation bootstrap until chat launches`() = runTest {
+  fun `raw external briar invitation waits through slower deferred conversation bootstrap until chat launches`() = runTest {
     val addedContacts = mutableListOf<Pair<String, String?>>()
     val contactService = stubBriarContactService(
       isAvailable = true,
@@ -91,7 +91,7 @@ class BriarInvitationChatFlowBriarOnlyTest {
     )
     val deferredBootstrapRouter = DeferredBootstrapRouter(
       delegate = router,
-      deferredFailuresBeforeSuccess = 41,
+      deferredFailuresBeforeSuccess = 80,
     )
     val coordinator = BriarInvitationOnboardingCoordinator(
       useCase = BriarInvitationAcceptanceUseCase(
@@ -134,7 +134,7 @@ class BriarInvitationChatFlowBriarOnlyTest {
     advanceUntilIdle()
 
     assertEquals(listOf(externalInvitationLink() to null), addedContacts)
-    assertEquals(42, deferredBootstrapRouter.ensureConversationAttempts)
+    assertEquals(81, deferredBootstrapRouter.ensureConversationAttempts)
     assertTrue(chatViewModel.uiState.value.inputEnabled)
     assertEquals(conversationId, chatViewModel.uiState.value.conversationId)
     assertEquals("link:${externalInvitationLink()}", launchContract.userId)
