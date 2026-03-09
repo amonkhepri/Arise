@@ -5,12 +5,15 @@ import com.example.rise.transport.router.CanonicalIdentity
 import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.TransportRouter
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 
 class BriarInvitationAcceptanceUseCase(
     private val contactRepository: BriarContactRepository,
     private val parser: BriarInvitationLinkParser = BriarInvitationLinkParser(),
     private val identityRegistry: IdentityRegistry? = null,
     private val transportRouter: TransportRouter? = null,
+    private val deferredConversationRetryDelayMillis: Long = DEFERRED_CONVERSATION_RETRY_DELAY_MILLIS,
+    private val maxDeferredConversationRetries: Int = MAX_DEFERRED_CONVERSATION_RETRIES,
 ) {
 
     suspend fun accept(rawLink: String): BriarInvitationAcceptanceResult {
@@ -45,13 +48,27 @@ class BriarInvitationAcceptanceUseCase(
 
     private suspend fun bootstrapConversationIfResolvable(
         peerIdentity: CanonicalIdentity,
-    ) = runCatching {
-        transportRouter?.ensureConversation(peerIdentity)
-    }.getOrElse { error ->
-        if (shouldDeferConversationBootstrap(error)) {
-            null
-        } else {
-            throw error
+    ): com.example.rise.transport.router.CanonicalConversation? {
+        val router = transportRouter ?: return null
+        repeat(maxDeferredConversationRetries) {
+            try {
+                return router.ensureConversation(peerIdentity)
+            } catch (error: Throwable) {
+                if (!shouldDeferConversationBootstrap(error)) {
+                    throw error
+                }
+                delay(deferredConversationRetryDelayMillis)
+            }
+        }
+
+        return runCatching {
+            router.ensureConversation(peerIdentity)
+        }.getOrElse { error ->
+            if (shouldDeferConversationBootstrap(error)) {
+                null
+            } else {
+                throw error
+            }
         }
     }
 
@@ -93,6 +110,11 @@ class BriarInvitationAcceptanceUseCase(
 
     private fun String.containsAnyIgnoreCase(vararg needles: String): Boolean =
         needles.any { needle -> contains(needle, ignoreCase = true) }
+
+    private companion object {
+        private const val MAX_DEFERRED_CONVERSATION_RETRIES = 40
+        private const val DEFERRED_CONVERSATION_RETRY_DELAY_MILLIS = 250L
+    }
 }
 
 enum class BriarInvitationRejectionReason {

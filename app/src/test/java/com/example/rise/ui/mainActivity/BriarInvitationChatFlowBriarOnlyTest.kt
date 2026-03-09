@@ -65,6 +65,95 @@ class BriarInvitationChatFlowBriarOnlyTest {
   private val fixedClock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC)
 
   @Test
+  fun `resolved external invitation retries deferred conversation bootstrap until chat launches`() = runTest {
+    val addedContacts = mutableListOf<Pair<String, String?>>()
+    val contactService = stubBriarContactService(
+      isAvailable = true,
+      onAddContactByLink = { link, alias -> addedContacts += link to alias },
+    )
+    val bridge = stubTransportRuntimeBridge(
+      mode = BriarTransportMode.BRIAR_ONLY,
+      contactService = contactService,
+    )
+    val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+    val briarConnector = RecordingConnector(transport = TransportId.BRIAR)
+    val firestoreConnector = RecordingConnector(transport = TransportId.FIRESTORE).apply {
+      transportAliasGenerator = { canonicalId -> "firestore-$canonicalId" }
+    }
+    val router = TransportRouterImpl(
+      transportBridge = bridge,
+      connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+      conversationStore = InMemoryConversationStore(),
+      identityRegistry = identityRegistry,
+      dispatcher = StandardTestDispatcher(testScheduler),
+    )
+    val deferredBootstrapRouter = DeferredBootstrapRouter(
+      delegate = router,
+      deferredFailuresBeforeSuccess = 2,
+    )
+    val coordinator = BriarInvitationOnboardingCoordinator(
+      useCase = BriarInvitationAcceptanceUseCase(
+        contactRepository = BriarContactRepository(bridge),
+        identityRegistry = identityRegistry,
+        transportRouter = deferredBootstrapRouter,
+      ),
+    )
+    val action = BriarInvitationDeepLinkEntrypoint().resolve(
+      wrappedInvite(
+        alias = "Alice",
+        inviteId = "INV-42",
+        briarLink = externalInvitationLink(),
+      ),
+    )
+
+    assertNotNull(action)
+    val onboardingAction = requireNotNull(action)
+
+    val result = coordinator.accept(context, onboardingAction)
+    advanceUntilIdle()
+
+    assertTrue(result is BriarInvitationOnboardingCoordinator.Result.LaunchChat)
+    val launchIntent = (result as BriarInvitationOnboardingCoordinator.Result.LaunchChat).intent
+    val launchContract = resolveChatLaunchContract(
+      userId = launchIntent.getStringExtra(AppConstants.USER_ID),
+      userName = launchIntent.getStringExtra(AppConstants.USER_NAME),
+      conversationId = launchIntent.getStringExtra(AppConstants.CONVERSATION_ID),
+    )
+    val conversationId = requireNotNull(launchContract.conversationId)
+    val chatViewModel = ChatViewModel(
+      chatRepository = TransportBackedChatRepository(router),
+      routerPeopleRepository = FakeRouterPeopleRepository(),
+      clock = fixedClock,
+    )
+
+    chatViewModel.initialiseConversation(
+      otherUserId = launchContract.userId,
+      otherUserName = launchContract.userName,
+      conversationId = conversationId,
+    )
+    advanceUntilIdle()
+    chatViewModel.sendMessage("Hello from deferred bootstrap invite")
+    advanceUntilIdle()
+
+    assertEquals(listOf(externalInvitationLink() to null), addedContacts)
+    assertEquals(3, deferredBootstrapRouter.ensureConversationAttempts)
+    assertTrue(chatViewModel.uiState.value.inputEnabled)
+    assertEquals(conversationId, chatViewModel.uiState.value.conversationId)
+    assertEquals("link:${externalInvitationLink()}", launchContract.userId)
+    assertEquals("link:${externalInvitationLink()}", launchContract.userName)
+    assertEquals(1, briarConnector.ensureConversationCalls)
+    assertEquals(1, briarConnector.sentMessages.size)
+    assertEquals(conversationId, briarConnector.sentMessages.single().conversationId)
+    assertEquals(
+      setOf(launchContract.userId),
+      briarConnector.sentMessages.single().recipientIds,
+    )
+    assertEquals("Hello from deferred bootstrap invite", briarConnector.sentMessages.single().body)
+    assertEquals(1, firestoreConnector.ensureConversationCalls)
+    assertTrue(firestoreConnector.sentMessages.isEmpty())
+  }
+
+  @Test
   fun `resolved invitation launches briar-only chat and sends first message only through briar`() = runTest {
     val addedContacts = mutableListOf<Pair<String, String?>>()
     val contactService = stubBriarContactService(
@@ -146,8 +235,15 @@ class BriarInvitationChatFlowBriarOnlyTest {
 
   private fun validLink(): String = "briar://${"b".repeat(53)}"
 
-  private fun wrappedInvite(alias: String, inviteId: String): String {
-    return "arise://briar/invite?link=${encode(validLink())}&alias=${encode(alias)}&inviteId=${encode(inviteId)}"
+  private fun externalInvitationLink(): String =
+    "briar://abmpblthdxon5e3luksgivgvcfplw6mawzuumw6h54jxrvyvvohvy"
+
+  private fun wrappedInvite(
+    alias: String,
+    inviteId: String,
+    briarLink: String = validLink(),
+  ): String {
+    return "arise://briar/invite?link=${encode(briarLink)}&alias=${encode(alias)}&inviteId=${encode(inviteId)}"
   }
 
   private fun encode(value: String): String {
@@ -275,6 +371,21 @@ class BriarInvitationChatFlowBriarOnlyTest {
 
     override suspend fun sendMessage(message: ConnectorOutboundMessage) {
       sentMessages += message
+    }
+  }
+
+  private class DeferredBootstrapRouter(
+    private val delegate: TransportRouterImpl,
+    private val deferredFailuresBeforeSuccess: Int,
+  ) : com.example.rise.transport.router.TransportRouter by delegate {
+    var ensureConversationAttempts = 0
+
+    override suspend fun ensureConversation(peerIdentity: CanonicalIdentity): CanonicalConversation {
+      ensureConversationAttempts += 1
+      if (ensureConversationAttempts <= deferredFailuresBeforeSuccess) {
+        throw IllegalArgumentException("Missing numeric Briar contact id for ${peerIdentity.id}")
+      }
+      return delegate.ensureConversation(peerIdentity)
     }
   }
 
