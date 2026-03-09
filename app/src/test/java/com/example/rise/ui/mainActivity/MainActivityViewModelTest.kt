@@ -24,6 +24,8 @@ class MainActivityViewModelTest {
         val authState = FakeAuthStateProvider(signedIn = false)
         val viewModel = MainActivityViewModel(authState)
 
+        assertFalse(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+
         viewModel.events.test {
             viewModel.onStart()
 
@@ -47,6 +49,7 @@ class MainActivityViewModelTest {
 
             assertTrue(viewModel.uiState.value.isUserSignedIn)
             assertFalse(viewModel.uiState.value.isSigningIn)
+            assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
             expectNoEvents()
             cancelAndIgnoreRemainingEvents()
         }
@@ -89,6 +92,7 @@ class MainActivityViewModelTest {
             viewModel.onSignInResult(Activity.RESULT_OK)
 
             assertTrue(viewModel.uiState.value.isUserSignedIn)
+            assertFalse(viewModel.uiState.value.shouldRenderAuthenticatedUi)
             assertEquals(action, viewModel.uiState.value.pendingInvitationOnboardingAction)
             expectNoEvents()
             cancelAndIgnoreRemainingEvents()
@@ -111,10 +115,32 @@ class MainActivityViewModelTest {
             viewModel.onStart()
 
             assertTrue(viewModel.uiState.value.isUserSignedIn)
+            assertFalse(viewModel.uiState.value.shouldRenderAuthenticatedUi)
             assertEquals(action, viewModel.uiState.value.pendingInvitationOnboardingAction)
             expectNoEvents()
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `renders authenticated ui after pending invitation onboarding is handled`() = runTest {
+        val authState = FakeAuthStateProvider(signedIn = true)
+        val viewModel = MainActivityViewModel(authState)
+        val action = BriarInvitationOnboardingAction(
+            briarLink = "briar://invite?c=abc",
+            alias = "Ada",
+            duplicateKey = "dup-key",
+        )
+
+        viewModel.onPendingInvitationOnboarding(action)
+
+        assertFalse(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+
+        viewModel.onPendingInvitationOnboardingHandled()
+
+        assertTrue(viewModel.uiState.value.isUserSignedIn)
+        assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+        assertNull(viewModel.uiState.value.pendingInvitationOnboardingAction)
     }
 
     @Test

@@ -6,6 +6,8 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -43,6 +45,7 @@ class MainActivity : BaseActivity() {
     }
     private var pendingInvitationOnboardingJob: Job? = null
     private var pendingInvitationOnboardingActionInFlight: BriarInvitationOnboardingAction? = null
+    private var authenticatedUiInflated = false
 
     private val signInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -58,41 +61,14 @@ class MainActivity : BaseActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        // Handle scheduled message intent - navigate to dashboard if message data is present
-        if (intent.hasExtra("UsrID")) {
-            val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
-            navView.selectedItemId = R.id.navigation_dashboard
-        }
         queueBriarInvitationOnboardingIntent(intent)
+        maybeSelectDashboardFromIntent(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        val toolbar: MaterialToolbar = findViewById(R.id.toolbar)
-        setSupportActionBar(toolbar)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = false
-        }
-
-        val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
-        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment)
-            as? NavHostFragment ?: NavHostFragment.create(R.navigation.mobile_navigation).also { host ->
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.nav_host_fragment, host)
-                .setPrimaryNavigationFragment(host)
-                .commitNow()
-        }
-
-        val navController = navHostFragment.navController
-
-        appBarConfiguration = AppBarConfiguration(
-            setOf(R.id.navigation_account, R.id.navigation_dashboard, R.id.navigation_people)
-        )
-        setupActionBarWithNavController(navController, appBarConfiguration)
-        navView.setupWithNavController(navController)
+        queueBriarInvitationOnboardingIntent(intent)
+        renderUiForState(viewModel.uiState.value)
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -108,18 +84,12 @@ class MainActivity : BaseActivity() {
                 }
                 launch {
                     viewModel.uiState.collect { state ->
+                        renderUiForState(state)
                         maybeHandlePendingInvitationOnboarding(state)
                     }
                 }
             }
         }
-
-        // Handle scheduled message intent - navigate to dashboard if message data is present
-        if (intent?.hasExtra("UsrID") == true) {
-            val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
-            navView.selectedItemId = R.id.navigation_dashboard
-        }
-        queueBriarInvitationOnboardingIntent(intent)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -152,6 +122,59 @@ class MainActivity : BaseActivity() {
     private fun queueBriarInvitationOnboardingIntent(intent: Intent?) {
         val action = BriarInvitationOnboardingCoordinator.consumePendingAction(intent) ?: return
         viewModel.onPendingInvitationOnboarding(action)
+    }
+
+    private fun renderUiForState(state: MainActivityViewModel.MainActivityUiState) {
+        if (state.shouldRenderAuthenticatedUi) {
+            ensureAuthenticatedUiInflated()
+        } else if (!authenticatedUiInflated) {
+            setContentView(
+                FrameLayout(this).apply {
+                    layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                },
+            )
+        }
+    }
+
+    private fun ensureAuthenticatedUiInflated() {
+        if (authenticatedUiInflated) {
+            maybeSelectDashboardFromIntent(intent)
+            return
+        }
+
+        authenticatedUiInflated = true
+        setContentView(R.layout.activity_main)
+
+        val toolbar: MaterialToolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+
+        val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment)
+            as? NavHostFragment ?: NavHostFragment.create(R.navigation.mobile_navigation).also { host ->
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.nav_host_fragment, host)
+                .setPrimaryNavigationFragment(host)
+                .commitNow()
+        }
+
+        val navController = navHostFragment.navController
+
+        appBarConfiguration = AppBarConfiguration(
+            setOf(R.id.navigation_account, R.id.navigation_dashboard, R.id.navigation_people)
+        )
+        setupActionBarWithNavController(navController, appBarConfiguration)
+        navView.setupWithNavController(navController)
+        maybeSelectDashboardFromIntent(intent)
+    }
+
+    private fun maybeSelectDashboardFromIntent(intent: Intent?) {
+        if (!authenticatedUiInflated || intent?.hasExtra("UsrID") != true) return
+        val navView: BottomNavigationView = findViewById(R.id.bottomNavigation)
+        navView.selectedItemId = R.id.navigation_dashboard
     }
 
     private fun maybeHandlePendingInvitationOnboarding(
