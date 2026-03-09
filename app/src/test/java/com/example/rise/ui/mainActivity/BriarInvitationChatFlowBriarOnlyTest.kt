@@ -1,6 +1,8 @@
 package com.example.rise.ui.mainActivity
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.example.rise.data.chat.TransportBackedChatRepository
 import com.example.rise.data.people.PersonSummary
@@ -65,7 +67,7 @@ class BriarInvitationChatFlowBriarOnlyTest {
   private val fixedClock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC)
 
   @Test
-  fun `resolved external invitation keeps retrying deferred conversation bootstrap until chat launches`() = runTest {
+  fun `raw external briar invitation keeps retrying deferred conversation bootstrap until chat launches`() = runTest {
     val addedContacts = mutableListOf<Pair<String, String?>>()
     val contactService = stubBriarContactService(
       isAvailable = true,
@@ -98,12 +100,8 @@ class BriarInvitationChatFlowBriarOnlyTest {
         transportRouter = deferredBootstrapRouter,
       ),
     )
-    val action = BriarInvitationDeepLinkEntrypoint().resolve(
-      wrappedInvite(
-        alias = "Alice",
-        inviteId = "INV-42",
-        briarLink = externalInvitationLink(),
-      ),
+    val action = BriarInvitationOnboardingCoordinator.consumePendingAction(
+      Intent(Intent.ACTION_VIEW, Uri.parse(externalInvitationLink())),
     )
 
     assertNotNull(action)

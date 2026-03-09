@@ -84,19 +84,30 @@ internal class BriarInvitationOnboardingCoordinator(
     private const val RUNTIME_NOT_READY_MESSAGE = "runtime is not ready"
 
     fun consumePendingAction(intent: Intent?): BriarInvitationOnboardingAction? {
-      if (intent?.action != BriarInvitationOnboardingAction.ACTION) return null
+      val rawExternalBriarLink = intent?.data
+        ?.toString()
+        ?.trim()
+        ?.takeIf { rawLink ->
+          intent.action == Intent.ACTION_VIEW && rawLink.startsWith("briar://", ignoreCase = true)
+        }
+      if (intent?.action != BriarInvitationOnboardingAction.ACTION && rawExternalBriarLink == null) {
+        return null
+      }
 
       val briarLink = intent.getStringExtra(BriarInvitationOnboardingAction.EXTRA_BRIAR_LINK)
         ?.trim()
-        .orEmpty()
+        ?.takeIf { it.isNotEmpty() }
+        ?: rawExternalBriarLink.orEmpty()
       val duplicateKey = intent.getStringExtra(BriarInvitationOnboardingAction.EXTRA_DUPLICATE_KEY)
         ?.trim()
-        .orEmpty()
+        ?.takeIf { it.isNotEmpty() }
+        ?: rawExternalBriarLink?.let { "link:$it" }.orEmpty()
       val alias = intent.getStringExtra(BriarInvitationOnboardingAction.EXTRA_ALIAS)
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
 
       intent.action = null
+      intent.data = null
       intent.removeExtra(BriarInvitationOnboardingAction.EXTRA_BRIAR_LINK)
       intent.removeExtra(BriarInvitationOnboardingAction.EXTRA_ALIAS)
       intent.removeExtra(BriarInvitationOnboardingAction.EXTRA_DUPLICATE_KEY)
