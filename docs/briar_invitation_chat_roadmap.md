@@ -52,3 +52,4 @@
 - 2026-03-06: Added  and documented latest bundle JSON output in .
 - 2026-03-06: Added `agent-tools/invitation-link-json.sh` and documented latest bundle JSON output in `docs/invitation_artifact_toolkit.md`.
 - 2026-03-11: Added `agent-tools/install-briar-direct.sh` to download the official Briar direct APK and install it on the emulator for repeatable external-app testing of the invitation-to-chat flow.
+- 2026-03-11: Updated `BriarInvitationOnboardingCoordinator` to launch chat even when invite acceptance returns no `conversationId`, with regression coverage for deferred bootstrap launch.
