@@ -43,6 +43,25 @@ class MainActivity : BaseActivity() {
     private val briarInvitationOnboardingCoordinator by lazy(LazyThreadSafetyMode.NONE) {
         BriarInvitationOnboardingCoordinator(get<BriarInvitationAcceptanceUseCase>())
     }
+    private val briarInvitationOnboardingResultHandler by lazy(LazyThreadSafetyMode.NONE) {
+        BriarInvitationOnboardingResultHandler(
+            launchChat = ::startActivity,
+            showMessage = { message ->
+                Toast.makeText(
+                    this,
+                    message,
+                    Toast.LENGTH_LONG,
+                ).show()
+            },
+            markHandled = viewModel::onPendingInvitationOnboardingHandled,
+            logInvalidInvitation = { reason ->
+                Log.w(TAG, "Invalid Briar invitation onboarding action: $reason")
+            },
+            logInvitationFailure = { error ->
+                Log.e(TAG, "Failed to accept Briar invitation", error)
+            },
+        )
+    }
     private var pendingInvitationOnboardingJob: Job? = null
     private var pendingInvitationOnboardingActionInFlight: BriarInvitationOnboardingAction? = null
     private var authenticatedUiInflated = false
@@ -192,38 +211,8 @@ class MainActivity : BaseActivity() {
         pendingInvitationOnboardingActionInFlight = action
         pendingInvitationOnboardingJob = lifecycleScope.launch {
             try {
-                when (val result = briarInvitationOnboardingCoordinator.accept(this@MainActivity, action)) {
-                    is BriarInvitationOnboardingCoordinator.Result.LaunchChat -> {
-                        startActivity(result.intent)
-                        viewModel.onPendingInvitationOnboardingHandled()
-                    }
-                    is BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync -> {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Briar contact added. Wait for ${result.displayName} to finish connecting, then open the chat from People.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                        viewModel.onPendingInvitationOnboardingHandled()
-                    }
-                    is BriarInvitationOnboardingCoordinator.Result.InvalidInvitation -> {
-                        Log.w(TAG, "Invalid Briar invitation onboarding action: ${result.reason}")
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Invalid Briar invitation link",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                        viewModel.onPendingInvitationOnboardingHandled()
-                    }
-                    is BriarInvitationOnboardingCoordinator.Result.InvitationFailed -> {
-                        Log.e(TAG, "Failed to accept Briar invitation", result.error)
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Unable to add Briar contact",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                        viewModel.onPendingInvitationOnboardingHandled()
-                    }
-                }
+                val result = briarInvitationOnboardingCoordinator.accept(this@MainActivity, action)
+                briarInvitationOnboardingResultHandler.handle(result)
             } finally {
                 pendingInvitationOnboardingActionInFlight = null
             }
