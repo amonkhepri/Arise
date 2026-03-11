@@ -430,3 +430,18 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCaseTest --timeout 600` (passed)
 - Next executor action:
   - Continue `docs/briar_invitation_chat_roadmap.md` with the next invitation-to-chat slice after alias-preserving bootstrap.
+
+## 2026-03-11T21:46:33Z
+- Reviewer commit: `pending`
+- Target executor commit: `8240db94634b68c301e18e3cdc7c1e79396ecd11`
+- Outcome: `needs_fix`
+- Status reason:
+  - `Launching ChatActivity without a resolved conversation id is unsafe because the chat path still does a single-shot conversation bootstrap.`
+- Feedback:
+  - `Fix required: keep the pending-sync path until chat can retry deferred bootstrap, or add robust chat-side retry handling plus regression coverage for accepted invites with conversationId=null.`
+- Findings:
+  - `app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt:29-36` now launches chat even when `conversationId` is null, but `app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatViewModel.kt:98-125` only calls `getOrCreateConversation()` once; if `app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt:49-77` still could not resolve the numeric Briar contact id, the user lands on a chat screen with input disabled instead of the previous safe pending-sync flow.
+- Validation:
+  - `none`
+- Next executor action:
+  - `Restore a safe deferred-bootstrap invitation path and add regression coverage for accepted invites that still return no conversation id.`
