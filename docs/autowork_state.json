@@ -2,7 +2,7 @@
   "version": 1,
   "active_plan_file": "docs/briar_invitation_chat_roadmap.md",
   "review_status": "pending",
-  "last_executor_commit": "53d1e84c8785332c746761d0f177dcb74074b020",
+  "last_executor_commit": "53d1e84a1f192ec82312c723da277a07afb18034",
   "last_reviewed_commit": "6bbcef6f5e6d7bfd33304ad3632171bfff0031d4",
   "pending_fix_for_commit": null,
   "executor_summary": "Surfaced duplicate, expired, and invalid Briar invite feedback in MainActivity deep-link onboarding and added focused result-handler regression coverage.",
@@ -10,10 +10,10 @@
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 38,
   "updated_by": "executor",
-  "updated_at": "2026-03-11T23:04:40Z",
-  "review_status_reason": "Awaiting reviewer decision for commit 53d1e84c8785332c746761d0f177dcb74074b020: surface classified duplicate, expired, and invalid Briar invitation feedback in MainActivity deep-link onboarding.",
-  "pending_review_for_commit": "53d1e84c8785332c746761d0f177dcb74074b020",
-  "feedback": "Waiting for reviewer feedback on commit 53d1e84c8785332c746761d0f177dcb74074b020.",
+  "updated_at": "2026-03-11T23:05:28Z",
+  "review_status_reason": "Awaiting reviewer decision for commit 53d1e84a1f192ec82312c723da277a07afb18034: surface classified duplicate, expired, and invalid Briar invitation feedback in MainActivity deep-link onboarding.",
+  "pending_review_for_commit": "53d1e84a1f192ec82312c723da277a07afb18034",
+  "feedback": "Waiting for reviewer feedback on commit 53d1e84a1f192ec82312c723da277a07afb18034.",
   "next_action_owner": "reviewer",
-  "next_action": "Review commit 53d1e84c8785332c746761d0f177dcb74074b020 for MainActivity deep-link invitation rejection feedback and focused result-handler regression coverage."
+  "next_action": "Review commit 53d1e84a1f192ec82312c723da277a07afb18034 for MainActivity deep-link invitation rejection feedback and focused result-handler regression coverage."
 }
