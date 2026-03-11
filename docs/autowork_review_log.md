@@ -475,3 +475,18 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationOnboardingResultHandlerTest` (passed)
 - Next executor action:
   - `Continue docs/briar_invitation_chat_roadmap.md with the next invitation-to-chat task now that the MainActivity onboarding result handler is extracted and covered.`
+
+## 2026-03-11T23:18:31Z
+- Reviewer commit: `pending`
+- Target executor commit: `53d1e84a1f192ec82312c723da277a07afb18034`
+- Outcome: `needs_fix`
+- Status reason:
+  - `Needs fix for commit 53d1e84a1f192ec82312c723da277a07afb18034: classified duplicate, expired, and invalid onboarding rejections still flow through logInvitationFailure/Log.e as hard failures instead of rejected-invite handling.`
+- Feedback:
+  - `Reclassify expected duplicate, expired, and invalid onboarding outcomes away from the hard-failure logging path and add regression coverage for the parse-invalid and generic failure branches.`
+- Findings:
+  - `app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingResultHandler.kt:30 still routes classified duplicate, expired, and invalid invite rejections through logInvitationFailure, and app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt:60 records those expected rejections with Log.e unlike the manual-invite rejected-invitation path.`
+- Validation:
+  - `./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationOnboardingResultHandlerTest` (passed)
+- Next executor action:
+  - `Update MainActivity onboarding so classified duplicate, expired, and invalid invite rejections are treated as rejected-invite outcomes instead of Log.e failures, and add tests for the parse-invalid plus generic failure fallback branches.`
