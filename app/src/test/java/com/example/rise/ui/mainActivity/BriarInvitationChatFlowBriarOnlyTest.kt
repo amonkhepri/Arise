@@ -152,6 +152,65 @@ class BriarInvitationChatFlowBriarOnlyTest {
   }
 
   @Test
+  fun `raw external briar invitation stays pending sync when deferred conversation bootstrap never resolves`() = runTest {
+    val addedContacts = mutableListOf<Pair<String, String?>>()
+    val contactService = stubBriarContactService(
+      isAvailable = true,
+      onAddContactByLink = { link, alias -> addedContacts += link to alias },
+    )
+    val bridge = stubTransportRuntimeBridge(
+      mode = BriarTransportMode.BRIAR_ONLY,
+      contactService = contactService,
+    )
+    val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+    val briarConnector = RecordingConnector(transport = TransportId.BRIAR)
+    val firestoreConnector = RecordingConnector(transport = TransportId.FIRESTORE).apply {
+      transportAliasGenerator = { canonicalId -> "firestore-$canonicalId" }
+    }
+    val router = TransportRouterImpl(
+      transportBridge = bridge,
+      connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+      conversationStore = InMemoryConversationStore(),
+      identityRegistry = identityRegistry,
+      dispatcher = StandardTestDispatcher(testScheduler),
+    )
+    val deferredBootstrapRouter = DeferredBootstrapRouter(
+      delegate = router,
+      deferredFailuresBeforeSuccess = Int.MAX_VALUE,
+    )
+    val coordinator = BriarInvitationOnboardingCoordinator(
+      useCase = BriarInvitationAcceptanceUseCase(
+        contactRepository = BriarContactRepository(bridge),
+        identityRegistry = identityRegistry,
+        transportRouter = deferredBootstrapRouter,
+        deferredConversationRetryDelayMillis = 0L,
+      ),
+    )
+    val action = BriarInvitationOnboardingCoordinator.consumePendingAction(
+      Intent(Intent.ACTION_VIEW, Uri.parse(externalInvitationLink())),
+    )
+
+    assertNotNull(action)
+    val onboardingAction = requireNotNull(action)
+
+    val result = coordinator.accept(context, onboardingAction)
+    advanceUntilIdle()
+
+    assertEquals(listOf(externalInvitationLink() to null), addedContacts)
+    assertEquals(121, deferredBootstrapRouter.ensureConversationAttempts)
+    assertEquals(
+      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync(
+        "link:${externalInvitationLink()}",
+      ),
+      result,
+    )
+    assertEquals(0, briarConnector.ensureConversationCalls)
+    assertEquals(0, firestoreConnector.ensureConversationCalls)
+    assertTrue(briarConnector.sentMessages.isEmpty())
+    assertTrue(firestoreConnector.sentMessages.isEmpty())
+  }
+
+  @Test
   fun `resolved invitation launches briar-only chat and sends first message only through briar`() = runTest {
     val addedContacts = mutableListOf<Pair<String, String?>>()
     val contactService = stubBriarContactService(

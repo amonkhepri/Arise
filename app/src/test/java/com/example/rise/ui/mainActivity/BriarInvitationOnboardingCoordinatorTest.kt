@@ -108,7 +108,7 @@ class BriarInvitationOnboardingCoordinatorTest {
   }
 
   @Test
-  fun acceptAcceptedInvitationLaunchesChatWhenConversationIsNotReady() = runBlocking {
+  fun acceptAcceptedInvitationReturnsPendingSyncWhenConversationIsNotReady() = runBlocking {
     val coordinator = BriarInvitationOnboardingCoordinator(
       acceptInvitation = { rawLink ->
         BriarInvitationAcceptanceResult.Accepted(
@@ -124,12 +124,10 @@ class BriarInvitationOnboardingCoordinatorTest {
 
     val result = coordinator.accept(context, onboardingAction())
 
-    assertTrue(result is BriarInvitationOnboardingCoordinator.Result.LaunchChat)
-    val launchResult = result as BriarInvitationOnboardingCoordinator.Result.LaunchChat
-    assertEquals(ChatActivity::class.java.name, launchResult.intent.component?.className)
-    assertEquals("peer-123", launchResult.intent.getStringExtra(AppConstants.USER_ID))
-    assertEquals("Alice", launchResult.intent.getStringExtra(AppConstants.USER_NAME))
-    assertEquals(null, launchResult.intent.getStringExtra(AppConstants.CONVERSATION_ID))
+    assertEquals(
+      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync("Alice"),
+      result,
+    )
   }
 
   @Test

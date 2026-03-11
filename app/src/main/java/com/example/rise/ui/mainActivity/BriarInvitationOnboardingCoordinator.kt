@@ -26,16 +26,22 @@ internal class BriarInvitationOnboardingCoordinator(
   ): Result = when (val result = acceptInvitationWhenReady(action.briarLink)) {
     is BriarInvitationAcceptanceResult.Accepted -> {
       val invitation = result.invitation
-      Result.LaunchChat(
-        intent = createChatIntent(
-          context,
-          ChatLaunchContract(
-            userId = invitation.duplicateKey,
-            userName = invitation.alias ?: invitation.duplicateKey,
-            conversationId = result.conversationId,
+      val displayName = invitation.alias ?: invitation.duplicateKey
+      val conversationId = result.conversationId
+      if (conversationId != null) {
+        Result.LaunchChat(
+          intent = createChatIntent(
+            context,
+            ChatLaunchContract(
+              userId = invitation.duplicateKey,
+              userName = displayName,
+              conversationId = conversationId,
+            ),
           ),
-        ),
-      )
+        )
+      } else {
+        Result.ContactAddedPendingSync(displayName)
+      }
     }
     is BriarInvitationAcceptanceResult.InvalidLink -> Result.InvalidInvitation(result.reason)
     is BriarInvitationAcceptanceResult.Failed -> Result.InvitationFailed(result.error)
