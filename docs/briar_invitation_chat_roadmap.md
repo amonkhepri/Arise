@@ -53,6 +53,7 @@
 - 2026-03-06: Added `agent-tools/invitation-link-json.sh` and documented latest bundle JSON output in `docs/invitation_artifact_toolkit.md`.
 - 2026-03-11: Added `agent-tools/install-briar-direct.sh` to download the official Briar direct APK and install it on the emulator for repeatable external-app testing of the invitation-to-chat flow.
 - 2026-03-11: Added `agent-tools/briar-peer-state.sh` so overnight runs can classify whether the external Briar peer app is missing, stuck on onboarding, locked, or ready before relying on it for end-to-end testing.
+- 2026-03-11: Updated `MainActivity` deep-link invitation onboarding feedback so classified duplicate, expired, and invalid Briar rejections surface specific user messages, with focused result-handler regression coverage.
 - 2026-03-11: Updated `BriarInvitationOnboardingCoordinator` to launch chat even when invite acceptance returns no `conversationId`, with regression coverage for deferred bootstrap launch.
 - 2026-03-11: Restored the safe pending-sync onboarding result when invite acceptance still returns no `conversationId`, with regression coverage for deferred bootstrap that never resolves.
 - 2026-03-11: Extracted `MainActivity` invitation onboarding result handling into a dedicated helper so direct chat launch and the preserved pending-sync fallback are both regression-tested at the activity handoff boundary.
