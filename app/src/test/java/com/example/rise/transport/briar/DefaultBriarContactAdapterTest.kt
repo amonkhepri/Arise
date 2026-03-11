@@ -32,7 +32,7 @@ class DefaultBriarContactAdapterTest {
     fun `observeContacts maps briar contacts`() = runTest {
         val contact = BriarContact(
             canonicalId = "canon",
-            transportAlias = "alias",
+            transportAlias = "canon",
             displayName = "Alias",
             presence = BriarPresenceStatus.ONLINE,
         )
@@ -48,14 +48,14 @@ class DefaultBriarContactAdapterTest {
         assertEquals(1, contacts.size)
         val mapped = contacts.first()
         assertEquals("canon", mapped.canonicalId)
-        assertEquals("alias", mapped.transportId)
+        assertEquals("canon", mapped.transportId)
     }
 
     @Test
     fun `observeContacts begins streaming when service availability flips to ready`() = runTest {
         val contact = BriarContact(
             canonicalId = "canon",
-            transportAlias = "alias",
+            transportAlias = "canon",
             displayName = "Alias",
             presence = BriarPresenceStatus.ONLINE,
         )
@@ -71,7 +71,7 @@ class DefaultBriarContactAdapterTest {
 
         val contacts = pendingContacts.await()
         assertEquals(1, contacts.size)
-        assertEquals("alias", contacts.first().transportId)
+        assertEquals("canon", contacts.first().transportId)
     }
 
     private fun fakeBridge(service: BriarContactService): TransportRuntimeBridge {

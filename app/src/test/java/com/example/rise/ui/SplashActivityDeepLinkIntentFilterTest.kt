@@ -25,10 +25,17 @@ class SplashActivityDeepLinkIntentFilterTest {
         )
     }
 
+    @Test
+    fun `splash activity exposes raw briar invitation deep link intent filter`() {
+        assertTrue(
+            hasViewBrowsableFilter(scheme = "briar"),
+        )
+    }
+
     private fun hasViewBrowsableFilter(
         scheme: String,
-        host: String,
-        path: String,
+        host: String? = null,
+        path: String? = null,
     ): Boolean {
         val splash = splashActivityElement() ?: return false
         val filterNodes = splash.getElementsByTagName("intent-filter")
@@ -72,14 +79,14 @@ class SplashActivityDeepLinkIntentFilterTest {
         return false
     }
 
-    private fun hasData(filter: Element, scheme: String, host: String, path: String): Boolean {
+    private fun hasData(filter: Element, scheme: String, host: String?, path: String?): Boolean {
         val dataNodes = filter.getElementsByTagName("data")
         for (index in 0 until dataNodes.length) {
             val data = dataNodes.item(index) as? Element ?: continue
             if (
                 data.getAttributeNS(ANDROID_NS, "scheme") == scheme &&
-                data.getAttributeNS(ANDROID_NS, "host") == host &&
-                data.getAttributeNS(ANDROID_NS, "path") == path
+                (host == null || data.getAttributeNS(ANDROID_NS, "host") == host) &&
+                (path == null || data.getAttributeNS(ANDROID_NS, "path") == path)
             ) {
                 return true
             }

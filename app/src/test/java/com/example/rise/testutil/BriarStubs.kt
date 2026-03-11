@@ -108,7 +108,7 @@ fun briarContact(
     presence: BriarPresenceStatus = BriarPresenceStatus.UNKNOWN,
 ): BriarContact = BriarContact(
     canonicalId = canonicalId,
-    transportAlias = alias,
+    transportAlias = canonicalId,
     displayName = alias,
     presence = presence,
 )

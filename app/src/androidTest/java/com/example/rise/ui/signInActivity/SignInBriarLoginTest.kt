@@ -2,6 +2,10 @@ package com.example.rise.ui.signInActivity
 
 import android.util.Log
 import android.app.Activity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
@@ -17,6 +21,7 @@ import org.junit.Rule
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.example.rise.R
 import com.example.rise.data.auth.BriarAccountRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -72,6 +77,30 @@ class SignInBriarLoginTest : KoinComponent {
         }
         Log.i(TAG, "Finished Briar sign-in UI test. Navigated=$navigated")
         assert(navigated) { "Expected to navigate to MainActivity after sign-in" }
+    }
+
+    @Test
+    fun signInWithBriarCredentials_rendersAuthenticatedShell() {
+        val nameNode = composeRule.onNodeWithTag(SignInTestTags.NameInput)
+        nameNode.performTextClearance()
+        nameNode.performTextInput("hackerman")
+
+        val emailNode = composeRule.onNodeWithTag(SignInTestTags.EmailInput)
+        emailNode.performTextClearance()
+
+        val passwordNode = composeRule.onNodeWithTag(SignInTestTags.PasswordInput)
+        passwordNode.performTextClearance()
+        passwordNode.performTextInput("123456")
+
+        composeRule.onNodeWithTag(SignInTestTags.PrimaryActionButton)
+            .performClick()
+
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            currentActivity() is com.example.rise.ui.mainActivity.MainActivity
+        }
+
+        onView(withId(R.id.bottomNavigation)).check(matches(isDisplayed()))
+        onView(withId(R.id.nav_host_fragment_container)).check(matches(isDisplayed()))
     }
 
     @Test

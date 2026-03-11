@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.example.rise.data.auth.AuthStateProvider
+import com.example.rise.data.auth.CompositeAuthStateProvider
 import com.example.rise.data.auth.DefaultTelegramAuthRepository
 import com.example.rise.data.auth.FirebaseAuthStateProvider
 import com.example.rise.data.auth.FirebaseSignInRepository
@@ -115,7 +116,8 @@ class App: Application() {
         single { IdentityBackfillScheduler(androidContext(), get(), get()) }
         single<TransportRuntimeBridge> { TransportRuntimeBridgeImpl(get(), get(), get()) }
 
-        single<AuthStateProvider> { FirebaseAuthStateProvider(get()) }
+        single { FirebaseAuthStateProvider(get()) }
+        single<AuthStateProvider> { CompositeAuthStateProvider(primary = get<FirebaseAuthStateProvider>(), identityRegistry = get()) }
         factory { BriarInvitationLinkParser() }
         factory { BriarInvitationDeepLinkEntrypoint(parser = get()) }
         single<SignInRepository> {
@@ -154,6 +156,14 @@ class App: Application() {
         single<BriarChatAdapter> { DefaultBriarChatAdapter(get()) }
         single<BriarContactAdapter> { DefaultBriarContactAdapter(get()) }
         single { BriarContactRepository(get()) }
+        factory {
+            BriarInvitationAcceptanceUseCase(
+                contactRepository = get(),
+                identityRegistry = get(),
+                transportRouter = get(),
+                parser = get(),
+            )
+        }
         factory { BriarManualInvitationCoordinator(useCase = get<BriarInvitationAcceptanceUseCase>()) }
         single {
             FirestoreConnector(

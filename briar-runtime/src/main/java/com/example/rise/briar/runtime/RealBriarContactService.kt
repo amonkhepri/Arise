@@ -100,7 +100,7 @@ class RealBriarContactService(
         val name = alias ?: author.name
         return BriarContact(
             canonicalId = id.int.toString(),
-            transportAlias = alias ?: "",
+            transportAlias = id.int.toString(),
             displayName = name,
             presence = BriarPresenceStatus.UNKNOWN,
         )

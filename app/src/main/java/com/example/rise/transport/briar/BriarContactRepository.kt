@@ -11,7 +11,7 @@ class BriarContactRepository(
     private val runtimeNotReadyError: () -> IllegalStateException = { IllegalStateException("Briar runtime is not ready") },
 ) {
 
-    suspend fun addContactByLink(link: String, alias: String?="test") {
+    suspend fun addContactByLink(link: String, alias: String? = null) {
         val service = transportRuntimeBridge.briarContactService.value
         if (!service.isAvailable) throw runtimeNotReadyError()
         service.addContactByLink(link, alias)

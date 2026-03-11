@@ -102,3 +102,4 @@ The `agent-tools/invitation-link-json.sh` script prints JSON metadata for the la
 ```
 
 The JSON output is convenient for programmatic consumption or embedding in documentation.
+- 2026-03-06: Added `agent-tools/invitation-link-json.sh` and documented latest bundle JSON output in `docs/invitation_artifact_toolkit.md`.

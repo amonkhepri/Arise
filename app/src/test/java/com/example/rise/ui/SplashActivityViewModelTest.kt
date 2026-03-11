@@ -75,6 +75,22 @@ class SplashActivityViewModelTest {
         }
     }
 
+    @Test
+    fun `routes raw briar invitation deep link to main when user signed out`() = runTest {
+        val viewModel = SplashActivityViewModel(FakeAuthStateProvider(isSignedIn = false))
+
+        viewModel.events.test {
+            viewModel.determineDestination(rawDeepLink = "briar://abc123")
+
+            val event = awaitItem()
+            assertTrue(event is SplashActivityViewModel.NavigationEvent.ToMain)
+            event as SplashActivityViewModel.NavigationEvent.ToMain
+            assertEquals("briar://abc123", event.onboardingAction?.briarLink)
+            assertEquals("link:briar://abc123", event.onboardingAction?.duplicateKey)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun encode(value: String): String {
         return URLEncoder.encode(value, StandardCharsets.UTF_8.toString())
     }

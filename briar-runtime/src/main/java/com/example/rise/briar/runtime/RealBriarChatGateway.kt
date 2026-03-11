@@ -71,7 +71,11 @@ class RealBriarChatGateway(
         descriptor: BriarConversationDescriptor
     ): BriarConversation {
         require(readiness.value is BriarReadinessStatus.Ready) { "Briar runtime is not ready" }
-        val contactId = descriptor.participantIds.singleOrNull()?.toIntOrNull()
+        val localId = localIdentityId().takeIf { it.isNotBlank() }
+        val remoteParticipantIds = descriptor.participantIds
+            .filterNot { participantId -> localId != null && participantId == localId }
+        val contactId = remoteParticipantIds.singleOrNull()?.toIntOrNull()
+            ?: descriptor.participantIds.singleOrNull()?.toIntOrNull()
             ?: throw IllegalArgumentException("Expected exactly one numeric Briar contact id")
         val contact = org.briarproject.bramble.api.contact.ContactId(contactId)
         val groupId = messagingManager.getConversationId(contact)
