@@ -1,6 +1,9 @@
 package com.example.rise.ui.mainActivity
 
 import android.content.Intent
+import com.example.rise.transport.briar.invite.BriarInvitationDuplicateFailure
+import com.example.rise.transport.briar.invite.BriarInvitationExpiredFailure
+import com.example.rise.transport.briar.invite.BriarInvitationInvalidFailure
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -50,6 +53,78 @@ class BriarInvitationOnboardingResultHandlerTest {
       listOf(BriarInvitationOnboardingResultHandler.pendingSyncMessage("Alice")),
       shownMessages,
     )
+    assertEquals(1, handledCount)
+  }
+
+  @Test
+  fun `duplicate invitation failure shows duplicate-specific feedback`() {
+    val launchedIntents = mutableListOf<Intent>()
+    val shownMessages = mutableListOf<String>()
+    val loggedFailures = mutableListOf<Throwable>()
+    var handledCount = 0
+    val handler = BriarInvitationOnboardingResultHandler(
+      launchChat = { intent -> launchedIntents += intent },
+      showMessage = { message -> shownMessages += message },
+      markHandled = { handledCount += 1 },
+      logInvalidInvitation = { error("invalid invitation should not be logged for duplicate failure") },
+      logInvitationFailure = { error -> loggedFailures += error },
+    )
+    val failure = BriarInvitationDuplicateFailure(IllegalStateException("already used"))
+
+    handler.handle(BriarInvitationOnboardingCoordinator.Result.InvitationFailed(failure))
+
+    assertTrue(launchedIntents.isEmpty())
+    assertEquals(listOf("This Briar invitation link was already used."), shownMessages)
+    assertEquals(listOf(failure), loggedFailures)
+    assertEquals(1, handledCount)
+  }
+
+  @Test
+  fun `expired invitation failure shows expired-specific feedback`() {
+    val launchedIntents = mutableListOf<Intent>()
+    val shownMessages = mutableListOf<String>()
+    val loggedFailures = mutableListOf<Throwable>()
+    var handledCount = 0
+    val handler = BriarInvitationOnboardingResultHandler(
+      launchChat = { intent -> launchedIntents += intent },
+      showMessage = { message -> shownMessages += message },
+      markHandled = { handledCount += 1 },
+      logInvalidInvitation = { error("invalid invitation should not be logged for expired failure") },
+      logInvitationFailure = { error -> loggedFailures += error },
+    )
+    val failure = BriarInvitationExpiredFailure(IllegalStateException("expired"))
+
+    handler.handle(BriarInvitationOnboardingCoordinator.Result.InvitationFailed(failure))
+
+    assertTrue(launchedIntents.isEmpty())
+    assertEquals(
+      listOf("This Briar invitation link has expired. Ask for a new one."),
+      shownMessages,
+    )
+    assertEquals(listOf(failure), loggedFailures)
+    assertEquals(1, handledCount)
+  }
+
+  @Test
+  fun `invalid invitation failure shows invalid-specific feedback`() {
+    val launchedIntents = mutableListOf<Intent>()
+    val shownMessages = mutableListOf<String>()
+    val loggedFailures = mutableListOf<Throwable>()
+    var handledCount = 0
+    val handler = BriarInvitationOnboardingResultHandler(
+      launchChat = { intent -> launchedIntents += intent },
+      showMessage = { message -> shownMessages += message },
+      markHandled = { handledCount += 1 },
+      logInvalidInvitation = { error("invalid invitation should not be logged for invalid failure") },
+      logInvitationFailure = { error -> loggedFailures += error },
+    )
+    val failure = BriarInvitationInvalidFailure(IllegalArgumentException("invalid"))
+
+    handler.handle(BriarInvitationOnboardingCoordinator.Result.InvitationFailed(failure))
+
+    assertTrue(launchedIntents.isEmpty())
+    assertEquals(listOf("Invalid Briar invitation link."), shownMessages)
+    assertEquals(listOf(failure), loggedFailures)
     assertEquals(1, handledCount)
   }
 }

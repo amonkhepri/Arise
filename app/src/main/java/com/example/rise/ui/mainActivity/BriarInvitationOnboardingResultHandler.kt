@@ -1,6 +1,8 @@
 package com.example.rise.ui.mainActivity
 
 import android.content.Intent
+import com.example.rise.transport.briar.invite.BriarInvitationClassifiedFailure
+import com.example.rise.transport.briar.invite.BriarInvitationRejectionReason
 
 internal class BriarInvitationOnboardingResultHandler(
     private val launchChat: (Intent) -> Unit,
@@ -27,15 +29,28 @@ internal class BriarInvitationOnboardingResultHandler(
             }
             is BriarInvitationOnboardingCoordinator.Result.InvitationFailed -> {
                 logInvitationFailure(result.error)
-                showMessage(INVITATION_FAILED_MESSAGE)
+                showMessage(messageFor(result.error))
                 markHandled()
             }
         }
     }
 
+    private fun messageFor(error: Throwable): String {
+        val rejectionReason = (error as? BriarInvitationClassifiedFailure)?.reason
+        return when (rejectionReason) {
+            BriarInvitationRejectionReason.DUPLICATE -> DUPLICATE_INVITATION_MESSAGE
+            BriarInvitationRejectionReason.EXPIRED -> EXPIRED_INVITATION_MESSAGE
+            BriarInvitationRejectionReason.INVALID -> INVALID_LINK_MESSAGE
+            null -> INVITATION_FAILED_MESSAGE
+        }
+    }
+
     companion object {
-        internal const val INVALID_LINK_MESSAGE = "Invalid Briar invitation link"
-        internal const val INVITATION_FAILED_MESSAGE = "Unable to add Briar contact"
+        internal const val DUPLICATE_INVITATION_MESSAGE = "This Briar invitation link was already used."
+        internal const val EXPIRED_INVITATION_MESSAGE =
+            "This Briar invitation link has expired. Ask for a new one."
+        internal const val INVALID_LINK_MESSAGE = "Invalid Briar invitation link."
+        internal const val INVITATION_FAILED_MESSAGE = "Unable to add Briar contact."
 
         internal fun pendingSyncMessage(displayName: String): String =
             "Briar contact added. Wait for $displayName to finish connecting, then open the chat from People."
