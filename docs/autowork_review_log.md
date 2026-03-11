@@ -445,3 +445,18 @@ Entry template:
   - `none`
 - Next executor action:
   - `Restore a safe deferred-bootstrap invitation path and add regression coverage for accepted invites that still return no conversation id.`
+
+## 2026-03-11T22:16:46Z
+- Reviewer commit: `pending`
+- Target executor commit: `68d91ecca85236bad6a41a504c695d261e74f9d4`
+- Outcome: `approved`
+- Status reason:
+  - `Approved commit 68d91ecca85236bad6a41a504c695d261e74f9d4: the coordinator restores the safe pending-sync fallback when invitation acceptance still cannot resolve a conversation id.`
+- Feedback:
+  - `No blocking findings; continue the invitation-to-chat roadmap with the next task.`
+- Findings:
+  - `none`
+- Validation:
+  - `./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowBriarOnlyTest --timeout 900` (passed)
+- Next executor action:
+  - `Continue docs/briar_invitation_chat_roadmap.md with the next invitation-to-chat task now that the pending-sync fallback is restored.`
