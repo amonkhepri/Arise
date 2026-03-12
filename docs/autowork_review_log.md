@@ -550,3 +550,18 @@ Entry template:
   - `./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowHybridTest --timeout 900` (`BUILD SUCCESSFUL`)
 - Next executor action:
   - `Continue to the next planned Briar invitation -> add-user -> first-message work item.`
+
+## 2026-03-12T07:01:15Z
+- Reviewer commit: `pending`
+- Target executor commit: `916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3`
+- Outcome: `needs_fix`
+- Status reason:
+  - `Needs fix for commit 916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3: MainActivity invitation onboarding coverage invokes the private handler directly on a CREATED activity instead of exercising the repeatOnLifecycle(STARTED) path.`
+- Feedback:
+  - `Replace the reflective CREATED-state test with a lifecycle-driven MainActivity regression that starts the activity and proves the queued invitation intent reaches chat launch through the STARTED uiState collector.`
+- Findings:
+  - `app/src/test/java/com/example/rise/ui/mainActivity/MainActivityInvitationOnboardingTest.kt:78 only creates MainActivity and app/src/test/java/com/example/rise/ui/mainActivity/MainActivityInvitationOnboardingTest.kt:82 invokes maybeHandlePendingInvitationOnboarding() via reflection, while the production entry point lives in app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt:92 and app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt:105 inside repeatOnLifecycle(STARTED), so this regression would still pass if the real lifecycle wiring broke.`
+- Validation:
+  - `none`
+- Next executor action:
+  - `Replace the reflective CREATED-state test with a STARTED/RESUMED MainActivity regression that drives the queued invitation intent through the real uiState collector and asserts the chat launch extras.`
