@@ -4,6 +4,7 @@ import android.content.Intent
 import com.example.rise.transport.briar.invite.BriarInvitationDuplicateFailure
 import com.example.rise.transport.briar.invite.BriarInvitationExpiredFailure
 import com.example.rise.transport.briar.invite.BriarInvitationInvalidFailure
+import com.example.rise.transport.briar.invite.BriarInvitationLinkParseResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -60,13 +61,14 @@ class BriarInvitationOnboardingResultHandlerTest {
   fun `duplicate invitation failure shows duplicate-specific feedback`() {
     val launchedIntents = mutableListOf<Intent>()
     val shownMessages = mutableListOf<String>()
+    val loggedInvalidInvitations = mutableListOf<BriarInvitationOnboardingCoordinator.Result.InvalidInvitation>()
     val loggedFailures = mutableListOf<Throwable>()
     var handledCount = 0
     val handler = BriarInvitationOnboardingResultHandler(
       launchChat = { intent -> launchedIntents += intent },
       showMessage = { message -> shownMessages += message },
       markHandled = { handledCount += 1 },
-      logInvalidInvitation = { error("invalid invitation should not be logged for duplicate failure") },
+      logInvalidInvitation = { result -> loggedInvalidInvitations += result },
       logInvitationFailure = { error -> loggedFailures += error },
     )
     val failure = BriarInvitationDuplicateFailure(IllegalStateException("already used"))
@@ -75,7 +77,8 @@ class BriarInvitationOnboardingResultHandlerTest {
 
     assertTrue(launchedIntents.isEmpty())
     assertEquals(listOf("This Briar invitation link was already used."), shownMessages)
-    assertEquals(listOf(failure), loggedFailures)
+    assertTrue(loggedInvalidInvitations.isEmpty())
+    assertTrue(loggedFailures.isEmpty())
     assertEquals(1, handledCount)
   }
 
@@ -83,13 +86,14 @@ class BriarInvitationOnboardingResultHandlerTest {
   fun `expired invitation failure shows expired-specific feedback`() {
     val launchedIntents = mutableListOf<Intent>()
     val shownMessages = mutableListOf<String>()
+    val loggedInvalidInvitations = mutableListOf<BriarInvitationOnboardingCoordinator.Result.InvalidInvitation>()
     val loggedFailures = mutableListOf<Throwable>()
     var handledCount = 0
     val handler = BriarInvitationOnboardingResultHandler(
       launchChat = { intent -> launchedIntents += intent },
       showMessage = { message -> shownMessages += message },
       markHandled = { handledCount += 1 },
-      logInvalidInvitation = { error("invalid invitation should not be logged for expired failure") },
+      logInvalidInvitation = { result -> loggedInvalidInvitations += result },
       logInvitationFailure = { error -> loggedFailures += error },
     )
     val failure = BriarInvitationExpiredFailure(IllegalStateException("expired"))
@@ -101,7 +105,8 @@ class BriarInvitationOnboardingResultHandlerTest {
       listOf("This Briar invitation link has expired. Ask for a new one."),
       shownMessages,
     )
-    assertEquals(listOf(failure), loggedFailures)
+    assertTrue(loggedInvalidInvitations.isEmpty())
+    assertTrue(loggedFailures.isEmpty())
     assertEquals(1, handledCount)
   }
 
@@ -109,13 +114,14 @@ class BriarInvitationOnboardingResultHandlerTest {
   fun `invalid invitation failure shows invalid-specific feedback`() {
     val launchedIntents = mutableListOf<Intent>()
     val shownMessages = mutableListOf<String>()
+    val loggedInvalidInvitations = mutableListOf<BriarInvitationOnboardingCoordinator.Result.InvalidInvitation>()
     val loggedFailures = mutableListOf<Throwable>()
     var handledCount = 0
     val handler = BriarInvitationOnboardingResultHandler(
       launchChat = { intent -> launchedIntents += intent },
       showMessage = { message -> shownMessages += message },
       markHandled = { handledCount += 1 },
-      logInvalidInvitation = { error("invalid invitation should not be logged for invalid failure") },
+      logInvalidInvitation = { result -> loggedInvalidInvitations += result },
       logInvitationFailure = { error -> loggedFailures += error },
     )
     val failure = BriarInvitationInvalidFailure(IllegalArgumentException("invalid"))
@@ -124,6 +130,59 @@ class BriarInvitationOnboardingResultHandlerTest {
 
     assertTrue(launchedIntents.isEmpty())
     assertEquals(listOf("Invalid Briar invitation link."), shownMessages)
+    assertTrue(loggedInvalidInvitations.isEmpty())
+    assertTrue(loggedFailures.isEmpty())
+    assertEquals(1, handledCount)
+  }
+
+  @Test
+  fun `parse invalid invitation logs invalid action and shows invalid feedback`() {
+    val launchedIntents = mutableListOf<Intent>()
+    val shownMessages = mutableListOf<String>()
+    val loggedInvalidInvitations = mutableListOf<BriarInvitationOnboardingCoordinator.Result.InvalidInvitation>()
+    val loggedFailures = mutableListOf<Throwable>()
+    var handledCount = 0
+    val handler = BriarInvitationOnboardingResultHandler(
+      launchChat = { intent -> launchedIntents += intent },
+      showMessage = { message -> shownMessages += message },
+      markHandled = { handledCount += 1 },
+      logInvalidInvitation = { result -> loggedInvalidInvitations += result },
+      logInvitationFailure = { error -> loggedFailures += error },
+    )
+    val invalidResult = BriarInvitationOnboardingCoordinator.Result.InvalidInvitation(
+      BriarInvitationLinkParseResult.InvalidReason.INVALID_BRIAR_LINK,
+    )
+
+    handler.handle(invalidResult)
+
+    assertTrue(launchedIntents.isEmpty())
+    assertEquals(listOf("Invalid Briar invitation link."), shownMessages)
+    assertEquals(listOf(invalidResult), loggedInvalidInvitations)
+    assertTrue(loggedFailures.isEmpty())
+    assertEquals(1, handledCount)
+  }
+
+  @Test
+  fun `generic invitation failure logs hard failure and shows fallback feedback`() {
+    val launchedIntents = mutableListOf<Intent>()
+    val shownMessages = mutableListOf<String>()
+    val loggedInvalidInvitations = mutableListOf<BriarInvitationOnboardingCoordinator.Result.InvalidInvitation>()
+    val loggedFailures = mutableListOf<Throwable>()
+    var handledCount = 0
+    val handler = BriarInvitationOnboardingResultHandler(
+      launchChat = { intent -> launchedIntents += intent },
+      showMessage = { message -> shownMessages += message },
+      markHandled = { handledCount += 1 },
+      logInvalidInvitation = { result -> loggedInvalidInvitations += result },
+      logInvitationFailure = { error -> loggedFailures += error },
+    )
+    val failure = IllegalStateException("boom")
+
+    handler.handle(BriarInvitationOnboardingCoordinator.Result.InvitationFailed(failure))
+
+    assertTrue(launchedIntents.isEmpty())
+    assertEquals(listOf("Unable to add Briar contact."), shownMessages)
+    assertTrue(loggedInvalidInvitations.isEmpty())
     assertEquals(listOf(failure), loggedFailures)
     assertEquals(1, handledCount)
   }

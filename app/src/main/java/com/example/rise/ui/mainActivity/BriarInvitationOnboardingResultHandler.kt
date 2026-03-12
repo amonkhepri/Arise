@@ -28,15 +28,20 @@ internal class BriarInvitationOnboardingResultHandler(
                 markHandled()
             }
             is BriarInvitationOnboardingCoordinator.Result.InvitationFailed -> {
-                logInvitationFailure(result.error)
-                showMessage(messageFor(result.error))
+                val rejectionReason = rejectionReasonFor(result.error)
+                if (rejectionReason == null) {
+                    logInvitationFailure(result.error)
+                }
+                showMessage(messageFor(rejectionReason))
                 markHandled()
             }
         }
     }
 
-    private fun messageFor(error: Throwable): String {
-        val rejectionReason = (error as? BriarInvitationClassifiedFailure)?.reason
+    private fun rejectionReasonFor(error: Throwable): BriarInvitationRejectionReason? =
+        (error as? BriarInvitationClassifiedFailure)?.reason
+
+    private fun messageFor(rejectionReason: BriarInvitationRejectionReason?): String {
         return when (rejectionReason) {
             BriarInvitationRejectionReason.DUPLICATE -> DUPLICATE_INVITATION_MESSAGE
             BriarInvitationRejectionReason.EXPIRED -> EXPIRED_INVITATION_MESSAGE
