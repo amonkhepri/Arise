@@ -131,6 +131,29 @@ class BriarInvitationOnboardingCoordinatorTest {
   }
 
   @Test
+  fun acceptAcceptedInvitationReturnsPendingSyncWhenConversationIdIsBlank() = runBlocking {
+    val coordinator = BriarInvitationOnboardingCoordinator(
+      acceptInvitation = { rawLink ->
+        BriarInvitationAcceptanceResult.Accepted(
+          invitation = invitation(
+            briarLink = rawLink,
+            alias = "Alice",
+            duplicateKey = "peer-123",
+          ),
+          conversationId = "   ",
+        )
+      },
+    )
+
+    val result = coordinator.accept(context, onboardingAction())
+
+    assertEquals(
+      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync("Alice"),
+      result,
+    )
+  }
+
+  @Test
   fun acceptFailedInvitationReturnsExplicitFailureResult() = runBlocking {
     val error = IllegalStateException("Briar unavailable")
     val coordinator = BriarInvitationOnboardingCoordinator(

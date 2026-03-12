@@ -28,6 +28,8 @@ internal class BriarInvitationOnboardingCoordinator(
       val invitation = result.invitation
       val displayName = invitation.alias ?: invitation.duplicateKey
       val conversationId = result.conversationId
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
       if (conversationId != null) {
         Result.LaunchChat(
           intent = createChatIntent(
