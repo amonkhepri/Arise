@@ -11,6 +11,8 @@ import com.example.rise.briar.runtime.NoOpBriarChatGateway
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,9 +38,34 @@ class BriarContactRepositoryTest {
     }
 
     @Test
+    fun `addContactByLink waits for contact service availability on cold start`() = runTest {
+        val unavailableService = RecordingContactService(isAvailable = false)
+        val availableService = RecordingContactService(isAvailable = true)
+        val services = MutableStateFlow<BriarContactService>(unavailableService)
+        val repository = BriarContactRepository(
+            transportRuntimeBridge = fakeBridge(services),
+            serviceAvailabilityTimeoutMillis = 5_000L,
+        )
+        val link = validLink()
+
+        backgroundScope.launch {
+            delay(2_500L)
+            services.value = availableService
+        }
+
+        repository.addContactByLink(link, "Alias")
+
+        assertEquals(emptyList<Pair<String, String?>>(), unavailableService.calls)
+        assertEquals(listOf(link to "Alias"), availableService.calls)
+    }
+
+    @Test
     fun `addContactByLink throws when runtime not ready`() = runTest {
         val service = RecordingContactService(isAvailable = false)
-        val repository = BriarContactRepository(fakeBridge(service))
+        val repository = BriarContactRepository(
+            transportRuntimeBridge = fakeBridge(service),
+            serviceAvailabilityTimeoutMillis = 1L,
+        )
 
         val error = try {
             repository.addContactByLink(validLink(), "Alias")
@@ -90,7 +117,10 @@ class BriarContactRepositoryTest {
             isAvailable = false,
             handshakeLink = validLink(),
         )
-        val repository = BriarContactRepository(fakeBridge(service))
+        val repository = BriarContactRepository(
+            transportRuntimeBridge = fakeBridge(service),
+            serviceAvailabilityTimeoutMillis = 1L,
+        )
 
         val error = try {
             repository.getHandshakeLink()
@@ -128,10 +158,15 @@ class BriarContactRepositoryTest {
     private fun validLink(): String = "briar://${"b".repeat(53)}" // handshake link length
 
     private fun fakeBridge(service: BriarContactService): TransportRuntimeBridge {
+        return fakeBridge(MutableStateFlow(service))
+    }
+
+    private fun fakeBridge(
+        contacts: MutableStateFlow<BriarContactService>,
+    ): TransportRuntimeBridge {
         val mode = MutableStateFlow(BriarTransportMode.BRIAR_ONLY)
         val status = MutableStateFlow(BriarRuntimeStatus(BriarRuntimePhase.RUNNING))
         val chat = MutableStateFlow<BriarChatGateway>(NoOpBriarChatGateway)
-        val contacts = MutableStateFlow(service)
         return object : TransportRuntimeBridge {
             override val currentMode: StateFlow<BriarTransportMode> = mode
             override val runtimeStatus: StateFlow<BriarRuntimeStatus> = status

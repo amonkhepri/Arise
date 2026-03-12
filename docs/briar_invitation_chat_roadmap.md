@@ -3,6 +3,16 @@
 ## Goal
 - Make it possible for a user to open a Briar invitation link, add that person, and start chatting with them in one flow.
 
+## Shared Test Inputs
+- Live Briar invitation link for app-to-app validation on `emulator-5554` as of 2026-03-12:
+  `briar://aaqazb4vgyzsltlepldcg5caw56y4rogadsr37vinguphil6o5uwc`
+
+## Agent Notes
+- As of 2026-03-12, cold external launch with the live link no longer logs `Failed to accept Briar invitation` or `Briar runtime is not ready` after the repository-side readiness wait was added in `BriarContactRepository`.
+- The remaining observed issue is downstream: the app still stays on `MainActivity` and does not reach chat within the current smoke window, even though the generic `Unable to add Briar contact.` failure path is no longer firing.
+- When validating this link, do not classify the flow from a 6-second window alone. Check logcat and resumed activity after at least 12-15 seconds before deciding whether the remaining bug is navigation, conversation bootstrap, or pending-sync handling.
+- Preferred helpers for this slice: `agent-tools/briar-peer-state.sh`, `agent-tools/briar-invitation-e2e-diagnose.sh`, and `agent-tools/invitation-link-logcat.sh`.
+
 ## Definition of Done (First Slice)
 - A valid invitation link can be opened from inside or outside the app.
 - The app resolves the invitation through Briar contact onboarding.
