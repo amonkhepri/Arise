@@ -211,6 +211,62 @@ class BriarInvitationChatFlowBriarOnlyTest {
   }
 
   @Test
+  fun `raw external briar invitation stays pending sync when bootstrap returns whitespace conversation id`() = runTest {
+    val addedContacts = mutableListOf<Pair<String, String?>>()
+    val contactService = stubBriarContactService(
+      isAvailable = true,
+      onAddContactByLink = { link, alias -> addedContacts += link to alias },
+    )
+    val bridge = stubTransportRuntimeBridge(
+      mode = BriarTransportMode.BRIAR_ONLY,
+      contactService = contactService,
+    )
+    val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+    val briarConnector = RecordingConnector(transport = TransportId.BRIAR)
+    val firestoreConnector = RecordingConnector(transport = TransportId.FIRESTORE).apply {
+      transportAliasGenerator = { canonicalId -> "firestore-$canonicalId" }
+    }
+    val router = TransportRouterImpl(
+      transportBridge = bridge,
+      connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+      conversationStore = InMemoryConversationStore(),
+      identityRegistry = identityRegistry,
+      dispatcher = StandardTestDispatcher(testScheduler),
+    )
+    val whitespaceConversationIdRouter = WhitespaceConversationIdRouter(
+      delegate = router,
+      conversationId = "   ",
+    )
+    val coordinator = BriarInvitationOnboardingCoordinator(
+      useCase = BriarInvitationAcceptanceUseCase(
+        contactRepository = BriarContactRepository(bridge),
+        identityRegistry = identityRegistry,
+        transportRouter = whitespaceConversationIdRouter,
+      ),
+    )
+    val action = BriarInvitationOnboardingCoordinator.consumePendingAction(
+      Intent(Intent.ACTION_VIEW, Uri.parse(externalInvitationLink())),
+    )
+
+    assertNotNull(action)
+    val onboardingAction = requireNotNull(action)
+
+    val result = coordinator.accept(context, onboardingAction)
+    advanceUntilIdle()
+
+    assertEquals(listOf(externalInvitationLink() to null), addedContacts)
+    assertEquals(1, whitespaceConversationIdRouter.ensureConversationCalls)
+    assertEquals(
+      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync(
+        "link:${externalInvitationLink()}",
+      ),
+      result,
+    )
+    assertTrue(briarConnector.sentMessages.isEmpty())
+    assertTrue(firestoreConnector.sentMessages.isEmpty())
+  }
+
+  @Test
   fun `resolved invitation launches briar-only chat and sends first message only through briar`() = runTest {
     val addedContacts = mutableListOf<Pair<String, String?>>()
     val contactService = stubBriarContactService(
@@ -437,12 +493,24 @@ class BriarInvitationChatFlowBriarOnlyTest {
   ) : com.example.rise.transport.router.TransportRouter by delegate {
     var ensureConversationAttempts = 0
 
-    override suspend fun ensureConversation(peerIdentity: CanonicalIdentity): CanonicalConversation {
+    override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
       ensureConversationAttempts += 1
       if (ensureConversationAttempts <= deferredFailuresBeforeSuccess) {
-        throw IllegalArgumentException("Missing numeric Briar contact id for ${peerIdentity.id}")
+        throw IllegalArgumentException("Missing numeric Briar contact id for ${otherIdentity.id}")
       }
-      return delegate.ensureConversation(peerIdentity)
+      return delegate.ensureConversation(otherIdentity)
+    }
+  }
+
+  private class WhitespaceConversationIdRouter(
+    private val delegate: TransportRouterImpl,
+    private val conversationId: String,
+  ) : com.example.rise.transport.router.TransportRouter by delegate {
+    var ensureConversationCalls = 0
+
+    override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
+      ensureConversationCalls += 1
+      return delegate.ensureConversation(otherIdentity).copy(id = conversationId)
     }
   }
 
