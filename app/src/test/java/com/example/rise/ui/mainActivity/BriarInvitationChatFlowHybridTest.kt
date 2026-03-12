@@ -156,6 +156,60 @@ class BriarInvitationChatFlowHybridTest {
     assertEquals("Hello from hybrid invite", briarConnector.sentMessages.single().body)
   }
 
+  @Test
+  fun `resolved invitation stays pending sync in hybrid mode when bootstrap returns whitespace conversation id`() = runTest {
+    val addedContacts = mutableListOf<Pair<String, String?>>()
+    val contactService = stubBriarContactService(
+      isAvailable = true,
+      onAddContactByLink = { link, alias -> addedContacts += link to alias },
+    )
+    val bridge = stubTransportRuntimeBridge(
+      mode = BriarTransportMode.HYBRID,
+      contactService = contactService,
+    )
+    val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+    val briarConnector = RecordingConnector(transport = TransportId.BRIAR)
+    val firestoreConnector = RecordingConnector(transport = TransportId.FIRESTORE).apply {
+      transportAliasGenerator = { canonicalId -> "firestore-$canonicalId" }
+    }
+    val router = TransportRouterImpl(
+      transportBridge = bridge,
+      connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+      conversationStore = InMemoryConversationStore(),
+      identityRegistry = identityRegistry,
+      dispatcher = StandardTestDispatcher(testScheduler),
+    )
+    val whitespaceConversationIdRouter = WhitespaceConversationIdRouter(
+      delegate = router,
+      conversationId = "   ",
+    )
+    val coordinator = BriarInvitationOnboardingCoordinator(
+      useCase = BriarInvitationAcceptanceUseCase(
+        contactRepository = BriarContactRepository(bridge),
+        identityRegistry = identityRegistry,
+        transportRouter = whitespaceConversationIdRouter,
+      ),
+    )
+    val action = BriarInvitationDeepLinkEntrypoint().resolve(
+      wrappedInvite(alias = "Alice", inviteId = "INV-42"),
+    )
+
+    assertNotNull(action)
+    val onboardingAction = requireNotNull(action)
+
+    val result = coordinator.accept(context, onboardingAction)
+    advanceUntilIdle()
+
+    assertEquals(listOf(validLink() to null), addedContacts)
+    assertEquals(1, whitespaceConversationIdRouter.ensureConversationCalls)
+    assertEquals(
+      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync("link:${validLink()}"),
+      result,
+    )
+    assertTrue(briarConnector.sentMessages.isEmpty())
+    assertTrue(firestoreConnector.sentMessages.isEmpty())
+  }
+
   private fun validLink(): String = "briar://${"b".repeat(53)}"
 
   private fun wrappedInvite(alias: String, inviteId: String): String {
@@ -287,6 +341,18 @@ class BriarInvitationChatFlowHybridTest {
 
     override suspend fun sendMessage(message: ConnectorOutboundMessage) {
       sentMessages += message
+    }
+  }
+
+  private class WhitespaceConversationIdRouter(
+    private val delegate: TransportRouterImpl,
+    private val conversationId: String,
+  ) : com.example.rise.transport.router.TransportRouter by delegate {
+    var ensureConversationCalls = 0
+
+    override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
+      ensureConversationCalls += 1
+      return delegate.ensureConversation(otherIdentity).copy(id = conversationId)
     }
   }
 
