@@ -21,7 +21,7 @@ class DataStoreTransportModeProvider(
         return dataStore.data
             .catch { error ->
                 if (error is IOException) {
-                    Timber.tag(TAG).e(error, "Failed to read transport mode; defaulting to Firestore.")
+                    Timber.tag(TAG).e(error, "Failed to read transport mode; defaulting to Hybrid.")
                     emit(emptyPreferences())
                 } else {
                     throw error

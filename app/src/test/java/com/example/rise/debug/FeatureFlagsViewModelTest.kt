@@ -13,7 +13,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -28,7 +27,6 @@ class FeatureFlagsViewModelTest {
     @get:Rule val mainDispatcherRule = MainDispatcherRule()
     @get:Rule val temporaryFolder = TemporaryFolder()
 
-    private val dispatcher = StandardTestDispatcher()
     private lateinit var scope: CoroutineScope
     private lateinit var dataStore: DataStore<Preferences>
     private lateinit var transportProvider: DataStoreTransportModeProvider
@@ -37,11 +35,10 @@ class FeatureFlagsViewModelTest {
     private fun drain() {
         // run queued work on both dispatcher contexts
         mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
-        dispatcher.scheduler.advanceUntilIdle()
     }
 
     private fun createViewModel(): FeatureFlagsViewModel {
-        scope = CoroutineScope(SupervisorJob() + dispatcher)
+        scope = CoroutineScope(SupervisorJob() + mainDispatcherRule.testDispatcher)
         val file = File(temporaryFolder.newFolder(), "flags.preferences_pb")
         dataStore = PreferenceDataStoreFactory.create(scope = scope, produceFile = { file })
         transportProvider = DataStoreTransportModeProvider(dataStore)
@@ -57,30 +54,25 @@ class FeatureFlagsViewModelTest {
     }
 
     @Test
-    fun `initial state defaults to Firestore and disables Telegram`() = runTest {
+    fun `initial state defaults to Hybrid and disables Telegram`() = runTest {
         val viewModel = createViewModel()
         drain()
 
         val state = viewModel.state.value
-        assertEquals(BriarTransportMode.FIRESTORE, state.mode)
+        assertEquals(BriarTransportMode.HYBRID, state.mode)
         assertFalse(state.telegramAuthEnabled)
     }
 
     @Test
-    fun `non Firestore selection emits warning and keeps Firestore`() = runTest {
+    fun `mode selection updates backing provider`() = runTest {
         val viewModel = createViewModel()
         drain()
 
-        viewModel.events.test {
-            viewModel.setMode(BriarTransportMode.HYBRID)
-            drain()
-            val event = awaitItem() as FeatureFlagsViewModel.Event.ShowMessageRes
-            assertEquals(com.example.rise.R.string.feature_flags_transport_mode_stage0_warning, event.messageRes)
-            cancelAndIgnoreRemainingEvents()
-        }
+        viewModel.setMode(BriarTransportMode.BRIAR_ONLY)
+        drain()
 
-        val state = viewModel.state.value
-        assertEquals(BriarTransportMode.FIRESTORE, state.mode)
+        assertEquals(BriarTransportMode.BRIAR_ONLY, transportProvider.getMode())
+        assertEquals(BriarTransportMode.BRIAR_ONLY, viewModel.state.value.mode)
     }
 
 }
