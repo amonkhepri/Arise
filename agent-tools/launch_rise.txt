@@ -1,0 +1,2 @@
+text Rise
+sleep 0.5

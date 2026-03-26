@@ -18,4 +18,14 @@ dependencyResolutionManagement {
 
 rootProject.name = "Arise"
 include ':app'
-includeBuild("briar")
+include ':briar-runtime'
+includeBuild("briar") {
+    dependencySubstitution {
+        substitute(module("org.briarproject:bramble-api")).using(project(":bramble-api"))
+        substitute(module("org.briarproject:bramble-core")).using(project(":bramble-core"))
+        substitute(module("org.briarproject:bramble-java")).using(project(":bramble-java"))
+        substitute(module("org.briarproject:briar-api")).using(project(":briar-api"))
+        substitute(module("org.briarproject:briar-core")).using(project(":briar-core"))
+        substitute(module("org.briarproject:briar-headless")).using(project(":briar-headless"))
+    }
+}

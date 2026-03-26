@@ -1,0 +1,269 @@
+package com.example.rise.data.myaccount
+
+import com.example.rise.auth.AuthenticationService
+import com.example.rise.data.people.PeopleSync
+import com.example.rise.models.User
+import com.example.rise.briar.runtime.BriarRuntimeManager
+import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.router.AccountConnector
+import com.example.rise.transport.router.ConnectorLifecycleState
+import com.example.rise.transport.router.ConnectorRegistry
+import com.example.rise.transport.router.ConnectorStatus
+import com.example.rise.transport.router.IdentityRegistry
+import com.example.rise.transport.router.IdentityProfile
+import com.example.rise.transport.router.TransportConnector
+import com.example.rise.transport.router.TransportId
+import com.example.rise.transport.router.TransportRouter
+import com.example.rise.featureflags.BriarTransportMode
+import kotlinx.coroutines.withTimeoutOrNull
+import timber.log.Timber
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class RouterMyAccountRepository(
+    private val authService: AuthenticationService,
+    private val peopleSync: PeopleSync,
+    private val transportRouter: TransportRouter,
+    private val connectorRegistry: ConnectorRegistry,
+    private val transportBridge: TransportRuntimeBridge,
+    private val identityRegistry: IdentityRegistry,
+    private val briarRuntimeManager: BriarRuntimeManager,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : MyAccountRepository {
+
+    override suspend fun fetchCurrentUser(): User = withContext(ioDispatcher) {
+        if (transportBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY) {
+            val identity = runCatching { transportRouter.ensureCurrentIdentity() }
+                .getOrElse { error ->
+                    if (error is CancellationException) throw error
+                    identityRegistry.currentIdentitySnapshot() ?: throw error
+                }
+            val record = identityRegistry.identitiesSnapshot()
+                .firstOrNull { it.canonicalIdentity.id == identity.id }
+            val profile = record?.profile ?: IdentityProfile()
+            val resolvedDisplayName = record?.canonicalIdentity?.displayName ?: identity.displayName
+            return@withContext User(
+                name = resolvedDisplayName,
+                bio = profile.bio.orEmpty(),
+                profilePicturePath = profile.profilePicturePath,
+                registrationTokens = mutableListOf(),
+            )
+        }
+        val selectedConnector = accountConnector()
+        val selectedTransport = selectedConnector as? TransportConnector
+        runCatching { selectedConnector.fetchAccountProfile() }
+            .getOrElse { error ->
+                if (error is CancellationException) throw error
+                val fallbackConnectors = fetchFallbackConnectors(selectedConnector)
+                if (fallbackConnectors.isNotEmpty()) {
+                    val selectedTransportId = selectedTransport?.transport ?: "unknown"
+                    var lastError: Throwable = error
+                    for ((fallbackTransport, fallbackConnector) in fallbackConnectors) {
+                        Timber.tag(TAG).w(
+                            lastError,
+                            "Primary account fetch failed for %s; falling back to %s",
+                            selectedTransportId,
+                            fallbackTransport.transport,
+                        )
+                        try {
+                            return@withContext fallbackConnector.fetchAccountProfile()
+                        } catch (fallbackError: Throwable) {
+                            if (fallbackError is CancellationException) throw fallbackError
+                            lastError = fallbackError
+                        }
+                    }
+                    throw lastError
+                }
+                throw error
+            }
+    }
+
+    override suspend fun updateCurrentUser(
+        name: String,
+        bio: String,
+        profilePicturePath: String?,
+    ) {
+        withContext(ioDispatcher) {
+            if (transportBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY) {
+                if (name.isBlank() && bio.isBlank() && profilePicturePath.isNullOrBlank()) {
+                    return@withContext
+                }
+                val identity = runCatching { transportRouter.ensureCurrentIdentity() }
+                    .getOrElse { error ->
+                        if (error is CancellationException) throw error
+                        identityRegistry.currentIdentitySnapshot() ?: throw error
+                    }
+                val record = identityRegistry.identitiesSnapshot()
+                    .firstOrNull { it.canonicalIdentity.id == identity.id }
+                val aliases = record?.aliases?.toMutableMap() ?: mutableMapOf()
+                if (!aliases.containsKey(TransportId.BRIAR)) {
+                    aliases[TransportId.BRIAR] = identity.id
+                }
+                val existingProfile = record?.profile ?: IdentityProfile()
+                val updatedIdentity = if (name.isNotBlank()) {
+                    identity.copy(displayName = name)
+                } else {
+                    record?.canonicalIdentity ?: identity
+                }
+                val updatedProfile = existingProfile.copy(
+                    bio = bio.takeIf { it.isNotBlank() } ?: existingProfile.bio,
+                    profilePicturePath = profilePicturePath?.takeIf { it.isNotBlank() }
+                        ?: existingProfile.profilePicturePath,
+                    presence = existingProfile.presence,
+                )
+                identityRegistry.upsertIdentity(
+                    identity = updatedIdentity,
+                    aliases = aliases,
+                    profile = updatedProfile,
+                    setAsCurrent = true,
+                )
+                return@withContext
+            }
+            val update = AccountConnector.AccountProfileUpdate(
+                name = name.takeIf { it.isNotBlank() },
+                bio = bio.takeIf { it.isNotBlank() },
+                profilePicturePath = profilePicturePath?.takeIf { it.isNotBlank() },
+            )
+            if (update.isEmpty()) return@withContext
+            val selectedConnector = accountConnector()
+            val selectedTransport = selectedConnector as? TransportConnector
+            runCatching { selectedConnector.updateAccountProfile(update) }
+                .getOrElse { error ->
+                    if (error is CancellationException) throw error
+                    val fallbackConnectors = fetchFallbackConnectors(selectedConnector)
+                    if (fallbackConnectors.isNotEmpty()) {
+                        val selectedTransportId = selectedTransport?.transport ?: "unknown"
+                        var lastError: Throwable = error
+                        for ((fallbackTransport, fallbackConnector) in fallbackConnectors) {
+                            Timber.tag(TAG).w(
+                                lastError,
+                                "Primary account update failed for %s; falling back to %s",
+                                selectedTransportId,
+                                fallbackTransport.transport,
+                            )
+                            try {
+                                fallbackConnector.updateAccountProfile(update)
+                                return@withContext
+                            } catch (fallbackError: Throwable) {
+                                if (fallbackError is CancellationException) throw fallbackError
+                                lastError = fallbackError
+                            }
+                        }
+                        throw lastError
+                    }
+                    throw error
+                }
+        }
+    }
+
+    override suspend fun signOut() {
+        withContext(ioDispatcher) {
+            Timber.tag(TAG).i("Sign-out requested (mode=%s)", transportBridge.currentMode.value)
+            peopleSync.stop()
+            transportRouter.reset()
+            if (transportBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY) {
+                Timber.tag(TAG).i("Clearing identity registry for Briar-only sign-out")
+                identityRegistry.clear()
+            }
+            val stopped = withTimeoutOrNull(5_000) {
+                runCatching { briarRuntimeManager.stop() }
+                    .onFailure { Timber.tag(TAG).w(it, "Failed to stop Briar runtime during sign-out") }
+                true
+            } ?: false
+            if (!stopped) {
+                Timber.tag(TAG).w("Timed out stopping Briar runtime during sign-out")
+            }
+            authService.signOut()
+            Timber.tag(TAG).i("Sign-out completed")
+        }
+    }
+
+    private fun accountConnector(): AccountConnector {
+        val mode = transportBridge.currentMode.value
+        val primaryConnector = connectorRegistry.primaryFor(mode)
+        val primaryAccountConnector = primaryConnector as? AccountConnector
+
+        val accountConnectors = connectorRegistry.connectors.mapNotNull { candidate ->
+            val account = candidate as? AccountConnector ?: return@mapNotNull null
+            candidate to account
+        }
+        val readyPrimaryAccountConnector = primaryAccountConnector
+            ?.takeIf { primaryConnector.isReadyForAccountRouting() }
+        val readyAccountConnectors = accountConnectors.filter { (connector, _) ->
+            connector.isReadyForAccountRouting()
+        }
+        val preferred = when (mode) {
+            BriarTransportMode.FIRESTORE -> {
+                if (primaryConnector.transport == TransportId.FIRESTORE && readyPrimaryAccountConnector != null) {
+                    readyPrimaryAccountConnector
+                } else {
+                    readyAccountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }?.second
+                }
+            }
+            BriarTransportMode.HYBRID,
+            BriarTransportMode.BRIAR_ONLY -> {
+                if (primaryConnector.transport != TransportId.FIRESTORE && readyPrimaryAccountConnector != null) {
+                    readyPrimaryAccountConnector
+                } else {
+                    readyAccountConnectors.firstOrNull { it.first.transport != TransportId.FIRESTORE }?.second
+                }
+            }
+        }
+        return preferred
+            ?: readyPrimaryAccountConnector
+            ?: readyAccountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }?.second
+            ?: readyAccountConnectors.firstOrNull()?.second
+            ?: primaryAccountConnector
+            ?: accountConnectors.firstOrNull { it.first.transport == TransportId.FIRESTORE }?.second
+            ?: accountConnectors.firstOrNull()?.second
+            ?: throw IllegalStateException(
+                "No connector supports account profiles for mode=$mode primary=${primaryConnector.transport}"
+            )
+    }
+
+    private fun fetchFallbackConnectors(
+        primary: AccountConnector,
+    ): List<Pair<TransportConnector, AccountConnector>> {
+        val primaryTransport = primary as? TransportConnector ?: return emptyList()
+        val mode = transportBridge.currentMode.value
+        if (mode != BriarTransportMode.FIRESTORE || primaryTransport.transport != TransportId.FIRESTORE) {
+            return emptyList()
+        }
+        val orderedFallbacks = linkedMapOf<TransportConnector, AccountConnector>()
+        val modePrimaryFallback = connectorRegistry.primaryFor(mode)
+            .takeIf { candidate ->
+                candidate !== primaryTransport &&
+                    candidate.transport != TransportId.FIRESTORE &&
+                    candidate.isReadyForAccountRouting()
+            }
+            ?.let { candidate ->
+                val account = candidate as? AccountConnector ?: return@let null
+                candidate to account
+            }
+        modePrimaryFallback?.let { (connector, account) ->
+            orderedFallbacks[connector] = account
+        }
+        connectorRegistry.connectors.mapNotNull { candidate ->
+            val account = candidate as? AccountConnector ?: return@mapNotNull null
+            candidate to account
+        }.filter { (connector, account) ->
+            account !== primary &&
+                connector.transport != TransportId.FIRESTORE &&
+                connector.isReadyForAccountRouting()
+        }.forEach { (connector, account) ->
+            orderedFallbacks.putIfAbsent(connector, account)
+        }
+        return orderedFallbacks.entries.map { (connector, account) -> connector to account }
+    }
+
+    private fun TransportConnector.isReadyForAccountRouting(): Boolean {
+        return lifecycle.value == ConnectorLifecycleState.READY &&
+            status.value == ConnectorStatus.ACTIVE
+    }
+
+    companion object {
+        private const val TAG = "RouterMyAccountRepo"
+    }
+}

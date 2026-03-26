@@ -7,8 +7,8 @@ enum class BriarTransportMode {
 
     companion object {
         fun fromValue(value: Int?): BriarTransportMode {
-            if (value == null) return FIRESTORE
-            return entries.getOrNull(value) ?: FIRESTORE
+            if (value == null) return BRIAR_ONLY
+            return entries.getOrNull(value) ?: BRIAR_ONLY
         }
     }
 }

@@ -6,34 +6,39 @@ import androidx.credentials.Credential
 import androidx.credentials.PasswordCredential
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.rise.data.auth.BriarAccountRepository
 import com.example.rise.data.auth.SignInRepository
 import com.example.rise.data.auth.TelegramAuthData
 import com.example.rise.data.auth.TelegramAuthRepository
 import com.example.rise.data.auth.TelegramAuthResponse
-import com.google.firebase.auth.FirebaseAuth
+import com.example.rise.auth.AuthenticationService
+import com.example.rise.featureflags.BriarTransportMode
+import com.example.rise.transport.TransportRuntimeBridge
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
-import com.google.firebase.auth.UserProfileChangeRequest
+import timber.log.Timber
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import androidx.core.net.toUri
 
 class SignInViewModel(
-    private val firebaseAuth: FirebaseAuth,
+    private val authenticationService: AuthenticationService,
     private val repository: SignInRepository,
     private val telegramRepository: TelegramAuthRepository,
+    private val briarAccountRepository: BriarAccountRepository,
+    private val transportRuntimeBridge: TransportRuntimeBridge,
     private val emailValidator: EmailValidator = DefaultEmailValidator,
 ) : ViewModel() {
 
     companion object {
         private const val MIN_PASSWORD_LENGTH = 6
+        private const val TAG = "SignInViewModel"
     }
     enum class Mode { SignIn, Register }
 
@@ -63,14 +68,29 @@ class SignInViewModel(
 
     fun submitPrimaryAction(name: String, email: String, password: String) {
         when (_uiState.value.mode) {
-            Mode.SignIn -> signInWithEmail(email, password)
+            Mode.SignIn -> signInWithEmail(name, email, password)
             Mode.Register -> register(name, email, password)
         }
     }
 
-    fun signInWithEmail(email: String, password: String) {
+    fun signInWithEmail(name: String, email: String, password: String) {
         val trimmedEmail = email.trim()
-        if (!isValidEmail(trimmedEmail)) {
+        val trimmedName = name.trim()
+        val briarOnly = transportRuntimeBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY
+        val usingBriarAccount = briarOnly && trimmedEmail.isBlank()
+        Timber.tag(TAG).i(
+            "signInWithEmail: mode=%s usingBriar=%s name=%s emailBlank=%s",
+            transportRuntimeBridge.currentMode.value,
+            usingBriarAccount,
+            trimmedName,
+            trimmedEmail.isBlank()
+        )
+
+        if (usingBriarAccount && trimmedName.isBlank()) {
+            emitMessage("Please enter your name")
+            return
+        }
+        if (!usingBriarAccount && !isValidEmail(trimmedEmail)) {
             emitMessage("Please enter a valid email")
             return
         }
@@ -81,11 +101,24 @@ class SignInViewModel(
         viewModelScope.launch {
             setLoading(true)
             try {
-                firebaseAuth.signInWithEmailAndPassword(trimmedEmail, password).await()
-                _events.emit(Event.SaveCredentials(trimmedEmail, password))
-                finalizeSignIn()
+                if (usingBriarAccount) {
+                    briarAccountRepository.signIn(trimmedName, password)
+                    _events.emit(Event.NavigateToMain)
+                    Timber.tag(TAG).i("signInWithEmail: briar sign-in succeeded")
+                } else {
+                    authenticationService.signInWithEmail(trimmedEmail, password)
+                    _events.emit(Event.SaveCredentials(trimmedEmail, password))
+                    Timber.tag(TAG).i("signInWithEmail: firebase sign-in succeeded")
+                    finalizeSignIn()
+                }
             } catch (error: Exception) {
-                handleAuthError(error)
+                if (usingBriarAccount) {
+                    Timber.tag(TAG).w(error, "signInWithEmail: briar sign-in failed")
+                    emitMessage(error.message ?: "Failed to sign in")
+                } else {
+                    Timber.tag(TAG).w(error, "signInWithEmail: firebase sign-in failed")
+                    handleAuthError(error)
+                }
             } finally {
                 setLoading(false)
             }
@@ -99,7 +132,16 @@ class SignInViewModel(
             emitMessage("Please enter your name")
             return
         }
-        if (!isValidEmail(trimmedEmail)) {
+        val briarOnlyMode = transportRuntimeBridge.currentMode.value == BriarTransportMode.BRIAR_ONLY
+        val usingBriarAccount = trimmedEmail.isBlank() && briarOnlyMode
+        Timber.tag(TAG).i(
+            "register: mode=%s usingBriar=%s name=%s emailBlank=%s",
+            transportRuntimeBridge.currentMode.value,
+            usingBriarAccount,
+            trimmedName,
+            trimmedEmail.isBlank()
+        )
+        if (!usingBriarAccount && !isValidEmail(trimmedEmail)) {
             emitMessage("Please enter a valid email")
             return
         }
@@ -110,17 +152,25 @@ class SignInViewModel(
         viewModelScope.launch {
             setLoading(true)
             try {
-                firebaseAuth.createUserWithEmailAndPassword(trimmedEmail, password).await()
-                firebaseAuth.currentUser?.let { user ->
-                    val update = UserProfileChangeRequest.Builder()
-                        .setDisplayName(trimmedName)
-                        .build()
-                    user.updateProfile(update).await()
+                if (usingBriarAccount) {
+                    briarAccountRepository.createAccount(trimmedName, password)
+                    _events.emit(Event.NavigateToMain)
+                    Timber.tag(TAG).i("register: briar account created")
+                } else {
+                    authenticationService.createUserWithEmail(trimmedEmail, password)
+                    authenticationService.updateProfile(trimmedName, null)
+                    _events.emit(Event.SaveCredentials(trimmedEmail, password))
+                    Timber.tag(TAG).i("register: firebase user created, finalizing sign-in")
+                    finalizeSignIn()
                 }
-                _events.emit(Event.SaveCredentials(trimmedEmail, password))
-                finalizeSignIn()
             } catch (error: Exception) {
-                handleAuthError(error)
+                if (usingBriarAccount) {
+                    Timber.tag(TAG).w(error, "register: briar create failed")
+                    emitMessage(error.message ?: "Failed to create account")
+                } else {
+                    Timber.tag(TAG).w(error, "register: firebase create failed")
+                    handleAuthError(error)
+                }
             } finally {
                 setLoading(false)
             }
@@ -149,7 +199,7 @@ class SignInViewModel(
             try {
                 val response = telegramRepository.exchange(authData)
                 // The backend still issues Firebase custom tokens, so we complete the flow by authenticating with Firebase before continuing the app sign-in pipeline.
-                firebaseAuth.signInWithCustomToken(response.customToken).await()
+                authenticationService.signInWithCustomToken(response.customToken)
                 updateProfileIfNeeded(response)
                 finalizeSignIn()
             } catch (error: Exception) {
@@ -167,7 +217,7 @@ class SignInViewModel(
         viewModelScope.launch {
             setLoading(true)
             try {
-                firebaseAuth.signInWithEmailAndPassword(credential.id, credential.password).await()
+                authenticationService.signInWithEmail(credential.id, credential.password)
                 finalizeSignIn()
             } catch (error: Exception) {
                 handleAuthError(error)
@@ -217,25 +267,24 @@ class SignInViewModel(
     }
 
     private suspend fun updateProfileIfNeeded(response: TelegramAuthResponse) {
-        val currentUser = firebaseAuth.currentUser ?: return
-        val updateBuilder = UserProfileChangeRequest.Builder()
-
+        val currentUser = authenticationService.currentUser() ?: return
         var needsUpdate = false
+        var displayNameToApply: String? = null
         if (!response.displayName.isNullOrBlank() && currentUser.displayName.isNullOrBlank()) {
-            updateBuilder.setDisplayName(response.displayName)
+            displayNameToApply = response.displayName
             needsUpdate = true
         }
 
+        var photoUri: Uri? = null
         if (!response.photoUrl.isNullOrBlank()) {
-            val photoUri = runCatching { response.photoUrl.toUri() }.getOrNull()
-            if (photoUri != null) {
-                updateBuilder.photoUri = photoUri
+            photoUri = runCatching { response.photoUrl.toUri() }.getOrNull()
+            if (photoUri != null && currentUser.photoUrl != photoUri) {
                 needsUpdate = true
             }
         }
 
         if (needsUpdate) {
-            runCatching { currentUser.updateProfile(updateBuilder.build()).await() }
+            runCatching { authenticationService.updateProfile(displayNameToApply, photoUri) }
         }
     }
 
@@ -244,6 +293,7 @@ class SignInViewModel(
     }
 
     private fun setLoading(loading: Boolean) {
+        Timber.tag(TAG).d("setLoading=%s", loading)
         _uiState.update { it.copy(isLoading = loading) }
     }
 

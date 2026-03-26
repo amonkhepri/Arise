@@ -1,0 +1,51 @@
+%% Transport layer orchestration diagram (Mermaid)
+flowchart TD
+    classDef interface fill:#1b2735,stroke:#0f141d,color:#fdfdfd;
+    classDef implementation fill:#283d5b,stroke:#162435,color:#fdfdfd;
+    classDef store fill:#1f5239,stroke:#11311f,color:#fdfdfd;
+    classDef helper fill:#40305a,stroke:#2a1d3a,color:#fdfdfd;
+
+    subgraph RuntimeFacade
+        transportRuntimeBridge["TransportRuntimeBridge<br/>Impl: TransportRuntimeBridgeImpl<br/>Role: Mode/state façade<br/>Details: Streams BriarTransportMode and runtime status."]
+        class transportRuntimeBridge interface;
+    end
+
+    subgraph RouterLayer
+        transportRouter["TransportRouter<br/>Impl: TransportRouterImpl<br/>Role: Canonical chat orchestrator<br/>Details: Resolves connectors, maintains canonical timeline, dispatches send/receive."]
+        class transportRouter interface;
+        bridgeOrchestrator["BridgeOrchestrator<br/>Impl: BridgeOrchestrator.NoOp<br/>Role: Mirroring hook<br/>Details: Placeholder for future bridge fan-out / analytics."]
+        class bridgeOrchestrator helper;
+    end
+
+    subgraph RegistryLayer
+        connectorRegistry["ConnectorRegistry<br/>Impl: DefaultConnectorRegistry<br/>Role: Connector selector<br/>Details: Picks primary/mirror transports per mode."]
+        class connectorRegistry interface;
+        identityRegistry["IdentityRegistry<br/>Impl: IdentityRegistryImpl<br/>Role: Canonical identity map<br/>Details: Maps connector aliases to canonical IDs."]
+        class identityRegistry interface;
+        identityStore["IdentityRegistryStore<br/>Impl: SharedPrefsIdentityRegistryStore<br/>Role: Identity persistence<br/>Details: Persists registry state to disk."]
+        class identityStore store;
+    end
+
+    subgraph Persistence
+        conversationStore["ConversationStore<br/>Impl: RoomConversationStore<br/>Role: Canonical timeline persistence<br/>Details: Backs canonical conversations/messages via Room."]
+        class conversationStore interface;
+    end
+
+    subgraph Connectors
+        transportConnector["TransportConnector<br/>Current Impl: FirestoreConnector<br/>Role: Transport adapter<br/>Details: Handles transport-specific identity, conversations, messaging."]
+        class transportConnector interface;
+    end
+
+    transportRuntimeBridge -->|Provides mode and status| transportRouter
+    transportRouter -->|primaryFor and mirrorsFor| connectorRegistry
+    connectorRegistry -->|returns connectors| transportConnector
+
+    transportRouter -->|ensureConversation, send, observe| transportConnector
+    transportConnector -->|Flows of ConnectorInboundMessage| transportRouter
+    transportConnector -->|requireFirestore and availability checks| transportRuntimeBridge
+
+    transportRouter -->|upsert and resolve identities| identityRegistry
+    identityRegistry -->|load and persist| identityStore
+
+    transportRouter -->|upsertConversation, upsertMessages, observe| conversationStore
+    transportRouter -->|onMessagesReceived| bridgeOrchestrator

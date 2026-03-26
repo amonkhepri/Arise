@@ -4,53 +4,101 @@ import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import com.example.rise.ui.alarm.data.ConfigReminderPreferences
-import com.example.rise.ui.alarm.data.ReminderPreferences
+import com.example.rise.auth.AuthenticationService
+import com.example.rise.auth.FirebaseAuthenticationService
+import com.example.rise.briar.BriarRuntimeEnvironmentImpl
+import com.example.rise.briar.runtime.BriarComponentFactory
+import com.example.rise.briar.runtime.BriarComponentFactoryImpl
+import com.example.rise.briar.runtime.BriarRuntimeEnvironment
+import com.example.rise.briar.runtime.BriarRuntimeManager
+import com.example.rise.briar.runtime.BriarRuntimeManagerImpl
 import com.example.rise.data.auth.AuthStateProvider
+import com.example.rise.data.auth.BriarAccountRepository
+import com.example.rise.data.auth.CompositeAuthStateProvider
 import com.example.rise.data.auth.DefaultTelegramAuthRepository
 import com.example.rise.data.auth.FirebaseAuthStateProvider
 import com.example.rise.data.auth.FirebaseSignInRepository
+import com.example.rise.data.auth.RuntimeBriarAccountRepository
 import com.example.rise.data.auth.SignInRepository
 import com.example.rise.data.auth.TelegramAuthRepository
 import com.example.rise.data.chat.ChatLocalCache
 import com.example.rise.data.chat.ChatRepository
-import com.example.rise.data.chat.FirestoreChatRepository
-import com.example.rise.data.chat.SharedPrefsChatCache
+import com.example.rise.data.chat.RoomChatCache
+import com.example.rise.data.chat.TransportBackedChatRepository
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.data.dashboard.FirestoreAlarmRepository
-import com.example.rise.data.myaccount.FirebaseMyAccountRepository
+import com.example.rise.data.firestore.ChatRemoteDataSource
+import com.example.rise.data.firestore.FirebaseChatRemoteDataSource
+import com.example.rise.data.firestore.FirebaseUserRemoteDataSource
+import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.data.myaccount.MyAccountRepository
-import com.example.rise.data.people.FirestorePeopleRepository
-import com.example.rise.data.people.PeopleRepository
-import com.example.rise.helpers.Config
+import com.example.rise.data.myaccount.RouterMyAccountRepository
+import com.example.rise.data.people.BriarPeopleSync
+import com.example.rise.data.people.CompositePeopleSync
+import com.example.rise.data.people.FirestorePeopleSync
+import com.example.rise.data.people.IdentityBackfillCoordinator
+import com.example.rise.data.people.IdentityBackfillScheduler
+import com.example.rise.data.people.IdentityBackfillStatusTracker
+import com.example.rise.data.people.PeopleSync
+import com.example.rise.data.people.RouterPeopleRepository
+import com.example.rise.data.people.RouterPeopleRepositoryImpl
+import com.example.rise.debug.FeatureFlagsViewModel
+import com.example.rise.featureflags.DataStoreTransportModeProviderImpl
+import com.example.rise.featureflags.TelegramAuthFlagProvider
+import com.example.rise.featureflags.TransportModeProvider
+import com.example.rise.featureflags.transportModeDataStore
+import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.TransportRuntimeBridgeImpl
+import com.example.rise.transport.briar.BriarChatAdapter
+import com.example.rise.transport.briar.BriarContactAdapter
+import com.example.rise.transport.briar.BriarContactRepository
+import com.example.rise.transport.briar.DefaultBriarChatAdapter
+import com.example.rise.transport.briar.DefaultBriarContactAdapter
+import com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCase
+import com.example.rise.transport.briar.invite.BriarInvitationLinkParser
+import com.example.rise.transport.connectors.BriarConnector
+import com.example.rise.transport.connectors.FirestoreConnector
+import com.example.rise.transport.router.BridgeOrchestrator
+import com.example.rise.transport.router.ConnectorHealthProvider
+import com.example.rise.transport.router.ConnectorHealthRepository
+import com.example.rise.transport.router.ConnectorRegistry
+import com.example.rise.transport.router.ConnectorTelemetrySink
+import com.example.rise.transport.router.DefaultBridgeOrchestrator
+import com.example.rise.transport.router.DefaultConnectorRegistry
+import com.example.rise.transport.router.IdentityRegistry
+import com.example.rise.transport.router.IdentityRegistryImpl
+import com.example.rise.transport.router.IdentityRegistryStore
+import com.example.rise.transport.router.ObservableConnectorTelemetrySink
+import com.example.rise.transport.router.SharedPrefsIdentityRegistryStore
+import com.example.rise.transport.router.TransportRouter
+import com.example.rise.transport.router.TransportRouterImpl
+import com.example.rise.transport.store.ChatCacheDao
+import com.example.rise.transport.store.ConversationDatabase
+import com.example.rise.transport.store.ConversationStore
+import com.example.rise.transport.store.RoomConversationStore
 import com.example.rise.ui.SplashActivityViewModel
-import com.example.rise.ui.alarm.ReminderViewModel
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountViewModel
-import com.example.rise.ui.signInActivity.SignInViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
+import com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarManualInvitationCoordinator
 import com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModel
+import com.example.rise.ui.mainActivity.BriarInvitationDeepLinkEntrypoint
 import com.example.rise.ui.mainActivity.MainActivityViewModel
-import com.example.rise.debug.FeatureFlagsViewModel
-import com.example.rise.featureflags.DataStoreTransportModeProvider
-import com.example.rise.featureflags.TransportModeProvider
-import com.example.rise.featureflags.TelegramAuthFlagProvider
-import com.example.rise.featureflags.transportModeDataStore
-import com.example.rise.transport.DefaultTransportRuntimeBridge
-import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.ui.signInActivity.SignInViewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import timber.log.Timber
 import java.time.Clock
-import kotlinx.coroutines.Dispatchers
 
 class App: Application() {
 
@@ -58,39 +106,175 @@ class App: Application() {
         single { FirebaseAuth.getInstance() }
         single { FirebaseFirestore.getInstance() }
         single { FirebaseMessaging.getInstance() }
-        single { Config.newInstance(androidContext()) }
         single<DataStore<Preferences>> { androidContext().transportModeDataStore }
-        single<TransportModeProvider> { DataStoreTransportModeProvider(get()) }
+        single { IdentityBackfillStatusTracker(get()) }
+        single<TransportModeProvider> { DataStoreTransportModeProviderImpl(get()) }
         single { TelegramAuthFlagProvider(get()) }
-        single<TransportRuntimeBridge> { DefaultTransportRuntimeBridge(get()) }
+        single<BriarRuntimeEnvironment> { BriarRuntimeEnvironmentImpl(androidContext()) }
+        single<BriarComponentFactory> { BriarComponentFactoryImpl() }
+        single<BriarRuntimeManager> { BriarRuntimeManagerImpl(briarRuntimeEnvironment = get(), componentFactory = get()) }
+        single { IdentityBackfillScheduler(androidContext(), get(), get()) }
+        single<TransportRuntimeBridge> { TransportRuntimeBridgeImpl(get(), get(), get()) }
 
-        single<AuthStateProvider> { FirebaseAuthStateProvider(get()) }
-        single<SignInRepository> { FirebaseSignInRepository(get(), get()) }
+        single { FirebaseAuthStateProvider(get()) }
+        single<AuthStateProvider> {
+            CompositeAuthStateProvider(
+                primary = get<FirebaseAuthStateProvider>(),
+                identityRegistry = get(),
+                briarRuntimeManager = get(),
+            )
+        }
+        factory { BriarInvitationLinkParser() }
+        factory { BriarInvitationDeepLinkEntrypoint(parser = get()) }
+        single<SignInRepository> {
+            FirebaseSignInRepository(
+                messaging = get(),
+                transportBridge = get(),
+                authService = get(),
+                userRemoteDataSource = get(),
+            )
+        }
+        single<BriarAccountRepository> {
+            RuntimeBriarAccountRepository(
+                runtimeManager = get(),
+                transportRouter = get(),
+                ioDispatcher = Dispatchers.IO,
+            )
+        }
         single { OkHttpClient.Builder().build() }
         single<TelegramAuthRepository> { DefaultTelegramAuthRepository(get()) }
-        single<ReminderPreferences> { ConfigReminderPreferences(get()) }
+        single<AuthenticationService> { FirebaseAuthenticationService(get()) }
+        single<UserRemoteDataSource> { FirebaseUserRemoteDataSource(get()) }
+        single<ChatRemoteDataSource> { FirebaseChatRemoteDataSource(get()) }
 
-        single<ChatLocalCache> { SharedPrefsChatCache(androidContext()) }
-        single<ChatRepository> {
-            FirestoreChatRepository(
-                firestore = get(),
-                auth = get(),
+        single { ConversationDatabase.build(androidContext()) }
+        single { get<ConversationDatabase>().conversationDao() }
+        single<ChatCacheDao> { get<ConversationDatabase>().chatCacheDao() }
+        single<ChatLocalCache> { RoomChatCache(get()) }
+        single<ConversationStore> {
+            RoomConversationStore(
+                dao = get(),
+            )
+        }
+        single<IdentityRegistryStore> { SharedPrefsIdentityRegistryStore(androidContext()) }
+        single<IdentityRegistry> { IdentityRegistryImpl(get()) }
+        single { IdentityBackfillCoordinator(userRemoteDataSource = get(), identityRegistry = get()) }
+        single<BriarChatAdapter> { DefaultBriarChatAdapter(get()) }
+        single<BriarContactAdapter> { DefaultBriarContactAdapter(get()) }
+        single { BriarContactRepository(get()) }
+        factory {
+            BriarInvitationAcceptanceUseCase(
+                contactRepository = get(),
+                identityRegistry = get(),
+                transportRouter = get(),
+                parser = get(),
+            )
+        }
+        factory { BriarManualInvitationCoordinator(useCase = get<BriarInvitationAcceptanceUseCase>()) }
+        single {
+            FirestoreConnector(
+                authService = get(),
+                chatRemoteDataSource = get(),
+                userRemoteDataSource = get(),
+                transportBridge = get(),
                 localCache = get(),
+                telemetrySink = get(),
+            )
+        }
+        single {
+            BriarConnector(
+                transportBridge = get(),
+                telemetrySink = get(),
+                briarChatAdapter = get(),
+                briarContactAdapter = get(),
+            )
+        }
+        single<ConnectorRegistry> {
+            DefaultConnectorRegistry(
+                connectors = setOf(
+                    get<FirestoreConnector>(),
+                    get<BriarConnector>(),
+                )
+            )
+        }
+        single { ObservableConnectorTelemetrySink() }
+        single<ConnectorTelemetrySink> { get<ObservableConnectorTelemetrySink>() }
+        single<ConnectorHealthProvider> {
+            ConnectorHealthRepository(
+                connectorRegistry = get(),
+                telemetrySink = get(),
+            )
+        }
+        single<BridgeOrchestrator> {
+            DefaultBridgeOrchestrator(
+                transportBridge = get(),
+                connectorRegistry = get(),
+                telemetrySink = get(),
+            )
+        }
+        single<TransportRouter> {
+            TransportRouterImpl(
+                transportBridge = get(),
+                connectorRegistry = get(),
+                conversationStore = get(),
+                identityRegistry = get(),
+                bridgeOrchestrator = get(),
+            )
+        }
+        single<ChatRepository> { TransportBackedChatRepository(get()) }
+        single {
+            FirestorePeopleSync(
+                firebaseAuth = get(),
+                transportConnector = get<FirestoreConnector>(),
+                identityRegistry = get(),
                 transportBridge = get(),
             )
         }
-        single<PeopleRepository> { FirestorePeopleRepository(get(), get(), get()) }
+        single {
+            BriarPeopleSync(
+                transportConnector = get<BriarConnector>(),
+                identityRegistry = get(),
+                transportBridge = get(),
+            )
+        }
+        single<PeopleSync> {
+            CompositePeopleSync(
+                delegates = listOf(
+                    get<FirestorePeopleSync>(),
+                    get<BriarPeopleSync>(),
+                ),
+                transportMode = get<TransportRuntimeBridge>().currentMode,
+                briarDelegateIndex = 1,
+            )
+        }
+        single<RouterPeopleRepository> { RouterPeopleRepositoryImpl(identityRegistry = get(), peopleSync = get()) }
         single<AlarmRepository> { FirestoreAlarmRepository(get(), get()) }
-        single<MyAccountRepository> { FirebaseMyAccountRepository(get(), get(), Dispatchers.IO, get()) }
+        single<MyAccountRepository> {
+            RouterMyAccountRepository(
+                authService = get(),
+                peopleSync = get(),
+                transportRouter = get(),
+                connectorRegistry = get(),
+                transportBridge = get(),
+                identityRegistry = get(),
+                briarRuntimeManager = get(),
+                ioDispatcher = Dispatchers.IO,
+            )
+        }
         single { Clock.systemDefaultZone() }
         single<SignInViewModel.EmailValidator> { SignInViewModel.DefaultEmailValidator }
 
         viewModelOf(::SplashActivityViewModel)
-        viewModelOf(::ReminderViewModel)
         viewModelOf(::MyAccountViewModel)
         viewModelOf(::DashboardViewModel)
         viewModelOf(::ChatViewModel)
-        viewModelOf(::PeopleViewModel)
+        viewModel {
+            PeopleViewModel(
+                routerPeopleRepository = get<RouterPeopleRepository>(),
+                briarContactRepository = get<BriarContactRepository>(),
+                briarManualInvitationCoordinator = get<BriarManualInvitationCoordinator>(),
+            )
+        }
         viewModelOf(::MainActivityViewModel)
         viewModelOf(::SignInViewModel)
         viewModelOf(::FeatureFlagsViewModel)
@@ -101,9 +285,7 @@ class App: Application() {
 
         // Force dark mode
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-
         Timber.plant(Timber.DebugTree())
-
         FirebaseApp.initializeApp(this)
 
         startKoin {

@@ -1,17 +1,19 @@
 package com.example.rise.item
 
-import android.view.View
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.FrameLayout
 import com.example.rise.R
 import com.example.rise.databinding.ItemTextMessageBinding
 import com.example.rise.models.Message
-import com.google.firebase.auth.FirebaseAuth
 import com.xwray.groupie.viewbinding.BindableItem
 import java.text.SimpleDateFormat
 
-abstract class MessageItem(open val message: Message) : BindableItem<ItemTextMessageBinding>() {
+abstract class MessageItem(
+    open val message: Message,
+    open val currentUserId: String?,
+) : BindableItem<ItemTextMessageBinding>() {
 
     override fun bind(viewBinding: ItemTextMessageBinding, position: Int) {
         setTimeText(viewBinding)
@@ -31,7 +33,7 @@ abstract class MessageItem(open val message: Message) : BindableItem<ItemTextMes
     private fun setMessageRootGravity(viewBinding: ItemTextMessageBinding) {
         val messageRoot = viewBinding.messageRoot
         val context = viewBinding.root.context
-        if (message.senderId == FirebaseAuth.getInstance().currentUser?.uid) {
+        if (isCurrentUserMessage(senderId = message.senderId, currentUserId = currentUserId)) {
             messageRoot.apply {
                 setBackgroundResource(R.drawable.rect_round_white)
                 val lParams = FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.END)
@@ -53,4 +55,8 @@ abstract class MessageItem(open val message: Message) : BindableItem<ItemTextMes
             viewBinding.textViewMessageTime.setTextColor(textColor)
         }
     }
+}
+
+internal fun isCurrentUserMessage(senderId: String, currentUserId: String?): Boolean {
+    return senderId == currentUserId
 }

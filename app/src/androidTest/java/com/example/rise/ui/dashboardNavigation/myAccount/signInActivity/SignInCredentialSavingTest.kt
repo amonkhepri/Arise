@@ -1,21 +1,23 @@
 package com.example.rise.ui.dashboardNavigation.myAccount.signInActivity
 
-import androidx.test.core.app.ActivityScenario
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
-import androidx.test.espresso.action.ViewActions.typeText
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withId
-import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import com.example.rise.R
 import com.example.rise.ui.signInActivity.SignInActivity
+import com.example.rise.ui.signInActivity.SignInTestTags
 import com.google.firebase.auth.FirebaseAuth
+import java.util.Locale
 import org.junit.After
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,6 +42,9 @@ class SignInCredentialSavingTest {
     private val testEmail = "rafalwble@gmail.com"
     private val testPassword = "ILoveArise1"
 
+    @get:Rule
+    val composeTestRule = createAndroidComposeRule<SignInActivity>()
+
     private lateinit var auth: FirebaseAuth
 
     @Before
@@ -59,34 +64,40 @@ class SignInCredentialSavingTest {
 
     @Test
     fun testSignInFlowWithCredentialSaving() {
-        // Launch the SignInActivity
-        ActivityScenario.launch(SignInActivity::class.java)
+        composeTestRule.waitForIdle()
+
+        val signInLabel = composeTestRule.activity
+            .getString(R.string.sign_in_button)
+            .uppercase(Locale.getDefault())
+        val savedCredentialsLabel = composeTestRule.activity
+            .getString(R.string.sign_in_use_saved)
+            .uppercase(Locale.getDefault())
 
         // Step 1: Verify sign-in screen is displayed
-        onView(withId(R.id.emailInput))
-            .check(matches(isDisplayed()))
+        composeTestRule.onNodeWithTag(SignInTestTags.EmailInput)
+            .assertIsDisplayed()
 
-        onView(withId(R.id.passwordInput))
-            .check(matches(isDisplayed()))
+        composeTestRule.onNodeWithTag(SignInTestTags.PasswordInput)
+            .assertIsDisplayed()
 
-        onView(withId(R.id.primaryActionButton))
-            .check(matches(isDisplayed()))
-            .check(matches(withText(R.string.sign_in_button)))
+        composeTestRule.onNodeWithTag(SignInTestTags.PrimaryActionButton)
+            .assertIsDisplayed()
+            .assert(hasText(signInLabel))
 
-        onView(withId(R.id.savedCredentialsButton))
-            .check(matches(isDisplayed()))
-            .check(matches(withText(R.string.sign_in_use_saved)))
+        composeTestRule.onNodeWithTag(SignInTestTags.SavedCredentialsButton)
+            .assertIsDisplayed()
+            .assert(hasText(savedCredentialsLabel))
 
         // Step 2: Enter test credentials
-        onView(withId(R.id.emailInput))
-            .perform(typeText(testEmail))
+        composeTestRule.onNodeWithTag(SignInTestTags.EmailInput)
+            .performTextInput(testEmail)
 
-        onView(withId(R.id.passwordInput))
-            .perform(typeText(testPassword), closeSoftKeyboard())
+        composeTestRule.onNodeWithTag(SignInTestTags.PasswordInput)
+            .performTextInput(testPassword)
 
         // Step 3: Click sign in button
-        onView(withId(R.id.primaryActionButton))
-            .perform(click())
+        composeTestRule.onNodeWithTag(SignInTestTags.PrimaryActionButton)
+            .performClick()
 
         // Step 4: Wait for authentication to complete
         // The sign-in process involves:
@@ -105,7 +116,10 @@ class SignInCredentialSavingTest {
         }
 
         // Step 5: Verify we're signed in
-        assumeTrue("Skipping sign-in assertion because Firebase user is still null after waiting ${retries} seconds", auth.currentUser != null)
+        assumeTrue(
+            "Skipping sign-in assertion because Firebase user is still null after waiting ${retries} seconds",
+            auth.currentUser != null
+        )
         assert(auth.currentUser?.email == testEmail) {
             "Signed in user email should match test email. Expected: $testEmail, Got: ${auth.currentUser?.email}"
         }
@@ -116,86 +130,102 @@ class SignInCredentialSavingTest {
 
     @Test
     fun testSavedCredentialsButtonExists() {
-        // Launch the SignInActivity
-        ActivityScenario.launch(SignInActivity::class.java)
+        composeTestRule.waitForIdle()
+
+        val savedCredentialsLabel = composeTestRule.activity
+            .getString(R.string.sign_in_use_saved)
+            .uppercase(Locale.getDefault())
 
         // Verify that the "Use saved credentials" button is present
-        onView(withId(R.id.savedCredentialsButton))
-            .check(matches(isDisplayed()))
-            .check(matches(withText(R.string.sign_in_use_saved)))
+        composeTestRule.onNodeWithTag(SignInTestTags.SavedCredentialsButton)
+            .assertIsDisplayed()
+            .assertTextEquals(savedCredentialsLabel)
     }
 
     @Test
     fun testEmailPasswordValidation() {
-        ActivityScenario.launch(SignInActivity::class.java)
+        composeTestRule.waitForIdle()
 
         // Test empty email
-        onView(withId(R.id.primaryActionButton))
-            .perform(click())
+        composeTestRule.onNodeWithTag(SignInTestTags.PrimaryActionButton)
+            .performClick()
 
         Thread.sleep(500)
 
         // Test invalid email format
-        onView(withId(R.id.emailInput))
-            .perform(typeText("invalid-email"))
+        composeTestRule.onNodeWithTag(SignInTestTags.EmailInput)
+            .performTextInput("invalid-email")
 
-        onView(withId(R.id.passwordInput))
-            .perform(typeText("password"), closeSoftKeyboard())
+        composeTestRule.onNodeWithTag(SignInTestTags.PasswordInput)
+            .performTextInput("password")
 
-        onView(withId(R.id.primaryActionButton))
-            .perform(click())
+        composeTestRule.onNodeWithTag(SignInTestTags.PrimaryActionButton)
+            .performClick()
 
         Thread.sleep(500)
 
         // Test valid format but empty password
-        onView(withId(R.id.emailInput))
-            .perform(typeText("@test.com"))
+        composeTestRule.onNodeWithTag(SignInTestTags.EmailInput)
+            .performTextInput("@test.com")
 
-        onView(withId(R.id.passwordInput))
-            .perform(typeText(""), closeSoftKeyboard())
+        composeTestRule.onNodeWithTag(SignInTestTags.PasswordInput)
+            .performTextInput("")
 
-        onView(withId(R.id.primaryActionButton))
-            .perform(click())
+        composeTestRule.onNodeWithTag(SignInTestTags.PrimaryActionButton)
+            .performClick()
 
         Thread.sleep(500)
     }
 
     @Test
     fun testToggleBetweenSignInAndRegister() {
-        ActivityScenario.launch(SignInActivity::class.java)
+        composeTestRule.waitForIdle()
+
+        val signInLabel = composeTestRule.activity
+            .getString(R.string.sign_in_button)
+            .uppercase(Locale.getDefault())
+        val registerToggleLabel = composeTestRule.activity
+            .getString(R.string.sign_in_mode_register)
+            .uppercase(Locale.getDefault())
+        val createAccountLabel = composeTestRule.activity
+            .getString(R.string.sign_in_create_account)
+            .uppercase(Locale.getDefault())
+        val signInToggleLabel = composeTestRule.activity
+            .getString(R.string.sign_in_mode_sign_in)
+            .uppercase(Locale.getDefault())
 
         // Initially should be in sign-in mode
-        onView(withId(R.id.primaryActionButton))
-            .check(matches(withText(R.string.sign_in_button)))
+        composeTestRule.onNodeWithTag(SignInTestTags.PrimaryActionButton)
+            .assertTextEquals(signInLabel)
 
-        onView(withId(R.id.toggleModeButton))
-            .check(matches(withText(R.string.sign_in_mode_register)))
+        composeTestRule.onNodeWithTag(SignInTestTags.ToggleModeButton)
+            .assertTextEquals(registerToggleLabel)
 
         // Toggle to register mode
-        onView(withId(R.id.toggleModeButton))
-            .perform(click())
+        composeTestRule.onNodeWithTag(SignInTestTags.ToggleModeButton)
+            .performClick()
 
         Thread.sleep(500)
 
         // Should now be in register mode
-        onView(withId(R.id.primaryActionButton))
-            .check(matches(withText(R.string.sign_in_create_account)))
+        composeTestRule.onNodeWithTag(SignInTestTags.PrimaryActionButton)
+            .assertTextEquals(createAccountLabel)
 
-        onView(withId(R.id.toggleModeButton))
-            .check(matches(withText(R.string.sign_in_mode_sign_in)))
+        composeTestRule.onNodeWithTag(SignInTestTags.ToggleModeButton)
+            .assertTextEquals(signInToggleLabel)
 
         // Name field should be visible in register mode
-        onView(withId(R.id.nameInputLayout))
-            .check(matches(isDisplayed()))
+        composeTestRule.onNodeWithTag(SignInTestTags.NameInput)
+            .assertIsDisplayed()
 
         // Toggle back to sign-in mode
-        onView(withId(R.id.toggleModeButton))
-            .perform(click())
+        composeTestRule.onNodeWithTag(SignInTestTags.ToggleModeButton)
+            .performClick()
 
         Thread.sleep(500)
 
         // Should be back to sign-in mode
-        onView(withId(R.id.primaryActionButton))
-            .check(matches(withText(R.string.sign_in_button)))
+        composeTestRule.onNodeWithTag(SignInTestTags.PrimaryActionButton)
+            .assertTextEquals(signInLabel)
     }
 }

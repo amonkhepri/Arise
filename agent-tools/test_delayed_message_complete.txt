@@ -1,0 +1,26 @@
+# Complete Delayed Message Test
+# Starting from chat screen
+
+# Use with ./agent-tools/click.sh --file agent-tools/test_delayed_message_complete.txt
+# Step 1: Tap on message input field
+tap 350 1480
+sleep 1
+
+# Step 2: Type test message
+text Testing_delayed_message_feature
+sleep 0.5
+
+# Step 3: Tap the "Send with Delay" button (pink clock button bottom left)
+tap 54 1480
+sleep 2
+
+# Step 4: Time picker should appear - scroll hour up once
+tap 540 920
+sleep 0.5
+
+# Step 5: Tap OK button in time picker dialog
+tap 540 1200
+sleep 2
+
+# Step 6: Take final screenshot
+# Test complete - message should be scheduled

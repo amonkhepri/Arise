@@ -119,13 +119,25 @@ Arise treats attention as a limited resource and designs interaction patterns to
 
 The application follows a layered architecture emphasizing separation of concerns, offline reliability, protocol abstraction, and extensibility across productivity and communication domains.
 
+### Current Transport and Authentication Migration Direction (In Progress)
+
+Arise is moving toward a connector-first architecture for communication and authentication.
+
+Current direction:
+
+* Firebase Firestore is considered a legacy/transitional dependency and is planned for removal from core application flows.
+* Authentication should be handled through Briar protocol capabilities or other supported connectors when available.
+* New features should avoid introducing Firebase-specific assumptions in UI, domain, or repository layers.
+* Transport/authentication behavior should be routed through connector abstractions so multiple connectors can be supported without feature rewrites.
+
 ### Core Stack
 
 * Kotlin
 * Jetpack Compose
 * MVVM
 * Coroutines and Flow
-* Firebase Firestore (cloud synchronization)
+* Connector-based transport/authentication layer (Briar-first, extensible to other connectors)
+* Firebase Firestore (legacy transitional sync connector, planned removal)
 * Local persistence layer as single source of truth
 
 ### Architectural Principles

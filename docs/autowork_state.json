@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "active_plan_file": "docs/briar_invitation_chat_roadmap.md",
+  "review_status": "needs_fix",
+  "last_executor_commit": "916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3",
+  "last_reviewed_commit": "916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3",
+  "pending_fix_for_commit": "916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3",
+  "executor_summary": "This run carried the pending-sync invitation continuation fix through focused JVM validation and live 5554/5556 revalidation. `BriarInvitationOnboardingResultHandlerTest` still confirms that `ContactAddedPendingSync` keeps onboarding active, and `MainActivityInvitationOnboardingTest` still confirms that `MainActivity` retries the same invitation action until a later acceptance resolves `conversation-42`; both suites passed again serially. I then installed the current build on `emulator-5554`, reran `./agent-tools/briar-invitation-e2e-diagnose.sh --device emulator-5554 --skip-install --settle-seconds 20 'briar://ac4rqz7nzcf656k3kqba3axajtbni4ha2jk2cfnci774pcod2ghx2'`, reauthenticated Arise as `hackerman` / `123456`, recovered official Briar on `emulator-5556`, and opened `Pending Contact Requests` there. The live result improved only partially: official Briar shows `ArisePeer` progressing from `Connecting…` to `Waiting for contact to come online…`, while Arise keeps retrying `awaitAddedContactIdentity()` against the same seven `pending:` identities and never resolves a confirmed contact or launches chat.",
+  "reviewer_summary": "Needs fix for commit 916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3: the new MainActivity invitation regression bypasses the STARTED lifecycle collector, so it does not cover the signed-in onboarding path it claims to protect.",
+  "review_notes_ref": "docs/autowork_review_log.md",
+  "review_round": 38,
+  "updated_by": "executor",
+  "updated_at": "2026-03-26T12:10:35Z",
+  "review_status_reason": "Needs fix for commit 916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3 until a new executor commit is reviewed; the latest carried work adds pending-sync continuation coverage plus `MainActivity` retries, but live 5554/5556 validation still stalls because Arise loops on seven existing pending contacts instead of promoting the reciprocated peer into a confirmed contact/chat.",
+  "pending_review_for_commit": null,
+  "feedback": "The app-side retry no longer drops invitation onboarding after the first pending-sync result, but the live baseline still stalls after reciprocal exchange. Official Briar on `emulator-5556` reaches `Pending Contact Requests -> ArisePeer -> Waiting for contact to come online…`, while Arise on `emulator-5554` keeps seeing the same seven `pending:` identities and never resolves a numeric contact or conversation.",
+  "next_action_owner": "executor",
+  "next_action": "Add TDD coverage for resuming invitation bootstrap from an already-existing pending-contact set after the reciprocal peer is already waiting or connecting, then minimally fix the acceptance/resumption path so Arise promotes that peer into a confirmed contact/chat instead of looping on stale pending ids."
+}

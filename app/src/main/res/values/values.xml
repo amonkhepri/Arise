@@ -2216,4 +2216,11 @@
 
     </style>
 
+    <string name="people_share_raw_briar_link">Share my Briar link</string>
+    <string name="people_add_by_raw_briar_link">Add by Briar link</string>
+    <string name="people_share_raw_briar_link_chooser_title">Share Briar link</string>
+    <string name="people_add_by_raw_briar_link_title">Add contact by Briar link</string>
+    <string name="people_add_by_raw_briar_link_message">Paste a raw Briar invitation link to add a contact and start chatting.</string>
+    <string name="people_add_by_raw_briar_link_hint">briar://...</string>
+    <string name="people_add_by_raw_briar_link_confirm">Add contact</string>
 </resources>

@@ -4,11 +4,24 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import com.example.rise.featureflags.BriarTransportMode
-import com.example.rise.featureflags.DataStoreTransportModeProvider
+import com.example.rise.featureflags.DataStoreTransportModeProviderImpl
 import com.example.rise.featureflags.TelegramAuthFlagProvider
+import com.example.rise.transport.router.BridgeOrchestrator
+import com.example.rise.transport.router.ConnectorHealth
+import com.example.rise.transport.router.ConnectorHealthProvider
+import com.example.rise.transport.router.ConnectorInboundMessage
+import com.example.rise.transport.router.ConnectorLifecycleState
+import com.example.rise.transport.router.PrimaryRoutingReason
+import com.example.rise.transport.router.PrimaryRoutingSnapshot
+import com.example.rise.transport.router.PrimarySelectionTrigger
+import com.example.rise.transport.router.TransportId
+import com.example.rise.transport.router.ConnectorCapabilities
+import com.example.rise.transport.router.ConnectorStatus
 import com.example.rise.util.MainDispatcherRule
 import java.io.File
 import app.cash.turbine.test
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -31,8 +44,9 @@ class FeatureFlagsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var scope: CoroutineScope
     private lateinit var dataStore: DataStore<Preferences>
-    private lateinit var transportProvider: DataStoreTransportModeProvider
+    private lateinit var transportProvider: DataStoreTransportModeProviderImpl
     private lateinit var telegramProvider: TelegramAuthFlagProvider
+    private lateinit var healthProvider: FakeConnectorHealthProvider
 
     private fun drain() {
         // run queued work on both dispatcher contexts
@@ -44,9 +58,15 @@ class FeatureFlagsViewModelTest {
         scope = CoroutineScope(SupervisorJob() + dispatcher)
         val file = File(temporaryFolder.newFolder(), "flags.preferences_pb")
         dataStore = PreferenceDataStoreFactory.create(scope = scope, produceFile = { file })
-        transportProvider = DataStoreTransportModeProvider(dataStore)
+        transportProvider = DataStoreTransportModeProviderImpl(dataStore)
         telegramProvider = TelegramAuthFlagProvider(dataStore)
-        return FeatureFlagsViewModel(transportProvider, telegramProvider)
+        healthProvider = FakeConnectorHealthProvider()
+        return FeatureFlagsViewModel(
+            transportModeProvider = transportProvider,
+            telegramAuthFlagProvider = telegramProvider,
+            bridgeOrchestrator = FakeBridgeOrchestrator(),
+            connectorHealthProvider = healthProvider,
+        )
     }
 
     @After
@@ -54,6 +74,25 @@ class FeatureFlagsViewModelTest {
         if (this::scope.isInitialized) {
             scope.cancel()
         }
+    }
+
+    private class FakeBridgeOrchestrator : BridgeOrchestrator {
+        private val snapshot = PrimaryRoutingSnapshot(
+            mode = BriarTransportMode.FIRESTORE,
+            primary = TransportId.FIRESTORE,
+            preferred = TransportId.FIRESTORE,
+            fallbackTarget = null,
+            reason = PrimaryRoutingReason.Initial,
+            preferredLifecycle = ConnectorLifecycleState.STOPPED,
+            trigger = PrimarySelectionTrigger.INITIAL,
+            timestampMs = 0L,
+        )
+        override val routingState: StateFlow<PrimaryRoutingSnapshot> = MutableStateFlow(snapshot)
+        override suspend fun onMessagesReceived(
+            conversationId: String,
+            source: TransportId,
+            messages: List<ConnectorInboundMessage>
+        ) = Unit
     }
 
     @Test
@@ -67,7 +106,7 @@ class FeatureFlagsViewModelTest {
     }
 
     @Test
-    fun `non Firestore selection emits warning and keeps Firestore`() = runTest {
+    fun `non Firestore selection emits warning and switches mode`() = runTest {
         val viewModel = createViewModel()
         drain()
 
@@ -80,7 +119,33 @@ class FeatureFlagsViewModelTest {
         }
 
         val state = viewModel.state.value
-        assertEquals(BriarTransportMode.FIRESTORE, state.mode)
+        assertEquals(BriarTransportMode.HYBRID, state.mode)
     }
 
+    @Test
+    fun `briar only selection updates mode`() = runTest {
+        val viewModel = createViewModel()
+        drain()
+
+        viewModel.setMode(BriarTransportMode.BRIAR_ONLY)
+        drain()
+
+        assertEquals(BriarTransportMode.BRIAR_ONLY, viewModel.state.value.mode)
+    }
+
+}
+
+private class FakeConnectorHealthProvider : ConnectorHealthProvider {
+    override val health: MutableStateFlow<Map<TransportId, ConnectorHealth>> =
+        MutableStateFlow(
+            mapOf(
+                TransportId.FIRESTORE to ConnectorHealth(
+                    transport = TransportId.FIRESTORE,
+                    lifecycle = ConnectorLifecycleState.READY,
+                    status = ConnectorStatus.ACTIVE,
+                    capabilities = ConnectorCapabilities(emptyMap()),
+                    messagingReady = true,
+                )
+            )
+        )
 }

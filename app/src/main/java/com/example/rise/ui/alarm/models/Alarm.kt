@@ -2,10 +2,8 @@ package com.example.rise.ui.alarm.models
 
 import android.os.Parcelable
 import com.example.rise.models.TextMessage
-import com.google.firebase.firestore.IgnoreExtraProperties
 import kotlinx.parcelize.Parcelize
 
-@IgnoreExtraProperties
 @Parcelize
 data class Alarm(
     var idTimeStamp: Int = 0,

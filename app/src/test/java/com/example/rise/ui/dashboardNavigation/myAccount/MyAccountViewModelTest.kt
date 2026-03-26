@@ -21,6 +21,7 @@ class MyAccountViewModelTest {
     @Test
     fun `loadProfile populates ui state`() = runTest {
         val repository = FakeMyAccountRepository()
+        repository.user = repository.user.copy(profilePicturePath = "content://profile.jpg")
         val viewModel = MyAccountViewModel(repository)
 
         viewModel.loadProfile()
@@ -29,6 +30,7 @@ class MyAccountViewModelTest {
         val state = viewModel.uiState.value
         assertEquals(repository.user.name, state.name)
         assertEquals(repository.user.bio, state.bio)
+        assertEquals(repository.user.profilePicturePath, state.profilePicturePath)
         assertEquals(false, state.isLoading)
     }
 
@@ -44,7 +46,7 @@ class MyAccountViewModelTest {
             val state = viewModel.uiState.value
             assertEquals("New Name", state.name)
             assertEquals("New Bio", state.bio)
-            assertEquals(listOf("New Name" to "New Bio"), repository.updateCalls)
+            assertEquals(listOf(UpdateCall("New Name", "New Bio", null)), repository.updateCalls)
 
             val event = awaitItem()
             assertTrue(event is MyAccountViewModel.Event.ShowMessage)
@@ -52,6 +54,45 @@ class MyAccountViewModelTest {
             assertEquals("saving", messageEvent.message)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `updateProfile forwards profile picture path when provided`() = runTest {
+        val repository = FakeMyAccountRepository()
+        val viewModel = MyAccountViewModel(repository)
+
+        viewModel.updateProfile(
+            name = "New Name",
+            bio = "New Bio",
+            profilePicturePath = "file:///tmp/new-profile.jpg",
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("file:///tmp/new-profile.jpg", state.profilePicturePath)
+        assertEquals(
+            listOf(UpdateCall("New Name", "New Bio", "file:///tmp/new-profile.jpg")),
+            repository.updateCalls,
+        )
+    }
+
+    @Test
+    fun `updateProfile keeps existing ui fields when blank inputs are submitted`() = runTest {
+        val repository = FakeMyAccountRepository().apply {
+            user = user.copy(profilePicturePath = "content://profile.jpg")
+        }
+        val viewModel = MyAccountViewModel(repository)
+        viewModel.loadProfile()
+        advanceUntilIdle()
+
+        viewModel.updateProfile(name = " ", bio = "", profilePicturePath = null)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("Jane", state.name)
+        assertEquals("Bio", state.bio)
+        assertEquals("content://profile.jpg", state.profilePicturePath)
+        assertEquals(listOf(UpdateCall(" ", "", null)), repository.updateCalls)
     }
 
     @Test
@@ -63,23 +104,39 @@ class MyAccountViewModelTest {
             viewModel.signOut()
             advanceUntilIdle()
 
-            val event = awaitItem()
-            assertTrue(event is MyAccountViewModel.Event.NavigateToSignIn)
+            val first = awaitItem()
+            assertTrue(first is MyAccountViewModel.Event.ShowMessage)
+            val second = awaitItem()
+            assertTrue(second is MyAccountViewModel.Event.NavigateToSignIn)
             assertEquals(1, repository.signOutCalls)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
+    private data class UpdateCall(
+        val name: String,
+        val bio: String,
+        val profilePicturePath: String?,
+    )
+
     private class FakeMyAccountRepository : MyAccountRepository {
         var user = User(name = "Jane", bio = "Bio", profilePicturePath = null, registrationTokens = mutableListOf())
-        val updateCalls = mutableListOf<Pair<String, String>>()
+        val updateCalls = mutableListOf<UpdateCall>()
         var signOutCalls = 0
 
         override suspend fun fetchCurrentUser(): User = user
 
-        override suspend fun updateCurrentUser(name: String, bio: String) {
-            updateCalls += name to bio
-            user = user.copy(name = name, bio = bio)
+        override suspend fun updateCurrentUser(
+            name: String,
+            bio: String,
+            profilePicturePath: String?,
+        ) {
+            updateCalls += UpdateCall(name, bio, profilePicturePath)
+            user = user.copy(
+                name = name,
+                bio = bio,
+                profilePicturePath = profilePicturePath ?: user.profilePicturePath,
+            )
         }
 
         override suspend fun signOut() {

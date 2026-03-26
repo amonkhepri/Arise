@@ -1,6 +1,6 @@
 package com.example.rise.ui.dashboardNavigation.myAccount.signInActivity
 
-import android.text.TextUtils
+import android.net.Uri
 import app.cash.turbine.test
 import app.cash.turbine.turbineScope
 import com.example.rise.data.auth.SignInRepository
@@ -9,29 +9,31 @@ import com.example.rise.data.auth.TelegramAuthRepository
 import com.example.rise.data.auth.TelegramAuthResponse
 import com.example.rise.ui.signInActivity.SignInViewModel
 import com.example.rise.util.MainDispatcherRule
-import com.google.android.gms.tasks.TaskCompletionSource
-import com.google.firebase.auth.AuthResult
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.spyk
-import io.mockk.verify
-import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
+import com.example.rise.auth.AuthenticationService
+import com.example.rise.auth.AuthStateHandle
+import com.example.rise.briar.runtime.BriarChatGateway
+import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.briar.runtime.BriarRuntimeEvent
+import com.example.rise.briar.runtime.BriarRuntimeStatus
+import com.example.rise.data.auth.BriarAccountRepository
+import com.example.rise.featureflags.BriarTransportMode
+import com.example.rise.testutil.stubBriarChatGateway
+import com.example.rise.testutil.stubBriarContactService
+import com.example.rise.transport.TransportRuntimeBridge
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
-import org.junit.After
 import org.junit.Before
 import java.util.regex.Pattern
 
@@ -41,25 +43,27 @@ class SignInViewModelTest {
     @get:Rule
     val dispatcherRule = MainDispatcherRule()
 
-    private val firebaseAuth = mockk<FirebaseAuth>(relaxed = true)
-    private val repository = mockk<SignInRepository>(relaxed = true)
-    private val telegramRepository = mockk<TelegramAuthRepository>(relaxed = true)
+    private lateinit var authService: FakeAuthenticationService
+    private lateinit var repository: FakeSignInRepository
+    private lateinit var telegramRepository: FakeTelegramAuthRepository
+    private lateinit var briarAccountRepository: FakeBriarAccountRepository
+    private lateinit var transportRuntimeBridge: FakeTransportRuntimeBridge
 
     private fun createViewModel(
         emailValidator: SignInViewModel.EmailValidator = SignInViewModel.EmailValidator { email ->
             email.isNotBlank() && EMAIL_REGEX.matcher(email).matches()
-        }
-    ) = SignInViewModel(firebaseAuth, repository, telegramRepository, emailValidator)
+        },
+        briarRepo: FakeBriarAccountRepository = briarAccountRepository,
+        bridge: FakeTransportRuntimeBridge = transportRuntimeBridge,
+    ) = SignInViewModel(authService, repository, telegramRepository, briarRepo, bridge, emailValidator)
 
     @Before
     fun setUp() {
-        mockkStatic(TextUtils::class)
-        every { TextUtils.isEmpty(any()) } answers { firstArg<CharSequence?>().isNullOrEmpty() }
-    }
-
-    @After
-    fun tearDown() {
-        unmockkStatic(TextUtils::class)
+        authService = FakeAuthenticationService()
+        repository = FakeSignInRepository()
+        telegramRepository = FakeTelegramAuthRepository()
+        briarAccountRepository = FakeBriarAccountRepository()
+        transportRuntimeBridge = FakeTransportRuntimeBridge()
     }
 
     @Test
@@ -78,27 +82,126 @@ class SignInViewModelTest {
 
     @Test
     fun `submitPrimaryAction delegates to sign in when mode is SignIn`() = runTest {
-        val viewModel = spyk(createViewModel(), recordPrivateCalls = true)
-        every { viewModel.signInWithEmail(any(), any()) } returns Unit
-        every { viewModel.register(any(), any(), any()) } returns Unit
+        repository.messagingTokenResult = Result.success(null)
+        val viewModel = createViewModel()
 
-        viewModel.submitPrimaryAction("Test User", "test@example.com", "password123")
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Test User", "test@example.com", "password123")
+            val saveCredentials = awaitItem() as SignInViewModel.Event.SaveCredentials
+            assertEquals("test@example.com", saveCredentials.email)
+            assertEquals("password123", saveCredentials.password)
+            assertEquals(SignInViewModel.Event.NavigateToMain, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
 
-        verify(exactly = 1) { viewModel.signInWithEmail("test@example.com", "password123") }
-        verify(exactly = 0) { viewModel.register(any(), any(), any()) }
+        assertEquals(listOf("test@example.com" to "password123"), authService.emailSignIns)
+        assertTrue(repository.ensureUserInitializedCalls >= 1)
+        assertTrue(repository.storedTokens.isEmpty())
     }
 
     @Test
     fun `submitPrimaryAction delegates to register when mode is Register`() = runTest {
-        val viewModel = spyk(createViewModel(), recordPrivateCalls = true)
-        every { viewModel.signInWithEmail(any(), any()) } returns Unit
-        every { viewModel.register(any(), any(), any()) } returns Unit
-
+        repository.messagingTokenResult = Result.success(null)
+        val viewModel = createViewModel()
         viewModel.toggleMode()
-        viewModel.submitPrimaryAction("Test User", "test@example.com", "password123")
 
-        verify(exactly = 1) { viewModel.register("Test User", "test@example.com", "password123") }
-        verify(exactly = 0) { viewModel.signInWithEmail(any(), any()) }
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Test User", "test@example.com", "password123")
+            val saveCredentials = awaitItem() as SignInViewModel.Event.SaveCredentials
+            assertEquals("test@example.com", saveCredentials.email)
+            assertEquals("password123", saveCredentials.password)
+            assertEquals(SignInViewModel.Event.NavigateToMain, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(authService.emailSignIns.isEmpty())
+        assertEquals(listOf("test@example.com" to "password123"), authService.createdUsers)
+        assertEquals("Test User", authService.currentUser?.displayName)
+    }
+
+    @Test
+    fun `register without email creates briar account and navigates`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        briarAccountRepository.result = Result.success(Unit)
+        val viewModel = createViewModel()
+        viewModel.toggleMode()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Briar User", "", "password123")
+            assertEquals(SignInViewModel.Event.NavigateToMain, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(authService.createdUsers.isEmpty())
+        assertEquals(listOf("Briar User" to "password123"), briarAccountRepository.createCalls)
+        assertEquals(0, repository.ensureUserInitializedCalls)
+        assertTrue(repository.storedTokens.isEmpty())
+    }
+
+    @Test
+    fun `register without email surfaces briar creation error`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        briarAccountRepository.result = Result.failure(IllegalStateException("briar failed"))
+        val viewModel = createViewModel()
+        viewModel.toggleMode()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Briar User", "", "password123")
+            val event = awaitItem() as SignInViewModel.Event.ShowMessage
+            assertEquals("briar failed", event.message)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(authService.createdUsers.isEmpty())
+        assertEquals(listOf("Briar User" to "password123"), briarAccountRepository.createCalls)
+        assertEquals(0, repository.ensureUserInitializedCalls)
+    }
+
+    @Test
+    fun `sign in without email uses briar account in briar only mode`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        briarAccountRepository.signInResult = Result.success(Unit)
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Briar User", "", "password123")
+            assertEquals(SignInViewModel.Event.NavigateToMain, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(authService.emailSignIns.isEmpty())
+        assertEquals(listOf("Briar User" to "password123"), briarAccountRepository.signInCalls)
+    }
+
+    @Test
+    fun `sign in without email requires name`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("", "", "password123")
+            val event = awaitItem() as SignInViewModel.Event.ShowMessage
+            assertEquals("Please enter your name", event.message)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(briarAccountRepository.signInCalls.isEmpty())
+    }
+
+    @Test
+    fun `sign in without email surfaces briar error`() = runTest {
+        transportRuntimeBridge.setMode(BriarTransportMode.BRIAR_ONLY)
+        briarAccountRepository.signInResult = Result.failure(IllegalStateException("bad password"))
+        val viewModel = createViewModel()
+
+        viewModel.events.test {
+            viewModel.submitPrimaryAction("Briar User", "", "wrong")
+            val event = awaitItem() as SignInViewModel.Event.ShowMessage
+            assertEquals("bad password", event.message)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(listOf("Briar User" to "wrong"), briarAccountRepository.signInCalls)
     }
 
     @Test
@@ -106,7 +209,7 @@ class SignInViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.events.test {
-            viewModel.signInWithEmail("invalid-email", "password123")
+            viewModel.signInWithEmail(name = "Test", email = "invalid-email", password = "password123")
             val event = awaitItem() as SignInViewModel.Event.ShowMessage
             assertEquals("Please enter a valid email", event.message)
             cancelAndIgnoreRemainingEvents()
@@ -118,7 +221,7 @@ class SignInViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.events.test {
-            viewModel.signInWithEmail("test@example.com", "")
+            viewModel.signInWithEmail(name = "Test", email = "test@example.com", password = "")
             val event = awaitItem() as SignInViewModel.Event.ShowMessage
             assertEquals("Please enter your password", event.message)
             cancelAndIgnoreRemainingEvents()
@@ -151,15 +254,16 @@ class SignInViewModelTest {
 
     @Test
     fun `successful sign in flow toggles loading and navigates`() = runTest {
-        val authResult = mockk<AuthResult>()
-        val authTask = TaskCompletionSource<AuthResult>().apply {
-            setResult(authResult)
-        }.task
-
-        every { firebaseAuth.signInWithEmailAndPassword(any(), any()) } returns authTask
-        coEvery { repository.ensureUserInitialized() } returns Unit
-        coEvery { repository.fetchMessagingToken() } returns "test-token"
-        coEvery { repository.storeMessagingToken(any()) } returns Unit
+        authService.signInWithEmailAction = { email, password ->
+            authService.emailSignIns += email to password
+            authService.currentUser = AuthenticationService.User(
+                id = "uid-$email",
+                displayName = "Alice",
+                email = email,
+                photoUrl = null,
+            )
+        }
+        repository.messagingTokenResult = Result.success("test-token")
 
         val viewModel = createViewModel()
 
@@ -168,7 +272,7 @@ class SignInViewModelTest {
             val eventTurbine = viewModel.events.testIn(this)
 
             assertFalse(stateTurbine.awaitItem().isLoading)
-            viewModel.signInWithEmail("test@example.com", "password123")
+            viewModel.signInWithEmail(name = "Test", email = "test@example.com", password = "password123")
             assertTrue(stateTurbine.awaitItem().isLoading)
             assertFalse(stateTurbine.awaitItem().isLoading)
 
@@ -177,7 +281,8 @@ class SignInViewModelTest {
             assertEquals("password123", saveCredentials.password)
             assertEquals(SignInViewModel.Event.NavigateToMain, eventTurbine.awaitItem())
 
-            coVerify { repository.storeMessagingToken("test-token") }
+            assertEquals(listOf("test-token"), repository.storedTokens)
+            assertEquals(1, repository.ensureUserInitializedCalls)
 
             stateTurbine.cancel()
             eventTurbine.cancel()
@@ -186,21 +291,16 @@ class SignInViewModelTest {
 
     @Test
     fun `successful registration flow creates user and updates profile`() = runTest {
-        val authResult = mockk<AuthResult>()
-        val firebaseUser = mockk<FirebaseUser>(relaxed = true)
-        val authTask = TaskCompletionSource<AuthResult>().apply {
-            setResult(authResult)
-        }.task
-        val updateTask = TaskCompletionSource<Void>().apply {
-            setResult(null)
-        }.task
-
-        every { firebaseAuth.createUserWithEmailAndPassword(any(), any()) } returns authTask
-        every { firebaseAuth.currentUser } returns firebaseUser
-        every { firebaseUser.updateProfile(any()) } returns updateTask
-        coEvery { repository.ensureUserInitialized() } returns Unit
-        coEvery { repository.fetchMessagingToken() } returns "test-token"
-        coEvery { repository.storeMessagingToken(any()) } returns Unit
+        authService.createUserAction = { email, password ->
+            authService.createdUsers += email to password
+            authService.currentUser = AuthenticationService.User(
+                id = "uid-$email",
+                displayName = null,
+                email = email,
+                photoUrl = null,
+            )
+        }
+        repository.messagingTokenResult = Result.success("test-token")
 
         val viewModel = createViewModel()
 
@@ -213,7 +313,10 @@ class SignInViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { firebaseUser.updateProfile(any()) }
+        assertEquals(listOf("Test User"), authService.updateProfileCalls.map { it.first })
+        assertEquals("Test User", authService.currentUser?.displayName)
+        assertEquals(listOf("test-token"), repository.storedTokens)
+        assertEquals(1, repository.ensureUserInitializedCalls)
     }
 
     @Test
@@ -223,11 +326,7 @@ class SignInViewModelTest {
             "Password must be at least 6 characters",
             "pass"
         )
-        val authTask = TaskCompletionSource<AuthResult>().apply {
-            setException(weakPassword)
-        }.task
-
-        every { firebaseAuth.createUserWithEmailAndPassword(any(), any()) } returns authTask
+        authService.createUserAction = { _, _ -> throw weakPassword }
 
         val viewModel = createViewModel()
 
@@ -246,11 +345,7 @@ class SignInViewModelTest {
             "email-already-in-use",
             "Firebase says email exists"
         )
-        val authTask = TaskCompletionSource<AuthResult>().apply {
-            setException(collision)
-        }.task
-
-        every { firebaseAuth.createUserWithEmailAndPassword(any(), any()) } returns authTask
+        authService.createUserAction = { _, _ -> throw collision }
 
         val viewModel = createViewModel()
 
@@ -264,22 +359,21 @@ class SignInViewModelTest {
 
     @Test
     fun `signInWithTelegram signs in and navigates`() = runTest {
-        val authResult = mockk<AuthResult>()
-        val firebaseUser = mockk<FirebaseUser>(relaxed = true) {
-            every { displayName } returns null
-            every { updateProfile(any()) } returns TaskCompletionSource<Void>().apply { setResult(null) }.task
-        }
-        val signInTask = TaskCompletionSource<AuthResult>().apply { setResult(authResult) }.task
-
-        coEvery { telegramRepository.exchange(any()) } returns TelegramAuthResponse(
+        telegramRepository.response = TelegramAuthResponse(
             customToken = "custom-token",
             displayName = "Telegram User",
             photoUrl = null,
         )
-        every { firebaseAuth.signInWithCustomToken("custom-token") } returns signInTask
-        every { firebaseAuth.currentUser } returns firebaseUser
-        coEvery { repository.ensureUserInitialized() } returns Unit
-        coEvery { repository.fetchMessagingToken() } returns null
+        authService.signInWithCustomTokenAction = { token ->
+            authService.customTokenSignIns += token
+            authService.currentUser = AuthenticationService.User(
+                id = "uid-$token",
+                displayName = null,
+                email = null,
+                photoUrl = null,
+            )
+        }
+        repository.messagingTokenResult = Result.success(null)
 
         val viewModel = createViewModel()
 
@@ -299,13 +393,14 @@ class SignInViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { telegramRepository.exchange(any()) }
-        verify { firebaseAuth.signInWithCustomToken("custom-token") }
+        assertEquals(1, telegramRepository.requests.size)
+        assertEquals(listOf("custom-token"), authService.customTokenSignIns)
+        assertEquals(listOf("Telegram User"), authService.updateProfileCalls.map { it.first })
     }
 
     @Test
     fun `signInWithTelegram surfaces repository errors`() = runTest {
-        coEvery { telegramRepository.exchange(any()) } throws IllegalStateException("backend down")
+        telegramRepository.error = IllegalStateException("backend down")
 
         val viewModel = createViewModel()
 
@@ -342,3 +437,160 @@ class SignInViewModelTest {
 }
 
 private val EMAIL_REGEX: Pattern = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")
+
+private class FakeBriarAccountRepository : BriarAccountRepository {
+    var result: Result<Unit> = Result.success(Unit)
+    var signInResult: Result<Unit> = Result.success(Unit)
+    val createCalls = mutableListOf<Pair<String, String>>()
+    val signInCalls = mutableListOf<Pair<String, String>>()
+
+    override suspend fun createAccount(name: String, password: String) {
+        createCalls += name to password
+        result.getOrThrow()
+    }
+
+    override suspend fun signIn(name: String, password: String) {
+        signInCalls += name to password
+        signInResult.getOrThrow()
+    }
+}
+
+private class FakeTransportRuntimeBridge(
+    initialMode: BriarTransportMode = BriarTransportMode.FIRESTORE,
+) : TransportRuntimeBridge {
+    private val modeState = MutableStateFlow(initialMode)
+    override val currentMode: StateFlow<BriarTransportMode> = modeState.asStateFlow()
+    override val runtimeStatus: StateFlow<BriarRuntimeStatus> = MutableStateFlow(BriarRuntimeStatus.stopped)
+    override val diagnostics: MutableSharedFlow<BriarRuntimeEvent> = MutableSharedFlow()
+    override val briarChatGateway: StateFlow<BriarChatGateway> = MutableStateFlow(stubBriarChatGateway(isAvailable = true))
+    override val briarContactService: StateFlow<BriarContactService> = MutableStateFlow(stubBriarContactService(isAvailable = true))
+
+    override fun requireFirestore(caller: String) = Unit
+
+    fun setMode(mode: BriarTransportMode) {
+        modeState.value = mode
+    }
+}
+
+private class FakeSignInRepository : SignInRepository {
+    var ensureUserInitializedCalls: Int = 0
+    var ensureUserInitializedError: Throwable? = null
+    var messagingTokenResult: Result<String?> = Result.success(null)
+    val storedTokens = mutableListOf<String>()
+    var storeMessagingTokenError: Throwable? = null
+
+    override suspend fun ensureUserInitialized() {
+        ensureUserInitializedCalls += 1
+        ensureUserInitializedError?.let { throw it }
+    }
+
+    override suspend fun fetchMessagingToken(): String? {
+        return messagingTokenResult.getOrElse { throw it }
+    }
+
+    override suspend fun storeMessagingToken(token: String) {
+        storedTokens += token
+        storeMessagingTokenError?.let { throw it }
+    }
+}
+
+private class FakeTelegramAuthRepository : TelegramAuthRepository {
+    val requests = mutableListOf<TelegramAuthData>()
+    var response: TelegramAuthResponse = TelegramAuthResponse(
+        customToken = "default-token",
+        displayName = null,
+        photoUrl = null,
+    )
+    var error: Throwable? = null
+
+    override suspend fun exchange(authData: TelegramAuthData): TelegramAuthResponse {
+        requests += authData
+        error?.let { throw it }
+        return response
+    }
+}
+
+private class FakeAuthenticationService : AuthenticationService {
+    private val listeners = mutableSetOf<(AuthenticationService.User?) -> Unit>()
+
+    var currentUser: AuthenticationService.User? = null
+    val emailSignIns = mutableListOf<Pair<String, String>>()
+    val createdUsers = mutableListOf<Pair<String, String>>()
+    val customTokenSignIns = mutableListOf<String>()
+    val updateProfileCalls = mutableListOf<Pair<String?, Uri?>>()
+
+    var signInWithEmailAction: suspend (String, String) -> Unit = { email, password ->
+        emailSignIns += email to password
+        currentUser = AuthenticationService.User(
+            id = "uid-$email",
+            displayName = null,
+            email = email,
+            photoUrl = null,
+        )
+        notifyListeners()
+    }
+
+    var createUserAction: suspend (String, String) -> Unit = { email, password ->
+        createdUsers += email to password
+        currentUser = AuthenticationService.User(
+            id = "uid-$email",
+            displayName = null,
+            email = email,
+            photoUrl = null,
+        )
+        notifyListeners()
+    }
+
+    var signInWithCustomTokenAction: suspend (String) -> Unit = { token ->
+        customTokenSignIns += token
+        currentUser = AuthenticationService.User(
+            id = "uid-$token",
+            displayName = null,
+            email = null,
+            photoUrl = null,
+        )
+        notifyListeners()
+    }
+
+    var updateProfileAction: suspend (String?, Uri?) -> Unit = { displayName, photoUrl ->
+        updateProfileCalls += displayName to photoUrl
+        currentUser = currentUser?.copy(
+            displayName = displayName ?: currentUser?.displayName,
+            photoUrl = photoUrl ?: currentUser?.photoUrl,
+        )
+        notifyListeners()
+    }
+
+    override fun currentUser(): AuthenticationService.User? = currentUser
+
+    override fun addAuthStateListener(listener: (AuthenticationService.User?) -> Unit): AuthStateHandle {
+        listeners += listener
+        listener(currentUser)
+        return AuthStateHandle { listeners -= listener }
+    }
+
+    override suspend fun signInWithEmail(email: String, password: String) {
+        signInWithEmailAction(email, password)
+    }
+
+    override suspend fun createUserWithEmail(email: String, password: String) {
+        createUserAction(email, password)
+    }
+
+    override suspend fun signInWithCustomToken(customToken: String) {
+        signInWithCustomTokenAction(customToken)
+    }
+
+    override suspend fun updateProfile(displayName: String?, photoUrl: Uri?) {
+        updateProfileAction(displayName, photoUrl)
+    }
+
+    override fun signOut() {
+        currentUser = null
+        notifyListeners()
+    }
+
+    private fun notifyListeners() {
+        listeners.forEach { it(currentUser) }
+    }
+}

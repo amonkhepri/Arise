@@ -9,7 +9,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
-import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -21,9 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
@@ -55,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -65,6 +65,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.WindowCompat
 import androidx.credentials.CreatePasswordRequest
 import androidx.credentials.CredentialManager
@@ -77,10 +78,11 @@ import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.data.auth.TelegramAuthData
 import com.example.rise.featureflags.TelegramAuthFlagProvider
+import com.example.rise.ui.mainActivity.BriarInvitationOnboardingAction
 import com.example.rise.ui.mainActivity.MainActivity
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.android.ext.android.inject
-import java.util.Locale
+import java.util.*
 
 class SignInActivity : BaseActivity() {
 
@@ -113,9 +115,10 @@ class SignInActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         val backgroundColor = ContextCompat.getColor(this, R.color.chatBackground)
         window.statusBarColor = backgroundColor
-        window.navigationBarColor = backgroundColor
-        window.setBackgroundDrawable(ColorDrawable(backgroundColor))
-        WindowCompat.getInsetsController(window, window.decorView)?.apply {
+        window.
+        navigationBarColor = backgroundColor
+        window.setBackgroundDrawable(backgroundColor.toDrawable())
+        WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
         }
@@ -192,6 +195,7 @@ class SignInActivity : BaseActivity() {
             val intent = Intent(this, MainActivity::class.java).addFlags(
                 FLAG_ACTIVITY_CLEAR_TASK or FLAG_ACTIVITY_NEW_TASK
             )
+            BriarInvitationOnboardingAction.consumeFrom(intent = this.intent)?.applyTo(intent)
             startActivity(intent)
         }
         finish()
@@ -211,6 +215,15 @@ class SignInActivity : BaseActivity() {
             intent.getParcelableExtra(TelegramAuthActivity.EXTRA_AUTH_DATA)
         }
     }
+}
+
+internal object SignInTestTags {
+    const val NameInput = "nameInput"
+    const val EmailInput = "emailInput"
+    const val PasswordInput = "passwordInput"
+    const val PrimaryActionButton = "primaryActionButton"
+    const val SavedCredentialsButton = "savedCredentialsButton"
+    const val ToggleModeButton = "toggleModeButton"
 }
 
 @Composable
@@ -264,58 +277,59 @@ private fun SignInScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                AnimatedVisibility(visible = uiState.mode == SignInViewModel.Mode.Register) {
-                    Column {
-                        TextField(
-                            value = name,
-                            onValueChange = onNameChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text(text = stringResource(R.string.sign_in_name_hint)) },
-                            singleLine = true,
-                            enabled = !uiState.isLoading,
-                            trailingIcon = {
-                                if (name.isNotEmpty()) {
-                                    IconButton(onClick = { onNameChange("") }) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Close,
-                                            contentDescription = null,
-                                            tint = textColor
-                                        )
-                                    }
-                                }
-                            },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Text,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(onNext = {
-                                focusManager.moveFocus(FocusDirection.Down)
-                            }),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = fieldBackground,
-                                unfocusedContainerColor = fieldBackground,
-                                disabledContainerColor = fieldBackground,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent,
-                                cursorColor = textColor,
-                                focusedPlaceholderColor = textColor.copy(alpha = 0.6f),
-                                unfocusedPlaceholderColor = textColor.copy(alpha = 0.6f),
-                                focusedTextColor = textColor,
-                                unfocusedTextColor = textColor,
-                                disabledTextColor = textColor.copy(alpha = 0.5f)
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                }
+                TextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.NameInput),
+                    placeholder = { Text(text = stringResource(R.string.sign_in_name_hint)) },
+                    singleLine = true,
+                    enabled = !uiState.isLoading,
+                    trailingIcon = {
+                        if (name.isNotEmpty()) {
+                            IconButton(onClick = { onNameChange("") }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = null,
+                                    tint = textColor
+                                )
+                            }
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(onNext = {
+                        focusManager.moveFocus(FocusDirection.Down)
+                    }),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = fieldBackground,
+                        unfocusedContainerColor = fieldBackground,
+                        disabledContainerColor = fieldBackground,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        cursorColor = textColor,
+                        focusedPlaceholderColor = textColor.copy(alpha = 0.6f),
+                        unfocusedPlaceholderColor = textColor.copy(alpha = 0.6f),
+                        focusedTextColor = textColor,
+                        unfocusedTextColor = textColor,
+                        disabledTextColor = textColor.copy(alpha = 0.5f)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TextField(
                     value = email,
                     onValueChange = onEmailChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text(text = stringResource(R.string.sign_in_email_hint)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.EmailInput),
+                    placeholder = { Text(text = stringResource(R.string.sign_in_email_optional_hint)) },
                     singleLine = true,
                     enabled = !uiState.isLoading,
                     keyboardOptions = KeyboardOptions(
@@ -347,7 +361,9 @@ private fun SignInScreen(
                 TextField(
                     value = password,
                     onValueChange = onPasswordChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.PasswordInput),
                     placeholder = { Text(text = stringResource(R.string.sign_in_password_hint)) },
                     singleLine = true,
                     enabled = !uiState.isLoading,
@@ -390,7 +406,9 @@ private fun SignInScreen(
                         focusManager.clearFocus(force = true)
                         onPrimaryAction()
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.PrimaryActionButton),
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -410,7 +428,9 @@ private fun SignInScreen(
 
                 OutlinedButton(
                     onClick = onSavedCredentials,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SignInTestTags.SavedCredentialsButton),
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = textColor),
@@ -446,6 +466,7 @@ private fun SignInScreen(
                 TextButton(
                     onClick = onToggleMode,
                     enabled = !uiState.isLoading,
+                    modifier = Modifier.testTag(SignInTestTags.ToggleModeButton),
                     colors = ButtonDefaults.textButtonColors(contentColor = accentGreen)
                 ) {
                     val toggleLabel = if (uiState.mode == SignInViewModel.Mode.Register) {

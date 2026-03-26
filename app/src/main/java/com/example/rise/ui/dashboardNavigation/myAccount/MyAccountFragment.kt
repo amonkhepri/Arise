@@ -62,10 +62,9 @@ class MyAccountFragment : BaseFragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { collectUiState() }
                 launch { collectEvents() }
+                launch {viewModel.loadProfile()}
             }
         }
-
-        viewModel.loadProfile()
     }
 
     private suspend fun collectUiState() {
@@ -91,9 +90,10 @@ class MyAccountFragment : BaseFragment() {
 
                 MyAccountViewModel.Event.NavigateToSignIn -> {
                     val intent = Intent(requireContext(), SignInActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                     }
                     startActivity(intent)
+                    requireActivity().finishAffinity()
                 }
             }
         }

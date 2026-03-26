@@ -1,0 +1,155 @@
+package com.example.rise.transport
+
+import com.example.rise.briar.runtime.BriarChatGateway
+import com.example.rise.briar.runtime.BriarContact
+import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.briar.runtime.BriarConversation
+import com.example.rise.briar.runtime.BriarConversationDescriptor
+import com.example.rise.briar.runtime.BriarMessage
+import com.example.rise.briar.runtime.BriarOutboundMessage
+import com.example.rise.briar.runtime.BriarRuntimeEvent
+import com.example.rise.briar.runtime.BriarRuntimeManager
+import com.example.rise.briar.runtime.BriarRuntimePhase
+import com.example.rise.briar.runtime.BriarRuntimeStatus
+import com.example.rise.data.people.IdentityBackfillScheduler
+import com.example.rise.featureflags.BriarTransportMode
+import com.example.rise.featureflags.TransportModeProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import io.mockk.coVerify
+import io.mockk.mockk
+
+class TransportRuntimeBridgeImplTest {
+
+    @Test
+    fun `requireFirestore throws in default briar-only mode`() {
+        runBlocking {
+            val dispatcher = Dispatchers.Unconfined
+            val provider = FakeTransportModeProvider(BriarTransportMode.BRIAR_ONLY)
+            val runtimeManager = FakeRuntimeManager()
+            val scheduler = mockk<IdentityBackfillScheduler>(relaxed = true)
+            val bridge = TransportRuntimeBridgeImpl(provider, runtimeManager, scheduler, dispatcher)
+            yield()
+            val error = runCatching { bridge.requireFirestore("test call") }.exceptionOrNull()
+            assertTrue(error is IllegalStateException)
+        }
+    }
+
+    @Test
+    fun `requireFirestore throws on non Firestore modes`() {
+        runBlocking {
+            val dispatcher = Dispatchers.Unconfined
+            val provider = FakeTransportModeProvider(BriarTransportMode.BRIAR_ONLY)
+            val runtimeManager = FakeRuntimeManager()
+            val scheduler = mockk<IdentityBackfillScheduler>(relaxed = true)
+            val bridge = TransportRuntimeBridgeImpl(provider, runtimeManager, scheduler, dispatcher)
+
+            provider.setMode(BriarTransportMode.HYBRID)
+            yield()
+
+            assertTrue(runtimeManager.started)
+            val error = runCatching { bridge.requireFirestore("test call") }.exceptionOrNull()
+            assertTrue(error is IllegalStateException)
+            assertEquals(BriarTransportMode.HYBRID, bridge.currentMode.value)
+        }
+    }
+
+    @Test
+    fun `switching back to Firestore stops runtime`() {
+        runBlocking {
+            val dispatcher = Dispatchers.Unconfined
+            val provider = FakeTransportModeProvider(BriarTransportMode.BRIAR_ONLY)
+            val runtimeManager = FakeRuntimeManager()
+            val scheduler = mockk<IdentityBackfillScheduler>(relaxed = true)
+            TransportRuntimeBridgeImpl(provider, runtimeManager, scheduler, dispatcher)
+
+            provider.setMode(BriarTransportMode.HYBRID)
+            yield()
+            provider.setMode(BriarTransportMode.FIRESTORE)
+            yield()
+
+            assertTrue(runtimeManager.stopped)
+        }
+    }
+
+    @Test
+    fun `identity backfill scheduled when entering hybrid`() {
+        runBlocking {
+            val dispatcher = Dispatchers.Unconfined
+            val provider = FakeTransportModeProvider(BriarTransportMode.BRIAR_ONLY)
+            val runtimeManager = FakeRuntimeManager()
+            val scheduler = mockk<IdentityBackfillScheduler>(relaxed = true)
+            TransportRuntimeBridgeImpl(provider, runtimeManager, scheduler, dispatcher)
+
+            provider.setMode(BriarTransportMode.HYBRID)
+            yield()
+
+            coVerify { scheduler.scheduleIfNeeded(BriarTransportMode.HYBRID) }
+        }
+    }
+
+    private class FakeTransportModeProvider(
+        initialMode: BriarTransportMode
+    ) : TransportModeProvider {
+        private val state = MutableStateFlow(initialMode)
+        override fun observeMode(): Flow<BriarTransportMode> = state
+        override suspend fun setMode(mode: BriarTransportMode) {
+            state.value = mode
+        }
+        override suspend fun getMode(): BriarTransportMode = state.value
+    }
+
+    private class FakeRuntimeManager : BriarRuntimeManager {
+        private val _status = MutableStateFlow(BriarRuntimeStatus(BriarRuntimePhase.STOPPED))
+        private val _diagnostics = MutableSharedFlow<BriarRuntimeEvent>()
+        private val _chatGateway = MutableStateFlow<BriarChatGateway>(object : BriarChatGateway {
+            override val isAvailable: Boolean = false
+            override suspend fun currentIdentity() = null
+            override suspend fun ensureConversation(descriptor: BriarConversationDescriptor) =
+                BriarConversation(descriptor.canonicalConversationId, descriptor.canonicalConversationId)
+
+            override fun observeMessages(conversationId: String) = flowOf(emptyList<BriarMessage>())
+
+            override suspend fun sendMessage(message: BriarOutboundMessage) = Unit
+        })
+        private val _contactService =
+            MutableStateFlow<BriarContactService>(object : BriarContactService {
+                override val isAvailable: Boolean = false
+                override suspend fun addContactByLink(link: String, alias: String?) = Unit
+                override fun observeContacts() = flowOf(emptyList<BriarContact>())
+            })
+
+        var started = false
+            private set
+        var stopped = false
+            private set
+
+        override val status: StateFlow<BriarRuntimeStatus> = _status
+        override val diagnostics: SharedFlow<BriarRuntimeEvent> = _diagnostics
+        override val chatGateway: StateFlow<BriarChatGateway> = _chatGateway
+        override val contactService: StateFlow<BriarContactService> = _contactService
+
+        override suspend fun ensureStarted() {
+            started = true
+            _status.value = BriarRuntimeStatus(BriarRuntimePhase.RUNNING)
+        }
+
+        override suspend fun createAccount(name: String, password: String): Boolean = true
+        override suspend fun signIn(password: String): Boolean = true
+
+        override suspend fun stop() {
+            stopped = true
+            _status.value = BriarRuntimeStatus(BriarRuntimePhase.STOPPED)
+        }
+    }
+}

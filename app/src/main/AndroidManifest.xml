@@ -28,12 +28,6 @@
             android:exported="false"
             android:label="@string/feature_flags_title" />
         <activity
-            android:name=".ui.alarm.ReminderActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.alarm.SnoozeReminderActivity"
-            android:exported="false" />
-        <activity
             android:name=".ui.signInActivity.TelegramAuthActivity"
             android:exported="false"
             android:windowSoftInputMode="stateHidden" />
@@ -48,6 +42,40 @@
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="briar" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="briar"
+                    android:path="/invite"
+                    android:scheme="arise" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="arise.app"
+                    android:path="/briar/invite"
+                    android:scheme="https" />
+                <data
+                    android:host="www.arise.app"
+                    android:path="/briar/invite"
+                    android:scheme="https" />
             </intent-filter>
         </activity>
         <activity
@@ -64,9 +92,6 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".ui.alarm.services.SnoozeService"
-            android:exported="false" />
         <service
             android:name=".services.MyFirebaseMessagingService"
             android:exported="false">

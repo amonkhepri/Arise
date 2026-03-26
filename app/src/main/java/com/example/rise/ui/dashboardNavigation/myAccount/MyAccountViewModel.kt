@@ -17,6 +17,7 @@ class MyAccountViewModel(
     data class UiState(
         val name: String = "",
         val bio: String = "",
+        val profilePicturePath: String? = null,
         val isLoading: Boolean = false,
         val isSaving: Boolean = false,
         val errorMessage: String? = null,
@@ -42,6 +43,7 @@ class MyAccountViewModel(
                     it.copy(
                         name = user.name,
                         bio = user.bio,
+                        profilePicturePath = user.profilePicturePath,
                         isLoading = false,
                         errorMessage = null,
                     )
@@ -53,15 +55,21 @@ class MyAccountViewModel(
         }
     }
 
-    fun updateProfile(name: String, bio: String) {
+    fun updateProfile(name: String, bio: String, profilePicturePath: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
-                repository.updateCurrentUser(name, bio)
+                repository.updateCurrentUser(name, bio, profilePicturePath)
                 _uiState.update {
+                    val updatedName = name.takeIf { value -> value.isNotBlank() } ?: it.name
+                    val updatedBio = bio.takeIf { value -> value.isNotBlank() } ?: it.bio
+                    val updatedProfilePicturePath =
+                        profilePicturePath?.takeIf { value -> value.isNotBlank() }
+                            ?: it.profilePicturePath
                     it.copy(
-                        name = name,
-                        bio = bio,
+                        name = updatedName,
+                        bio = updatedBio,
+                        profilePicturePath = updatedProfilePicturePath,
                         isSaving = false,
                         errorMessage = null,
                     )
@@ -76,11 +84,17 @@ class MyAccountViewModel(
 
     fun signOut() {
         viewModelScope.launch {
+            var errorMessage: String?
             try {
+                _uiState.update { it.copy(isLoading = true) }
+                _events.tryEmit(Event.ShowMessage("Signing out..."))
                 repository.signOut()
-                _events.emit(Event.NavigateToSignIn)
+                _events.tryEmit(Event.NavigateToSignIn)
             } catch (error: Exception) {
-                _events.emit(Event.ShowMessage(error.message ?: "Failed to sign out"))
+                errorMessage = error.message ?: "Failed to sign out"
+                _events.tryEmit(Event.ShowMessage(errorMessage))
+            } finally {
+                _uiState.update { UiState() }
             }
         }
     }

@@ -5,7 +5,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/cardView_item_person"
     android:layout_width="match_parent"
-    android:layout_height="70dp"
+    android:layout_height="wrap_content"
+    android:minHeight="70dp"
     android:layout_margin="4dp"
     android:foreground="?android:attr/selectableItemBackground"
     app:cardBackgroundColor="@color/cardBackground"
@@ -18,13 +19,16 @@
 
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
         <ImageView
             android:id="@+id/imageView_profile_picture"
             android:layout_width="60dp"
             android:layout_height="60dp"
             android:layout_centerVertical="true"
             android:layout_marginStart="20dp"
+            android:contentDescription="@string/person_avatar_content_description"
             tools:src="@drawable/ic_account_circle_black_24dp"/>
 
         <TextView
@@ -39,11 +43,21 @@
             tools:text="Reso Coder" />
 
         <TextView
-            android:id="@+id/textView_bio"
+            android:id="@+id/textView_presence"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignStart="@+id/textView_name"
             android:layout_below="@+id/textView_name"
+            android:layout_marginStart="2dp"
+            android:textAppearance="@style/Base.TextAppearance.AppCompat.Small"
+            tools:text="Online" />
+
+        <TextView
+            android:id="@+id/textView_bio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignStart="@+id/textView_name"
+            android:layout_below="@id/textView_presence"
             android:layout_marginStart="2dp"
             android:ellipsize="end"
             android:maxLines="1"

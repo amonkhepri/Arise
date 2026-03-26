@@ -3,13 +3,15 @@ package com.example.rise.ui.mainActivity
 import android.app.Activity
 import app.cash.turbine.test
 import com.example.rise.data.auth.AuthStateProvider
+import com.example.rise.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
-import org.junit.Rule
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
-import com.example.rise.util.MainDispatcherRule
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainActivityViewModelTest {
@@ -21,6 +23,8 @@ class MainActivityViewModelTest {
     fun `emits sign-in event when user is signed out`() = runTest {
         val authState = FakeAuthStateProvider(signedIn = false)
         val viewModel = MainActivityViewModel(authState)
+
+        assertFalse(viewModel.uiState.value.shouldRenderAuthenticatedUi)
 
         viewModel.events.test {
             viewModel.onStart()
@@ -45,6 +49,7 @@ class MainActivityViewModelTest {
 
             assertTrue(viewModel.uiState.value.isUserSignedIn)
             assertFalse(viewModel.uiState.value.isSigningIn)
+            assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
             expectNoEvents()
             cancelAndIgnoreRemainingEvents()
         }
@@ -65,6 +70,96 @@ class MainActivityViewModelTest {
             assertTrue(retry is MainActivityViewModel.MainActivityEvent.LaunchSignIn)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `keeps pending invitation onboarding action after sign-in succeeds`() = runTest {
+        val authState = FakeAuthStateProvider(signedIn = false)
+        val viewModel = MainActivityViewModel(authState)
+        val action = BriarInvitationOnboardingAction(
+            briarLink = "briar://invite?c=abc",
+            alias = "Ada",
+            duplicateKey = "dup-key",
+        )
+
+        viewModel.onPendingInvitationOnboarding(action)
+
+        viewModel.events.test {
+            viewModel.onStart()
+            awaitItem()
+
+            authState.setSignedIn(true)
+            viewModel.onSignInResult(Activity.RESULT_OK)
+
+            assertTrue(viewModel.uiState.value.isUserSignedIn)
+            assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+            assertEquals(action, viewModel.uiState.value.pendingInvitationOnboardingAction)
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `keeps pending invitation onboarding action through startup when already signed in`() = runTest {
+        val authState = FakeAuthStateProvider(signedIn = true)
+        val viewModel = MainActivityViewModel(authState)
+        val action = BriarInvitationOnboardingAction(
+            briarLink = "briar://invite?c=abc",
+            alias = "Ada",
+            duplicateKey = "dup-key",
+        )
+
+        viewModel.onPendingInvitationOnboarding(action)
+
+        viewModel.events.test {
+            viewModel.onStart()
+
+            assertTrue(viewModel.uiState.value.isUserSignedIn)
+            assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+            assertEquals(action, viewModel.uiState.value.pendingInvitationOnboardingAction)
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `renders authenticated ui after pending invitation onboarding is handled`() = runTest {
+        val authState = FakeAuthStateProvider(signedIn = true)
+        val viewModel = MainActivityViewModel(authState)
+        val action = BriarInvitationOnboardingAction(
+            briarLink = "briar://invite?c=abc",
+            alias = "Ada",
+            duplicateKey = "dup-key",
+        )
+
+        viewModel.onPendingInvitationOnboarding(action)
+
+        assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+
+        viewModel.onPendingInvitationOnboardingHandled()
+
+        assertTrue(viewModel.uiState.value.isUserSignedIn)
+        assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+        assertNull(viewModel.uiState.value.pendingInvitationOnboardingAction)
+    }
+
+    @Test
+    fun `clears pending invitation onboarding action when handled`() = runTest {
+        val authState = FakeAuthStateProvider(signedIn = true)
+        val viewModel = MainActivityViewModel(authState)
+        val action = BriarInvitationOnboardingAction(
+            briarLink = "briar://invite?c=abc",
+            alias = "Ada",
+            duplicateKey = "dup-key",
+        )
+
+        viewModel.onPendingInvitationOnboarding(action)
+
+        assertEquals(action, viewModel.uiState.value.pendingInvitationOnboardingAction)
+
+        viewModel.onPendingInvitationOnboardingHandled()
+
+        assertNull(viewModel.uiState.value.pendingInvitationOnboardingAction)
     }
 
     private class FakeAuthStateProvider(private var signedIn: Boolean) : AuthStateProvider {

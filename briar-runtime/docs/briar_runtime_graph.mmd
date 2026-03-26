@@ -1,0 +1,44 @@
+%% Embedded Briar runtime flow converted from briar_runtime_graph.iml
+flowchart TD
+    subgraph FeatureFlag
+        transportModeProvider["TransportModeProvider<br/>Impl: DataStoreTransportModeProviderImpl<br/>Role: Feature flag source<br/>Details: Streams BriarTransportMode values from DataStore."]
+    end
+
+    subgraph AppBridge
+        transportBridge["TransportRuntimeBridge<br/>Impl: TransportRuntimeBridgeImpl<br/>Role: Mode orchestrator<br/>Details: Observes flag, manages runtime lifecycle, republishes flows."]
+    end
+
+    subgraph EmbeddedRuntime
+        runtimeManager["BriarRuntimeManager<br/>Impl: BriarRuntimeManagerImpl<br/>Role: Runtime façade<br/>Details: Serialises lifecycle transitions and emits status/diagnostics."]
+        runtimeEnvironment["BriarRuntimeEnvironment<br/>Impl: BriarRuntimeEnvironmentImpl<br/>Role: Config factory<br/>Details: Builds a BriarRuntimeConfig per start request (e.g. storage dir)."]
+        runtimeConfig["BriarRuntimeConfig<br/>Role: Config bundle<br/>Details: Currently wraps storageDir; expands as more knobs surface."]
+        componentFactory["BriarComponentFactory<br/>Impl: BriarComponentFactoryImpl<br/>Role: Component factory<br/>Details: Creates Briar Dagger graph and returns runtime handle."]
+        runtimeHandle["BriarRuntimeHandle<br/>Impl: BriarComponentFactoryImpl.BriarRuntimeHandleImpl<br/>Role: Bridge handle<br/>Details: Exposes chat/contact facades and closes runtime on stop."]
+        chatGateway["BriarChatGateway<br/>Current Impl: NoOpBriarChatGateway (Stage 1)<br/>Role: Chat bridge<br/>Details: Stage 1 stub; emits readiness for future hybrid chat."]
+        contactService["BriarContactService<br/>Current Impl: NoOpBriarContactService (Stage 1)<br/>Role: Contact bridge<br/>Details: Stage 1 stub; will expose contacts and sync hooks later."]
+        runtimeStatus["BriarRuntimeStatus<br/>Role: Lifecycle state<br/>Details: STOPPED/STARTING/RUNNING/STOPPING/FAILED + storageDir/error."]
+        runtimeEvent["BriarRuntimeEvent<br/>Role: Diagnostics stream<br/>Details: StatusChanged + Message events for QA/instrumentation."]
+    end
+
+    transportModeProvider -->|observeMode Flow / bridge receives BriarTransportMode updates| transportBridge
+
+    transportBridge -->|HYBRID or BRIAR_ONLY ensures start| runtimeManager
+    transportBridge -->|FIRESTORE stops| runtimeManager
+
+    runtimeManager -->|creates configuration| runtimeEnvironment
+    runtimeEnvironment -->|Provides config with storageDir sandbox| runtimeConfig
+    runtimeManager -->|creates component factory| componentFactory
+    componentFactory -->|Wraps Briar Dagger graph| runtimeHandle
+
+    runtimeHandle -->|chatGateway| chatGateway
+    runtimeHandle -->|contactService| contactService
+
+    runtimeManager -->|StateFlow<BriarChatGateway> ready vs NoOp| chatGateway
+    runtimeManager -->|StateFlow<BriarContactService> mirrors chat readiness| contactService
+    runtimeManager -->|StateFlow<BriarRuntimeStatus>| runtimeStatus
+    runtimeManager -->|SharedFlow<BriarRuntimeEvent>| runtimeEvent
+
+    transportBridge -->|Passthrough StateFlow| runtimeStatus
+    transportBridge -->|Passthrough SharedFlow| runtimeEvent
+    transportBridge -->|Passthrough BriarChatGateway StateFlow| chatGateway
+    transportBridge -->|Passthrough BriarContactService StateFlow| contactService

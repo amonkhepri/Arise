@@ -1,5 +1,7 @@
 package com.example.rise.ui.dashboardNavigation.people.chatActivity
 
+import android.content.Context
+import android.content.Intent
 import android.app.TimePickerDialog
 import android.graphics.Typeface
 import android.os.Build
@@ -16,35 +18,49 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.rise.R
+import com.example.rise.auth.AuthenticationService
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.databinding.ActivityChatBinding
-import com.example.rise.extensions.scheduleNextAlarm
+import com.example.rise.extensions.scheduleNextMessage
 import com.example.rise.helpers.AppConstants
 import com.example.rise.item.TextMessageItem
 import com.example.rise.ui.alarm.models.Alarm
-import com.google.firebase.auth.FirebaseAuth
+import com.example.rise.ui.common.toDisplayColor
+import com.example.rise.ui.common.toDisplayText
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
 import com.xwray.groupie.Section
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
-import java.util.Calendar
+import java.util.*
 
 class ChatActivity : BaseActivity() {
+
+    companion object {
+        internal fun createLaunchIntent(
+            context: Context,
+            launchContract: ChatLaunchContract,
+        ): Intent = Intent(context, ChatActivity::class.java).apply {
+            launchContract.toExtras().forEach { (key, value) ->
+                putExtra(key, value)
+            }
+        }
+    }
 
     private val viewModel: ChatViewModel by viewModels {
         koinViewModelFactory(ChatViewModel::class)
     }
 
     private val alarmRepository: AlarmRepository by inject()
-    private val auth: FirebaseAuth by inject()
+    private val authenticationService: AuthenticationService by inject()
 
     private lateinit var binding: ActivityChatBinding
     private val messagesSection = Section()
     private val adapter = GroupAdapter<GroupieViewHolder>().apply { add(messagesSection) }
+    private var lastMessageListRenderState: MessageListRenderState? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,9 +77,13 @@ class ChatActivity : BaseActivity() {
             window.isNavigationBarContrastEnforced = false
         }
 
-        val otherUserId = intent.getStringExtra(AppConstants.USER_ID).orEmpty()
-        val otherUserName = intent.getStringExtra(AppConstants.USER_NAME).orEmpty()
-        supportActionBar?.title = otherUserName
+        val launchContract = resolveChatLaunchContract(
+            userId = intent.getStringExtra(AppConstants.USER_ID),
+            userName = intent.getStringExtra(AppConstants.USER_NAME),
+            conversationId = intent.getStringExtra(AppConstants.CONVERSATION_ID),
+        )
+        val conversationInitialisation = launchContract.toConversationInitialisation()
+        supportActionBar?.title = launchContract.userName
         setTitleColor()
 
         setupRecyclerView()
@@ -81,14 +101,18 @@ class ChatActivity : BaseActivity() {
                     viewModel.events.collect { event ->
                         when (event) {
                             is ChatViewModel.ChatEvent.ShowTimePicker -> showTimePicker(event.messageText)
-                            is ChatViewModel.ChatEvent.ScheduleAlarm -> handleScheduleAlarm(event)
+                            is ChatViewModel.ChatEvent.ScheduleDelayedMessage -> handleDelayedMessage(event)
                         }
                     }
                 }
             }
         }
 
-        viewModel.initialiseConversation(otherUserId, otherUserName)
+        viewModel.initialiseConversation(
+            conversationInitialisation.userId,
+            conversationInitialisation.userName,
+            conversationInitialisation.conversationId,
+        )
     }
 
     private fun setupRecyclerView() {
@@ -118,12 +142,25 @@ class ChatActivity : BaseActivity() {
     private fun renderState(state: ChatViewModel.ChatUiState) {
         supportActionBar?.title = state.title
         setTitleColor()
-        val items = state.messages.map { message -> TextMessageItem(message) }
+        binding.toolbar.subtitle = state.presence.toDisplayText(this)
+        binding.toolbar.setSubtitleTextColor(state.presence.toDisplayColor(this))
+        val currentUserId = resolveCurrentUserId(
+            stateCurrentUserId = state.currentUser?.id,
+            authenticatedUser = authenticationService.currentUser(),
+        )
+        val nextRenderState = MessageListRenderState(
+            messages = state.messages,
+            currentUserId = currentUserId,
+        )
+        val items = state.messages.map { message ->
+            TextMessageItem(message = message, currentUserId = currentUserId)
+        }
 
-        // Only update if the list actually changed
-        if (messagesSection.itemCount != items.size) {
+        if (shouldUpdateMessageRows(previousState = lastMessageListRenderState, nextState = nextRenderState)) {
+            val previousCount = messagesSection.itemCount
             messagesSection.update(items)
-            if (items.isNotEmpty()) {
+            lastMessageListRenderState = nextRenderState
+            if (items.isNotEmpty() && previousCount != items.size) {
                 binding.recyclerViewMessages.scrollToPosition(items.lastIndex)
             }
         }
@@ -166,21 +203,19 @@ class ChatActivity : BaseActivity() {
         }
     }
 
-    private fun handleScheduleAlarm(event: ChatViewModel.ChatEvent.ScheduleAlarm) {
+    private fun handleDelayedMessage(event: ChatViewModel.ChatEvent.ScheduleDelayedMessage) {
         lifecycleScope.launch {
             try {
-                val userId = auth.currentUser?.uid ?: return@launch
+                val authenticatedUser = authenticationService.currentUser() ?: return@launch
                 val alarm = Alarm(
                     idTimeStamp = System.currentTimeMillis().toInt(),
                     timeInMiliseconds = event.timeInMillis,
-                    userName = auth.currentUser?.displayName.orEmpty(),
-                    chatChannel = event.channelId,
+                    userName = resolveScheduledMessageSenderName(authenticatedUser),
+                    chatChannel = event.conversationId,
                     messsage = event.message,
                 )
-                alarmRepository.saveAlarm(userId, alarm)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    scheduleNextAlarm(alarm, true)
-                }
+                alarmRepository.saveAlarm(authenticatedUser.id, alarm)
+                scheduleNextMessage(alarm)
                 Toast.makeText(this@ChatActivity, "Message scheduled", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Toast.makeText(this@ChatActivity, "Failed to schedule: ${e.message}", Toast.LENGTH_LONG).show()
@@ -208,3 +243,60 @@ class ChatActivity : BaseActivity() {
         }
     }
 }
+
+internal data class MessageListRenderState(
+    val messages: List<com.example.rise.models.TextMessage>,
+    val currentUserId: String?,
+)
+
+internal fun shouldUpdateMessageRows(
+    previousState: MessageListRenderState?,
+    nextState: MessageListRenderState,
+): Boolean = previousState != nextState
+
+internal fun resolveCurrentUserId(
+    stateCurrentUserId: String?,
+    authenticatedUser: AuthenticationService.User?,
+): String? = stateCurrentUserId ?: authenticatedUser?.id
+
+internal fun resolveScheduledMessageSenderName(
+    authenticatedUser: AuthenticationService.User?,
+): String = authenticatedUser?.displayName.orEmpty()
+
+internal data class ChatLaunchContract(
+    val userId: String,
+    val userName: String,
+    val conversationId: String? = null,
+) {
+    fun toExtras(): Map<String, String> {
+        val extras = mutableMapOf(
+            AppConstants.USER_ID to userId,
+            AppConstants.USER_NAME to userName,
+        )
+        conversationId?.let { extras[AppConstants.CONVERSATION_ID] = it }
+        return extras
+    }
+
+    fun toConversationInitialisation(): ChatConversationInitialisation =
+        ChatConversationInitialisation(
+            userId = userId,
+            userName = userName,
+            conversationId = conversationId,
+        )
+}
+
+internal data class ChatConversationInitialisation(
+    val userId: String,
+    val userName: String,
+    val conversationId: String?,
+)
+
+internal fun resolveChatLaunchContract(
+    userId: String?,
+    userName: String?,
+    conversationId: String?,
+): ChatLaunchContract = ChatLaunchContract(
+    userId = userId.orEmpty(),
+    userName = userName.orEmpty(),
+    conversationId = conversationId,
+)

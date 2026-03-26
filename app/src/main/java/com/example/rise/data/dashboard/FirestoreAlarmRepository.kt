@@ -14,11 +14,12 @@ class FirestoreAlarmRepository(
 
     private fun userDocument(userId: String) = firestore.collection("users").document(userId)
 
-    override fun alarmsQuery(userId: String): Query {
+    override fun alarmsQuery(userId: String): AlarmRepository.AlarmQuery {
         transportBridge.requireFirestore("FirestoreAlarmRepository#alarmsQuery")
-        return userDocument(userId)
+        val query = userDocument(userId)
             .collection("alarms")
             .orderBy("timeInMiliseconds")
+        return FirestoreAlarmQuery(query)
     }
 
     override suspend fun saveAlarm(userId: String, alarm: Alarm) {
@@ -30,4 +31,10 @@ class FirestoreAlarmRepository(
             .await()
         userDoc.update("id", FieldValue.increment(1)).await()
     }
+}
+
+private class FirestoreAlarmQuery(
+    private val query: Query,
+) : AlarmRepository.AlarmQuery {
+    override fun asFirestoreQuery(): Query = query
 }

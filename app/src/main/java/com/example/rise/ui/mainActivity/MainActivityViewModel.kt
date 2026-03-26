@@ -16,7 +16,11 @@ class MainActivityViewModel(
     data class MainActivityUiState(
         val isSigningIn: Boolean = false,
         val isUserSignedIn: Boolean = false,
-    )
+        val pendingInvitationOnboardingAction: BriarInvitationOnboardingAction? = null,
+    ) {
+        val shouldRenderAuthenticatedUi: Boolean
+            get() = isUserSignedIn
+    }
 
     sealed interface MainActivityEvent {
         data object LaunchSignIn : MainActivityEvent
@@ -32,6 +36,14 @@ class MainActivityViewModel(
 
     fun onStart() {
         ensureSignedIn()
+    }
+
+    fun onPendingInvitationOnboarding(action: BriarInvitationOnboardingAction?) {
+        _uiState.update { it.copy(pendingInvitationOnboardingAction = action) }
+    }
+
+    fun onPendingInvitationOnboardingHandled() {
+        _uiState.update { it.copy(pendingInvitationOnboardingAction = null) }
     }
 
     fun onSignInResult(resultCode: Int) {
