@@ -1,8 +1,8 @@
 package com.example.rise.data.auth
 
 import com.example.rise.briar.runtime.BriarRuntimeManager
-import com.example.rise.transport.router.TransportRouter
 import com.example.rise.transport.router.CanonicalIdentity
+import com.example.rise.transport.router.TransportRouter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -37,6 +37,7 @@ class RuntimeBriarAccountRepository(
         }
         Timber.tag(TAG).i("Briar sign-in succeeded via existing account")
         val identity = ensureIdentity()
+        Timber.tag(TAG).i("Briar sign-in resolved identity=%s", identity.id)
         if (identity.displayName != name) {
             throw IllegalStateException("Nickname does not match existing account")
         }
@@ -50,6 +51,8 @@ class RuntimeBriarAccountRepository(
             Timber.tag(TAG).w(error, "Identity resolution failed")
             val message = error.message.orEmpty()
             throw IllegalStateException(message.ifBlank { "Failed to load Briar identity" })
+        }.also { identity ->
+            Timber.tag(TAG).i("ensureIdentity resolved %s (%s)", identity.id, identity.displayName)
         }
     }
 

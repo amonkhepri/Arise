@@ -58,6 +58,34 @@ class BriarInvitationOnboardingResultHandlerTest {
   }
 
   @Test
+  fun `chat launch failure shows explicit hard failure message`() {
+    val launchedIntents = mutableListOf<Intent>()
+    val shownMessages = mutableListOf<String>()
+    val loggedInvalidInvitations = mutableListOf<BriarInvitationOnboardingCoordinator.Result.InvalidInvitation>()
+    val loggedFailures = mutableListOf<Throwable>()
+    var handledCount = 0
+    val handler = BriarInvitationOnboardingResultHandler(
+      launchChat = { intent -> launchedIntents += intent },
+      showMessage = { message -> shownMessages += message },
+      markHandled = { handledCount += 1 },
+      logInvalidInvitation = { result -> loggedInvalidInvitations += result },
+      logInvitationFailure = { error -> loggedFailures += error },
+    )
+    val failure = BriarInvitationChatLaunchFailure("Alice")
+
+    handler.handle(BriarInvitationOnboardingCoordinator.Result.InvitationFailed(failure))
+
+    assertTrue(launchedIntents.isEmpty())
+    assertEquals(
+      listOf("Briar contact was added, but chat could not be opened. Try again from People."),
+      shownMessages,
+    )
+    assertTrue(loggedInvalidInvitations.isEmpty())
+    assertEquals(listOf(failure), loggedFailures)
+    assertEquals(1, handledCount)
+  }
+
+  @Test
   fun `duplicate invitation failure shows duplicate-specific feedback`() {
     val launchedIntents = mutableListOf<Intent>()
     val shownMessages = mutableListOf<String>()

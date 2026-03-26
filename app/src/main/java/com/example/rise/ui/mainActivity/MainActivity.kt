@@ -19,18 +19,19 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.NavigationUI
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import com.example.rise.BuildConfig
 import com.example.rise.R
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.debug.FeatureFlagsActivity
 import com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCase
-import com.example.rise.ui.signInActivity.SignInActivity
 import com.example.rise.ui.mainActivity.MainActivityViewModel.MainActivityEvent
+import com.example.rise.ui.signInActivity.SignInActivity
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import com.example.rise.BuildConfig
 import org.koin.android.ext.android.get
 
 class MainActivity : BaseActivity() {
@@ -89,18 +90,19 @@ class MainActivity : BaseActivity() {
         queueBriarInvitationOnboardingIntent(intent)
         renderUiForState(viewModel.uiState.value)
 
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch {
-                    viewModel.events.collect { event ->
-                        when (event) {
-                            MainActivityEvent.LaunchSignIn -> {
-                                val intent = Intent(this@MainActivity, SignInActivity::class.java)
-                                signInLauncher.launch(intent)
-                            }
-                        }
+        lifecycleScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            viewModel.events.collect { event ->
+                when (event) {
+                    MainActivityEvent.LaunchSignIn -> {
+                        val intent = Intent(this@MainActivity, SignInActivity::class.java)
+                        signInLauncher.launch(intent)
                     }
                 }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.uiState.collect { state ->
                         renderUiForState(state)
@@ -212,9 +214,13 @@ class MainActivity : BaseActivity() {
         pendingInvitationOnboardingJob = lifecycleScope.launch {
             try {
                 val result = briarInvitationOnboardingCoordinator.accept(this@MainActivity, action)
+                if (pendingInvitationOnboardingActionInFlight != action) return@launch
+                pendingInvitationOnboardingActionInFlight = null
                 briarInvitationOnboardingResultHandler.handle(result)
             } finally {
-                pendingInvitationOnboardingActionInFlight = null
+                if (pendingInvitationOnboardingActionInFlight == action) {
+                    pendingInvitationOnboardingActionInFlight = null
+                }
             }
         }
     }

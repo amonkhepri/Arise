@@ -3,15 +3,15 @@ package com.example.rise.ui.mainActivity
 import android.app.Activity
 import app.cash.turbine.test
 import com.example.rise.data.auth.AuthStateProvider
+import com.example.rise.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import com.example.rise.util.MainDispatcherRule
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainActivityViewModelTest {
@@ -92,7 +92,7 @@ class MainActivityViewModelTest {
             viewModel.onSignInResult(Activity.RESULT_OK)
 
             assertTrue(viewModel.uiState.value.isUserSignedIn)
-            assertFalse(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+            assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
             assertEquals(action, viewModel.uiState.value.pendingInvitationOnboardingAction)
             expectNoEvents()
             cancelAndIgnoreRemainingEvents()
@@ -115,7 +115,7 @@ class MainActivityViewModelTest {
             viewModel.onStart()
 
             assertTrue(viewModel.uiState.value.isUserSignedIn)
-            assertFalse(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+            assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
             assertEquals(action, viewModel.uiState.value.pendingInvitationOnboardingAction)
             expectNoEvents()
             cancelAndIgnoreRemainingEvents()
@@ -134,7 +134,7 @@ class MainActivityViewModelTest {
 
         viewModel.onPendingInvitationOnboarding(action)
 
-        assertFalse(viewModel.uiState.value.shouldRenderAuthenticatedUi)
+        assertTrue(viewModel.uiState.value.shouldRenderAuthenticatedUi)
 
         viewModel.onPendingInvitationOnboardingHandled()
 

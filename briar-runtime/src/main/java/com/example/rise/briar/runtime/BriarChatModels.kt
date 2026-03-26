@@ -74,4 +74,5 @@ data class BriarContact(
     val bio: String? = null,
     val avatarPath: String? = null,
     val presence: BriarPresenceStatus = BriarPresenceStatus.UNKNOWN,
+    val isPending: Boolean = false,
 )

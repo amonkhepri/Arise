@@ -32,7 +32,7 @@ internal class BriarInvitationOnboardingResultHandler(
                 if (rejectionReason == null) {
                     logInvitationFailure(result.error)
                 }
-                showMessage(messageFor(rejectionReason))
+                showMessage(messageFor(result.error, rejectionReason))
                 markHandled()
             }
         }
@@ -41,7 +41,13 @@ internal class BriarInvitationOnboardingResultHandler(
     private fun rejectionReasonFor(error: Throwable): BriarInvitationRejectionReason? =
         (error as? BriarInvitationClassifiedFailure)?.reason
 
-    private fun messageFor(rejectionReason: BriarInvitationRejectionReason?): String {
+    private fun messageFor(
+        error: Throwable,
+        rejectionReason: BriarInvitationRejectionReason?,
+    ): String {
+        if (error is BriarInvitationChatLaunchFailure) {
+            return CHAT_OPEN_FAILED_MESSAGE
+        }
         return when (rejectionReason) {
             BriarInvitationRejectionReason.DUPLICATE -> DUPLICATE_INVITATION_MESSAGE
             BriarInvitationRejectionReason.EXPIRED -> EXPIRED_INVITATION_MESSAGE
@@ -56,6 +62,8 @@ internal class BriarInvitationOnboardingResultHandler(
             "This Briar invitation link has expired. Ask for a new one."
         internal const val INVALID_LINK_MESSAGE = "Invalid Briar invitation link."
         internal const val INVITATION_FAILED_MESSAGE = "Unable to add Briar contact."
+        internal const val CHAT_OPEN_FAILED_MESSAGE =
+            "Briar contact was added, but chat could not be opened. Try again from People."
 
         internal fun pendingSyncMessage(displayName: String): String =
             "Briar contact added. Wait for $displayName to finish connecting, then open the chat from People."

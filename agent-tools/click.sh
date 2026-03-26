@@ -19,7 +19,7 @@ tap() {
   local x=$1
   local y=$2
   echo "👉 tap $x $y"
-  $ADB -s "$DEVICE" shell input tap "$x" "$y"
+  $ADB -s "$DEVICE" shell input tap "$x" "$y" </dev/null
 }
 
 sleep_cmd() {
@@ -31,19 +31,19 @@ sleep_cmd() {
 swipe() {
   local x1=$1 y1=$2 x2=$3 y2=$4 duration=${5:-200}
   echo "👉 swipe $x1,$y1 -> $x2,$y2 duration ${duration}ms"
-  $ADB -s "$DEVICE" shell input swipe "$x1" "$y1" "$x2" "$y2" "$duration"
+  $ADB -s "$DEVICE" shell input swipe "$x1" "$y1" "$x2" "$y2" "$duration" </dev/null
 }
 
 text_cmd() {
   local text="$1"
   echo "⌨️  text $text"
-  $ADB -s "$DEVICE" shell input text "$text"
+  $ADB -s "$DEVICE" shell input text "$text" </dev/null
 }
 
 keyevent_cmd() {
   local key="$1"
   echo "⌨️  keyevent $key"
-  $ADB -s "$DEVICE" shell input keyevent "$key"
+  $ADB -s "$DEVICE" shell input keyevent "$key" </dev/null
 }
 
 show_help() {

@@ -31,6 +31,8 @@ data class BriarInvitationOnboardingAction(
     val alias: String?,
     val duplicateKey: String,
 ) {
+    fun isRawExternalLink(): Boolean = duplicateKey == "link:$briarLink"
+
     fun applyTo(intent: Intent) {
         intent.action = ACTION
         intent.putExtra(EXTRA_BRIAR_LINK, briarLink)
@@ -43,5 +45,30 @@ data class BriarInvitationOnboardingAction(
         const val EXTRA_BRIAR_LINK = "com.example.rise.extra.BRIAR_INVITATION_LINK"
         const val EXTRA_ALIAS = "com.example.rise.extra.BRIAR_INVITATION_ALIAS"
         const val EXTRA_DUPLICATE_KEY = "com.example.rise.extra.BRIAR_INVITATION_DUPLICATE_KEY"
+
+        fun consumeFrom(intent: Intent?): BriarInvitationOnboardingAction? {
+            intent ?: return null
+            val briarLink = intent.getStringExtra(EXTRA_BRIAR_LINK)
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?: return null
+            val duplicateKey = intent.getStringExtra(EXTRA_DUPLICATE_KEY)
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?: return null
+            val alias = intent.getStringExtra(EXTRA_ALIAS)
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+
+            intent.removeExtra(EXTRA_BRIAR_LINK)
+            intent.removeExtra(EXTRA_ALIAS)
+            intent.removeExtra(EXTRA_DUPLICATE_KEY)
+
+            return BriarInvitationOnboardingAction(
+                briarLink = briarLink,
+                alias = alias,
+                duplicateKey = duplicateKey,
+            )
+        }
     }
 }

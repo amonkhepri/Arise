@@ -80,7 +80,7 @@ PY
 
 filter_logs() {
   local raw_logs="$1"
-  printf '%s\n' "$raw_logs" | grep -iE 'MainActivity|BriarInvitation|BriarContactRepository|onboarding|AndroidRuntime|IllegalStateException|Briar runtime is not ready' | tail -120 || true
+  printf '%s\n' "$raw_logs" | grep -iE 'SplashActivity|SignInActivity|MainActivity|BriarInvitation|BriarContactRepository|RealBriarContactService|BriarPeopleSync|BriarRuntimeManager|BriarRuntimeHandle|TransportBridge|CompositeAuthState|RuntimeBriarAccountRepo|onboarding|AndroidRuntime|IllegalStateException|Briar runtime is not ready' | tail -120 || true
 }
 
 read_resumed_activity() {

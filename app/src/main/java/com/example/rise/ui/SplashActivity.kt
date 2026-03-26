@@ -9,8 +9,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.ui.SplashActivityViewModel.NavigationEvent
-import com.example.rise.ui.signInActivity.SignInActivity
 import com.example.rise.ui.mainActivity.MainActivity
+import com.example.rise.ui.signInActivity.SignInActivity
 import kotlinx.coroutines.launch
 
 class SplashActivity : BaseActivity() {
@@ -23,9 +23,13 @@ class SplashActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.events.collect { event ->
-                    when (event) {
-                        NavigationEvent.ToSignIn -> startActivity(Intent(this@SplashActivity, SignInActivity::class.java))
+                    viewModel.events.collect { event ->
+                        when (event) {
+                        is NavigationEvent.ToSignIn -> {
+                            val intent = Intent(this@SplashActivity, SignInActivity::class.java)
+                            event.onboardingAction?.applyTo(intent)
+                            startActivity(intent)
+                        }
                         is NavigationEvent.ToMain -> {
                             val intent = Intent(this@SplashActivity, MainActivity::class.java)
                             event.onboardingAction?.applyTo(intent)

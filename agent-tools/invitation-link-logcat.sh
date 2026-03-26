@@ -74,7 +74,7 @@ if [[ "$CLEAR_LOGS" -eq 1 ]]; then
   exit 0
 fi
 
-FILTER='BriarInvitation|Invitation|invite|TransportRouter|IdentityRegistry|BriarContact|onboarding|AndroidRuntime'
+FILTER='SplashActivity|SignInActivity|MainActivity|BriarInvitation|Invitation|invite|TransportRouter|IdentityRegistry|BriarContact|RealBriarContactService|BriarPeopleSync|BriarRuntimeManager|BriarRuntimeHandle|TransportBridge|CompositeAuthState|RuntimeBriarAccountRepo|onboarding|AndroidRuntime'
 echo "📝 device $DEVICE"
 matches="$(
   "$ADB" -s "$DEVICE" logcat -d -v time 2>&1 \

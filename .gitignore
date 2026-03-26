@@ -8,8 +8,8 @@
 .externalNativeBuild
 gradle/wrapper/gradle-wrapper.jar
 android-commandlinetools.zip
-.openclaw/
 .kotlin/
+memory/
 BOOTSTRAP.md
 HEARTBEAT.md
 IDENTITY.md

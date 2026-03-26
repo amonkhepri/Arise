@@ -1,5 +1,6 @@
 package com.example.rise.ui.mainActivity
 
+import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.rise.data.chat.TransportBackedChatRepository
@@ -24,7 +25,6 @@ import com.example.rise.transport.router.DefaultConnectorRegistry
 import com.example.rise.transport.router.IdentityRecord
 import com.example.rise.transport.router.IdentityRegistryImpl
 import com.example.rise.transport.router.IdentityRegistryStore
-import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportConnector
 import com.example.rise.transport.router.TransportConversationId
 import com.example.rise.transport.router.TransportId
@@ -33,12 +33,6 @@ import com.example.rise.transport.store.ConversationStore
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.resolveChatLaunchContract
 import com.example.rise.util.MainDispatcherRule
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -54,9 +48,17 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import java.util.concurrent.ConcurrentHashMap
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class, sdk = [35])
 class BriarInvitationChatFlowHybridTest {
 
   @get:Rule

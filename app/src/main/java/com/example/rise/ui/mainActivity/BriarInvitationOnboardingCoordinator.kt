@@ -8,6 +8,7 @@ import com.example.rise.transport.briar.invite.BriarInvitationLinkParseResult
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatActivity
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatLaunchContract
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal class BriarInvitationOnboardingCoordinator(
   private val acceptInvitation: suspend (String) -> BriarInvitationAcceptanceResult,
@@ -16,6 +17,7 @@ internal class BriarInvitationOnboardingCoordinator(
   },
   private val retryDelayMillis: Long = RUNTIME_NOT_READY_RETRY_DELAY_MS,
   private val maxRuntimeNotReadyRetries: Int = MAX_RUNTIME_NOT_READY_RETRIES,
+  private val rawExternalInvitationTimeoutMillis: Long = RAW_EXTERNAL_INVITATION_TIMEOUT_MS,
 ) {
 
   constructor(useCase: BriarInvitationAcceptanceUseCase) : this(useCase::accept)
@@ -23,10 +25,22 @@ internal class BriarInvitationOnboardingCoordinator(
   suspend fun accept(
     context: Context,
     action: BriarInvitationOnboardingAction,
-  ): Result = when (val result = acceptInvitationWhenReady(action.briarLink)) {
+  ): Result {
+    val acceptanceResult = if (action.isRawExternalLink()) {
+      withTimeoutOrNull(rawExternalInvitationTimeoutMillis) {
+        acceptInvitationWhenReady(action.briarLink)
+      } ?: return Result.InvitationFailed(
+        BriarInvitationChatLaunchFailure(action.alias ?: action.duplicateKey),
+      )
+    } else {
+      acceptInvitationWhenReady(action.briarLink)
+    }
+
+    return when (val result = acceptanceResult) {
     is BriarInvitationAcceptanceResult.Accepted -> {
       val invitation = result.invitation
-      val displayName = invitation.alias ?: invitation.duplicateKey
+      val resolvedIdentity = result.contactIdentity
+      val displayName = resolvedIdentity?.displayName ?: invitation.alias ?: invitation.duplicateKey
       val conversationId = result.conversationId
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
@@ -35,7 +49,7 @@ internal class BriarInvitationOnboardingCoordinator(
           intent = createChatIntent(
             context,
             ChatLaunchContract(
-              userId = invitation.duplicateKey,
+              userId = resolvedIdentity?.id ?: invitation.duplicateKey,
               userName = displayName,
               conversationId = conversationId,
             ),
@@ -47,6 +61,7 @@ internal class BriarInvitationOnboardingCoordinator(
     }
     is BriarInvitationAcceptanceResult.InvalidLink -> Result.InvalidInvitation(result.reason)
     is BriarInvitationAcceptanceResult.Failed -> Result.InvitationFailed(result.error)
+  }
   }
 
   private suspend fun acceptInvitationWhenReady(link: String): BriarInvitationAcceptanceResult {
@@ -85,6 +100,7 @@ internal class BriarInvitationOnboardingCoordinator(
     private const val MAX_RUNTIME_NOT_READY_RETRIES = 40
     private const val RUNTIME_NOT_READY_RETRY_DELAY_MS = 250L
     private const val RUNTIME_NOT_READY_MESSAGE = "runtime is not ready"
+    private const val RAW_EXTERNAL_INVITATION_TIMEOUT_MS = 45_000L
 
     fun consumePendingAction(intent: Intent?): BriarInvitationOnboardingAction? {
       val rawExternalBriarLink = intent?.data
@@ -125,3 +141,9 @@ internal class BriarInvitationOnboardingCoordinator(
     }
   }
 }
+
+internal class BriarInvitationChatLaunchFailure(
+  displayName: String,
+) : IllegalStateException(
+  "Briar contact was added, but chat could not be opened for $displayName.",
+)

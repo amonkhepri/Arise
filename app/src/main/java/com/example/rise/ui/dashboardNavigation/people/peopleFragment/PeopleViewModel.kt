@@ -2,8 +2,8 @@ package com.example.rise.ui.dashboardNavigation.people.peopleFragment
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PersonSummary
+import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.transport.briar.BriarContactRepository
 import com.example.rise.transport.briar.invite.BriarInvitationRejectionReason
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatLaunchContract
@@ -89,6 +89,10 @@ internal class PeopleViewModel internal constructor(
     }
 
     fun onPersonSelected(person: PersonSummary) {
+        if (person.id.startsWith(PENDING_BRIAR_CONTACT_ID_PREFIX)) {
+            _events.tryEmit(PeopleEvent.ShowMessage(pendingSyncMessage(person.name)))
+            return
+        }
         _events.tryEmit(PeopleEvent.OpenChat(person.id, person.name))
     }
 
@@ -123,9 +127,7 @@ internal class PeopleViewModel internal constructor(
                             _events.emit(PeopleEvent.LaunchChatFromAddedLink(result.launchContract))
                         }
                         is BriarManualInvitationCoordinator.Result.ContactAddedPendingSync -> {
-                            emitMessage(
-                                "Briar contact added. Wait for ${result.displayName} to finish connecting, then open the chat from People."
-                            )
+                            emitMessage(pendingSyncMessage(result.displayName))
                         }
                         is BriarManualInvitationCoordinator.Result.RejectedInvitation -> {
                             emitMessage(messageFor(result.reason))
@@ -156,7 +158,11 @@ internal class PeopleViewModel internal constructor(
         BriarInvitationRejectionReason.INVALID -> INVALID_INVITATION_MESSAGE
     }
 
+    private fun pendingSyncMessage(displayName: String): String =
+        "Briar contact added. Wait for $displayName to finish connecting, then open the chat from People."
+
     private companion object {
+        const val PENDING_BRIAR_CONTACT_ID_PREFIX = "pending:"
         const val DUPLICATE_INVITATION_MESSAGE = "This Briar invitation link was already used."
         const val EXPIRED_INVITATION_MESSAGE = "This Briar invitation link has expired. Ask for a new one."
         const val INVALID_INVITATION_MESSAGE = "Invalid Briar invitation link."

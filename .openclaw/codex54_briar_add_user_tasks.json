@@ -1,0 +1,639 @@
+{
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "id": "BU-001",
+      "status": "done",
+      "title": "Expose outgoing Briar handshake link from BriarContactService",
+      "allowedPaths": [
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/BriarContactService.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/RealBriarContactService.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/NoOpBriarContactService.kt",
+        "briar-runtime/src/test/java/com/example/rise/briar/runtime/RealBriarContactServiceTest.kt"
+      ],
+      "contextFiles": [
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/BriarContactService.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/RealBriarContactService.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/NoOpBriarContactService.kt",
+        "briar/bramble-api/src/main/java/org/briarproject/bramble/api/contact/ContactManager.java",
+        "briar/bramble-core/src/main/java/org/briarproject/bramble/contact/ContactManagerImpl.java",
+        "briar-runtime/src/test/java/com/example/rise/briar/runtime/RealBriarContactServiceTest.kt"
+      ],
+      "instructions": [
+        "Extend the Briar contact service contract with a method that returns the local users raw briar handshake link when the runtime is ready.",
+        "Implement the method in RealBriarContactService by delegating to ContactManager.getHandshakeLink() and keep the not-ready error explicit.",
+        "Mirror the contract in NoOpBriarContactService and add focused unit coverage for ready and not-ready behavior without changing addContactByLink semantics."
+      ],
+      "validation": [
+        "JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./agent-tools/test-briar-runtime.sh --tests com.example.rise.briar.runtime.RealBriarContactServiceTest --timeout 600"
+      ],
+      "commitMessage": "autowork(briar-runtime): expose local handshake link",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-001",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-001",
+      "reviewFocus": [
+        "Check that the new contract is additive and does not break existing contact observation or addContactByLink behavior.",
+        "Check that runtime-not-ready behavior remains explicit in both real and no-op implementations.",
+        "Check that the implementation delegates to ContactManager.getHandshakeLink() rather than inventing a parallel link format."
+      ],
+      "executorCommit": "071f3937cf87ba5467874ba2d38092a9f3f02a47",
+      "reviewCommit": "98d6c1dda57f3d1fcc5e6ab59c0a2f7f020ec874"
+    },
+    {
+      "id": "BU-002",
+      "status": "done",
+      "blockedBy": "BU-001",
+      "title": "Expose handshake link retrieval through BriarContactRepository",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/transport/briar/BriarContactRepository.kt",
+        "app/src/test/java/com/example/rise/transport/briar/BriarContactRepositoryTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/transport/briar/BriarContactRepository.kt",
+        "app/src/test/java/com/example/rise/transport/briar/BriarContactRepositoryTest.kt",
+        "app/src/main/java/com/example/rise/transport/TransportRuntimeBridge.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/BriarContactService.kt"
+      ],
+      "instructions": [
+        "Add an app-facing repository method that returns the local raw briar handshake link via the transport runtime bridge.",
+        "Keep runtime-not-ready and service error propagation behavior aligned with addContactByLink.",
+        "Cover the new method in BriarContactRepositoryTest using the existing fake bridge patterns."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.transport.briar.BriarContactRepositoryTest --timeout 300"
+      ],
+      "commitMessage": "autowork(briar): expose handshake link repository API",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-002",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-002",
+      "reviewFocus": [
+        "Check that the repository API is additive and mirrors the runtime contract cleanly.",
+        "Check that runtime-not-ready behavior is still explicit.",
+        "Check that the repository test covers both success and failure paths."
+      ],
+      "executorCommit": "155e77296ced7f0da28d09c2d40fbb60c3cf10bb",
+      "reviewCommit": "ced91f17058c8f727cfc27200a1f646209b9da71"
+    },
+    {
+      "id": "BU-003",
+      "status": "done",
+      "blockedBy": "BU-002",
+      "title": "Add manual add-by-link coordinator that reuses invitation acceptance flow",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatLaunchContract.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatActivity.kt"
+      ],
+      "instructions": [
+        "Introduce a small people-screen coordinator that accepts a raw briar invitation link string, delegates to BriarInvitationAcceptanceUseCase, and returns either a ChatLaunchContract or explicit invalid/failed outcomes.",
+        "Reuse the same raw briar acceptance semantics as the existing invitation parser instead of inventing wrapped-link behavior.",
+        "Cover accepted, invalid, and failed outcomes in a focused coordinator test."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarManualInvitationCoordinatorTest --timeout 300"
+      ],
+      "commitMessage": "autowork(invite): add manual raw-link coordinator",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-003",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-003",
+      "reviewFocus": [
+        "Check that manual add-by-link reuses the invitation acceptance use case instead of creating a second acceptance path.",
+        "Check that the coordinator deals in raw briar links only.",
+        "Check that the coordinator returns explicit invalid and failed states."
+      ],
+      "executorCommit": "b1f0e11f81ae2ab46571ed8a9fa7eda85ab23613",
+      "reviewCommit": "e5875f4e5b4c07bd0c0fb96499f4b29e9d2e2e60"
+    },
+    {
+      "id": "BU-004",
+      "status": "done",
+      "blockedBy": "BU-003",
+      "title": "Extend PeopleViewModel with raw invite-share and add-by-link actions",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt",
+        "app/src/main/java/com/example/rise/App.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt",
+        "app/src/main/java/com/example/rise/transport/briar/BriarContactRepository.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/App.kt"
+      ],
+      "instructions": [
+        "Add explicit people-screen events for share-my-raw-briar-link, prompt-add-by-link, launch-chat-from-added-link, and user-visible error messages.",
+        "Fetch the shareable raw briar link through BriarContactRepository and use the manual coordinator for pasted raw links.",
+        "Keep the existing contact-list observation and open-chat-on-person-select behavior unchanged and cover the new actions in PeopleViewModelTest."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModelTest --timeout 300"
+      ],
+      "commitMessage": "autowork(people): add raw briar invite actions to viewmodel",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-004",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-004",
+      "reviewFocus": [
+        "Check that the new events are explicit and test-covered.",
+        "Check that raw-link sharing comes from BriarContactRepository rather than ad-hoc string assembly.",
+        "Check that existing person selection behavior is still intact."
+      ],
+      "executorCommit": "49e4c4cbb6360f5ac823b68700f6938775c797a0",
+      "reviewCommit": "3b9f481ae0c3d19888fc7c7d57955d55d47ab376"
+    },
+    {
+      "id": "BU-005",
+      "status": "done",
+      "blockedBy": "BU-004",
+      "title": "Wire People screen UI for raw briar invite share and add-by-link",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleFragment.kt",
+        "app/src/main/res/layout/fragment_people.xml",
+        "app/src/main/res/values/values.xml",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleFragmentInviteActionsTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleFragment.kt",
+        "app/src/main/res/layout/fragment_people.xml",
+        "app/src/main/res/values/values.xml",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatActivity.kt"
+      ],
+      "instructions": [
+        "Add visible people-screen affordances for sharing the local raw briar link and adding a contact by pasting a raw briar link.",
+        "Handle the new PeopleViewModel events by launching the Android share sheet with the raw link, showing an input prompt for pasted raw links, opening chat on success, and surfacing invalid or failed outcomes to the user.",
+        "Add focused UI coverage for the invite actions instead of relying on manual inspection."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleFragmentInviteActionsTest --timeout 300",
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModelTest --timeout 300"
+      ],
+      "commitMessage": "autowork(people): add raw briar invite UI",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-005",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-005",
+      "reviewFocus": [
+        "Check that the People screen now exposes both raw-link sharing and raw-link add-user entry points.",
+        "Check that the fragment shares the raw briar link exactly as returned rather than wrapping it in a custom scheme.",
+        "Check that invalid and failed link submissions surface clear feedback."
+      ],
+      "executorCommit": "98b4ba89780b78f7b8072d6db007705a4d68a91f",
+      "reviewCommit": "98d4d13583fd83bcae03c3ebfe0b7faa3c1641ff"
+    },
+    {
+      "id": "BU-006",
+      "status": "done",
+      "blockedBy": "BU-005",
+      "title": "Add BRIAR_ONLY add-user-to-first-message integration coverage from People screen",
+      "allowedPaths": [
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarPeopleAddUserFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/testutil/BriarStubs.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatViewModel.kt"
+      ],
+      "instructions": [
+        "Add a focused integration-style test for the BRIAR_ONLY happy path starting from pasted raw briar link on the people screen through accepted contact, opened chat, and first outbound message.",
+        "Reuse the existing router and Briar stubs instead of adding a parallel fake stack."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowBriarOnlyTest --timeout 600"
+      ],
+      "commitMessage": "autowork(test): cover briar-only raw-link add-user flow",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-006",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-006",
+      "reviewFocus": [
+        "Check that the test starts from the people-screen raw-link add path, not the old wrapped deep-link path.",
+        "Check that BRIAR_ONLY sends only through Briar in the final assertion set.",
+        "Check that the test reuses existing stubs and transport fixtures."
+      ],
+      "executorCommit": "56c48f789c8749087a5e4877cafa27b10b82bf0f",
+      "reviewCommit": "b165e0025fc4893b693edfd070c8e3e273739b57"
+    },
+    {
+      "id": "BU-007",
+      "status": "done",
+      "blockedBy": "BU-006",
+      "title": "Add HYBRID add-user-to-first-message integration coverage from People screen",
+      "allowedPaths": [
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarPeopleAddUserFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/testutil/BriarStubs.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/chatActivity/ChatViewModel.kt"
+      ],
+      "instructions": [
+        "Add the same focused people-screen raw-link add-user to first-message flow in HYBRID mode.",
+        "Assert that the first outbound message mirrors through both connectors where HYBRID requires it and that the launched chat is already tied to the resolved canonical conversation."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowHybridTest --timeout 600"
+      ],
+      "commitMessage": "autowork(test): cover hybrid raw-link add-user flow",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-007",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-007",
+      "reviewFocus": [
+        "Check that the test exercises the people-screen raw-link add path rather than the wrapped deep-link route.",
+        "Check that HYBRID still mirrors the first send across the expected connectors.",
+        "Check that the task stays limited to the new test and shared Briar stubs if needed."
+      ],
+      "executorCommit": "c6be9f53a0f5afebe660480c421db8d6de03822d",
+      "reviewCommit": "efaabfc0e15993b7ba0ed1debc8908c5aac44f12"
+    },
+    {
+      "id": "BU-008",
+      "status": "done",
+      "title": "Cover duplicate, expired, and invalid raw Briar add-user links with explicit feedback",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/test/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCaseTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCaseTest.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt",
+        "docs/briar_invitation_chat_roadmap.md"
+      ],
+      "instructions": [
+        "Add failing regression coverage for duplicate, expired, and invalid raw Briar invitation links through the people-screen add-user path before changing production code.",
+        "Keep user feedback explicit so duplicate, expired, and invalid links do not collapse into one generic failure state when the underlying flow can distinguish them.",
+        "Limit the scope to the invitation acceptance, manual coordinator, and people-screen state path while keeping BU-006 and BU-007 happy-path coverage green."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCaseTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarManualInvitationCoordinatorTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.PeopleViewModelTest --timeout 600"
+      ],
+      "commitMessage": "autowork(invite): cover raw-link add-user failure cases",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-008",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-008",
+      "reviewFocus": [
+        "Check that duplicate, expired, and invalid link outcomes are each covered by failing tests first.",
+        "Check that user-visible feedback stays explicit on the people-screen raw-link add flow.",
+        "Check that the change stays scoped to invitation acceptance/coordinator/viewmodel paths without unrelated chat-flow edits."
+      ],
+      "seedKey": "raw-link-failure-cases",
+      "seededBySupervisor": true,
+      "executorCommit": "2f89579ff36029dd693df973e47d32958b7b12ea",
+      "reviewCommit": "c83cd5dc9c3372654395f25f738eed38393b944e"
+    },
+    {
+      "status": "done",
+      "title": "Handle cold-start external Briar invitations when the runtime comes up late",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/transport/briar/BriarContactRepository.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/SplashActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/transport/briar/BriarContactRepository.kt",
+        "app/src/main/java/com/example/rise/transport/TransportRuntimeBridgeImpl.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/BriarRuntimeManagerImpl.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/RealBriarContactService.kt",
+        "briar-runtime/src/main/java/com/example/rise/briar/runtime/BriarComponentFactoryImpl.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt"
+      ],
+      "instructions": [
+        "Reproduce the regression with the provided external invitation URI `briar://abmpblthdxon5e3luksgivgvcfplw6mawzuumw6h54jxrvyvvohvy` before changing production code.",
+        "Add failing regression coverage first for a cold-start external Briar invitation where invitation acceptance begins before sign-in and the embedded Briar runtime are ready.",
+        "Make external invitation onboarding wait, resume, or retry against readiness instead of dropping the invitation immediately with a generic failure toast.",
+        "Keep raw briar deep-link routing intact while fixing the diagnosed bug: Invitation onboarding fails because Briar runtime is not ready."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.MainActivityViewModelTest --timeout 300",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationOnboardingCoordinatorTest --timeout 300",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowHybridTest --timeout 600"
+      ],
+      "commitMessage": "autowork(invite): handle runtime-late external onboarding",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-009",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-009",
+      "reviewFocus": [
+        "Check that the fix adds regression coverage for the runtime-not-ready cold-start path before changing production code.",
+        "Check that the invitation is preserved until runtime readiness or that the user gets explicit recoverable behavior instead of a dropped flow.",
+        "Check that the change stays scoped to external invitation onboarding and does not regress the existing chat happy-path tests."
+      ],
+      "seededBySupervisor": true,
+      "id": "BU-009",
+      "seedKey": "runtime-not-ready-external-invite",
+      "executorCommit": "99d1fe482316c8263492e4818a6488d7ded17d7f",
+      "reviewCommit": "6ba7d48958af229acebe0d8d8b56dec9603c8eaa"
+    },
+    {
+      "status": "done",
+      "title": "Close the remaining Briar add-user end-to-end goal gap",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "instructions": [
+        "The queue completed, but the overreaching goal is still unmet: A user can add another Briar user from the people screen or an external briar:// invitation, reach chat end to end, and be ready to send the first Briar message..",
+        "Reproduce the current end-to-end failure with the provided external invitation URI `briar://abmpblthdxon5e3luksgivgvcfplw6mawzuumw6h54jxrvyvvohvy` before changing production code.",
+        "Use the latest supervisor evidence to narrow and close the remaining gap. Current failure summary: External Briar invitation launch did not reach chat and no explicit acceptance failure was logged.",
+        "If the app reaches chat, confirm the first Briar message is actually sendable and does not get dropped silently.",
+        "Add or strengthen failing regression coverage first for the unmet end-to-end case, then implement the minimal fix while keeping the existing invitation-to-chat tests green."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowHybridTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowHybridTest --timeout 600"
+      ],
+      "commitMessage": "autowork(invite): close remaining briar add-user goal gap",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-010",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-010",
+      "reviewFocus": [
+        "Check that the task is driven by the unmet end-to-end goal rather than a speculative refactor.",
+        "Check that the fix keeps the Briar add-user and invitation-to-chat flows green in both BRIAR_ONLY and HYBRID modes.",
+        "Check that the change preserves explicit user-visible behavior for the remaining failure path."
+      ],
+      "seededBySupervisor": true,
+      "id": "BU-010",
+      "seedKey": "briar-add-user-end-to-end-goal-gap",
+      "executorCommit": "ed3c01eeb28cf0815f621a29ce3db437ef7e9a6e",
+      "reviewCommit": "635b0c8b99a5147e8a17116aea712ac610d1e2c6"
+    },
+    {
+      "status": "done",
+      "title": "Close the remaining Briar add-user end-to-end goal gap",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "instructions": [
+        "The queue completed, but the overreaching goal is still unmet: A user can add another Briar user from the people screen or an external briar:// invitation, reach chat end to end, and be ready to send the first Briar message..",
+        "Reproduce the current end-to-end failure with the provided external invitation URI `briar://abmpblthdxon5e3luksgivgvcfplw6mawzuumw6h54jxrvyvvohvy` before changing production code.",
+        "Use the latest supervisor evidence to narrow and close the remaining gap. Current failure summary: External Briar invitation launch did not reach chat and no explicit acceptance failure was logged.",
+        "If the app reaches chat, confirm the first Briar message is actually sendable and does not get dropped silently.",
+        "Add or strengthen failing regression coverage first for the unmet end-to-end case, then implement the minimal fix while keeping the existing invitation-to-chat tests green."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowHybridTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowHybridTest --timeout 600"
+      ],
+      "commitMessage": "autowork(invite): close remaining briar add-user goal gap",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-011",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-011",
+      "reviewFocus": [
+        "Check that the task is driven by the unmet end-to-end goal rather than a speculative refactor.",
+        "Check that the fix keeps the Briar add-user and invitation-to-chat flows green in both BRIAR_ONLY and HYBRID modes.",
+        "Check that the change preserves explicit user-visible behavior for the remaining failure path."
+      ],
+      "seededBySupervisor": true,
+      "id": "BU-011",
+      "seedKey": "briar-add-user-end-to-end-goal-gap",
+      "executorCommit": "6a2afcc858267f998fbb31acd8f94324a865fb09",
+      "reviewCommit": "18f855d1eba9386f96cc99b70b68a1e33b1b9eff"
+    },
+    {
+      "status": "done",
+      "title": "Close the remaining Briar add-user end-to-end goal gap",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "instructions": [
+        "The queue completed, but the overreaching goal is still unmet: A user can add another Briar user from the people screen or an external briar:// invitation, reach chat end to end, and be ready to send the first Briar message..",
+        "Reproduce the current end-to-end failure with the provided external invitation URI `briar://abmpblthdxon5e3luksgivgvcfplw6mawzuumw6h54jxrvyvvohvy` before changing production code.",
+        "Use the latest supervisor evidence to narrow and close the remaining gap. Current failure summary: External Briar invitation launch did not reach chat and no explicit acceptance failure was logged.",
+        "If the app reaches chat, confirm the first Briar message is actually sendable and does not get dropped silently.",
+        "Add or strengthen failing regression coverage first for the unmet end-to-end case, then implement the minimal fix while keeping the existing invitation-to-chat tests green."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowHybridTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowHybridTest --timeout 600"
+      ],
+      "commitMessage": "autowork(invite): close remaining briar add-user goal gap",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-012",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-012",
+      "reviewFocus": [
+        "Check that the task is driven by the unmet end-to-end goal rather than a speculative refactor.",
+        "Check that the fix keeps the Briar add-user and invitation-to-chat flows green in both BRIAR_ONLY and HYBRID modes.",
+        "Check that the change preserves explicit user-visible behavior for the remaining failure path."
+      ],
+      "seededBySupervisor": true,
+      "id": "BU-012",
+      "seedKey": "briar-add-user-end-to-end-goal-gap",
+      "executorCommit": "e104ca8be28a9644e4136e89674f67f82d2b2930",
+      "reviewCommit": "8be1ecae2c5ca57cf88531c01c36d231aaa2958a"
+    },
+    {
+      "status": "done",
+      "title": "Close the remaining Briar add-user end-to-end goal gap",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "instructions": [
+        "The queue completed, but the overreaching goal is still unmet: A user can add another Briar user from the people screen or an external briar:// invitation, reach chat end to end, and be ready to send the first Briar message..",
+        "Reproduce the current end-to-end failure with the provided external invitation URI `briar://abmpblthdxon5e3luksgivgvcfplw6mawzuumw6h54jxrvyvvohvy` before changing production code.",
+        "Use the latest supervisor evidence to narrow and close the remaining gap. Current failure summary: External Briar invitation launch did not reach chat and no explicit acceptance failure was logged.",
+        "If the app reaches chat, confirm the first Briar message is actually sendable and does not get dropped silently.",
+        "Add or strengthen failing regression coverage first for the unmet end-to-end case, then implement the minimal fix while keeping the existing invitation-to-chat tests green."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowHybridTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowHybridTest --timeout 600"
+      ],
+      "commitMessage": "autowork(invite): close remaining briar add-user goal gap",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-013",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-013",
+      "reviewFocus": [
+        "Check that the task is driven by the unmet end-to-end goal rather than a speculative refactor.",
+        "Check that the fix keeps the Briar add-user and invitation-to-chat flows green in both BRIAR_ONLY and HYBRID modes.",
+        "Check that the change preserves explicit user-visible behavior for the remaining failure path."
+      ],
+      "seededBySupervisor": true,
+      "id": "BU-013",
+      "seedKey": "briar-add-user-end-to-end-goal-gap",
+      "executorCommit": "5b7e030fb4eaddc39fff59d8e862e0d355167c4b",
+      "reviewCommit": "1fc8b4a3a408821c240f3bd95363adc079600886"
+    },
+    {
+      "status": "done",
+      "title": "Close the remaining Briar add-user end-to-end goal gap",
+      "allowedPaths": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "contextFiles": [
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/MainActivityViewModel.kt",
+        "app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinator.kt",
+        "app/src/main/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModel.kt",
+        "app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/MainActivityViewModelTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowBriarOnlyTest.kt",
+        "app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationChatFlowHybridTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/BriarManualInvitationCoordinatorTest.kt",
+        "app/src/test/java/com/example/rise/ui/dashboardNavigation/people/peopleFragment/PeopleViewModelTest.kt"
+      ],
+      "instructions": [
+        "The queue completed, but the overreaching goal is still unmet: A user can add another Briar user from the people screen or an external briar:// invitation, reach chat end to end, and be ready to send the first Briar message..",
+        "Reproduce the current end-to-end failure with the provided external invitation URI `briar://abmpblthdxon5e3luksgivgvcfplw6mawzuumw6h54jxrvyvvohvy` before changing production code.",
+        "Use the latest supervisor evidence to narrow and close the remaining gap. Current failure summary: External Briar invitation launch did not reach chat and no explicit acceptance failure was logged.",
+        "If the app reaches chat, confirm the first Briar message is actually sendable and does not get dropped silently.",
+        "Add or strengthen failing regression coverage first for the unmet end-to-end case, then implement the minimal fix while keeping the existing invitation-to-chat tests green."
+      ],
+      "validation": [
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.dashboardNavigation.people.peopleFragment.BriarPeopleAddUserFlowHybridTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowBriarOnlyTest --timeout 600",
+        "./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowHybridTest --timeout 600"
+      ],
+      "commitMessage": "autowork(invite): close remaining briar add-user goal gap",
+      "reviewApproveMessage": "autowork(reviewer): approve BU-014",
+      "reviewNeedsFixMessage": "autowork(reviewer): request fixes for BU-014",
+      "reviewFocus": [
+        "Check that the task is driven by the unmet end-to-end goal rather than a speculative refactor.",
+        "Check that the fix keeps the Briar add-user and invitation-to-chat flows green in both BRIAR_ONLY and HYBRID modes.",
+        "Check that the change preserves explicit user-visible behavior for the remaining failure path."
+      ],
+      "seededBySupervisor": true,
+      "id": "BU-014",
+      "seedKey": "briar-add-user-end-to-end-goal-gap",
+      "specificSignal": "external_invitation_onboarding_did_not_reach_chat",
+      "specificSignalSource": "bugCode",
+      "executorCommit": "2251ef2c2c59ac223fb1b827c6d10b0e06f8761b",
+      "reviewCommit": "c5127fcb9cf992cbc67f004b68aa7807aca28015"
+    }
+  ]
+}

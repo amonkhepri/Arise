@@ -9,8 +9,11 @@ import com.example.rise.briar.runtime.BriarMessage
 import com.example.rise.briar.runtime.BriarOutboundMessage
 import com.example.rise.briar.runtime.BriarPresenceStatus
 import com.example.rise.briar.runtime.BriarRuntimeEvent
+import com.example.rise.briar.runtime.BriarRuntimeManager
 import com.example.rise.briar.runtime.BriarRuntimePhase
 import com.example.rise.briar.runtime.BriarRuntimeStatus
+import com.example.rise.briar.runtime.NoOpBriarChatGateway
+import com.example.rise.briar.runtime.NoOpBriarContactService
 import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.CanonicalConversation
@@ -31,14 +34,15 @@ import com.example.rise.transport.router.TransportConversationId
 import com.example.rise.transport.router.TransportId
 import com.example.rise.transport.router.TransportRouterImpl
 import com.example.rise.transport.store.ConversationStore
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
+import java.util.concurrent.ConcurrentHashMap
 
 fun stubBriarChatGateway(
     isAvailable: Boolean = false,
@@ -99,6 +103,32 @@ fun stubTransportRuntimeBridge(
         override val briarContactService = contactServiceFlow
 
         override fun requireFirestore(caller: String) = Unit
+    }
+}
+
+fun stubBriarRuntimeManager(
+    runtimeStatus: BriarRuntimeStatus = BriarRuntimeStatus.stopped,
+    onEnsureStarted: (() -> Unit)? = null,
+): BriarRuntimeManager {
+    val statusFlow = MutableStateFlow(runtimeStatus)
+    val diagnosticsFlow = MutableSharedFlow<BriarRuntimeEvent>()
+    val chatGatewayFlow = MutableStateFlow<BriarChatGateway>(NoOpBriarChatGateway)
+    val contactServiceFlow = MutableStateFlow<BriarContactService>(NoOpBriarContactService)
+    return object : BriarRuntimeManager {
+        override val status: StateFlow<BriarRuntimeStatus> = statusFlow
+        override val diagnostics: SharedFlow<BriarRuntimeEvent> = diagnosticsFlow
+        override val chatGateway: StateFlow<BriarChatGateway> = chatGatewayFlow
+        override val contactService: StateFlow<BriarContactService> = contactServiceFlow
+
+        override suspend fun ensureStarted() {
+            onEnsureStarted?.invoke()
+        }
+
+        override suspend fun createAccount(name: String, password: String): Boolean = true
+
+        override suspend fun signIn(password: String): Boolean = true
+
+        override suspend fun stop() = Unit
     }
 }
 

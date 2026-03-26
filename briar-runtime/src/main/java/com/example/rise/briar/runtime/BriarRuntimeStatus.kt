@@ -12,7 +12,10 @@ import java.io.File
 data class BriarRuntimeStatus(
     val phase: BriarRuntimePhase,
     val storageDir: File? = null,
-    val lastError: Throwable? = null
+    val lastError: Throwable? = null,
+    val hasPersistedAccount: Boolean = false,
+    val hasDatabaseKey: Boolean = false,
+    val hasIdentity: Boolean = false,
 ) {
 
     companion object {

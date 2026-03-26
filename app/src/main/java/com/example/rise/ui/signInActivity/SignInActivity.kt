@@ -20,9 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
@@ -65,6 +65,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.WindowCompat
 import androidx.credentials.CreatePasswordRequest
 import androidx.credentials.CredentialManager
@@ -77,11 +78,11 @@ import com.example.rise.baseclasses.BaseActivity
 import com.example.rise.baseclasses.koinViewModelFactory
 import com.example.rise.data.auth.TelegramAuthData
 import com.example.rise.featureflags.TelegramAuthFlagProvider
+import com.example.rise.ui.mainActivity.BriarInvitationOnboardingAction
 import com.example.rise.ui.mainActivity.MainActivity
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.android.ext.android.inject
-import java.util.Locale
-import androidx.core.graphics.drawable.toDrawable
+import java.util.*
 
 class SignInActivity : BaseActivity() {
 
@@ -194,6 +195,7 @@ class SignInActivity : BaseActivity() {
             val intent = Intent(this, MainActivity::class.java).addFlags(
                 FLAG_ACTIVITY_CLEAR_TASK or FLAG_ACTIVITY_NEW_TASK
             )
+            BriarInvitationOnboardingAction.consumeFrom(intent = this.intent)?.applyTo(intent)
             startActivity(intent)
         }
         finish()

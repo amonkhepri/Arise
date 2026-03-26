@@ -66,26 +66,39 @@ class BriarRuntimeManagerImpl(
 
             _chatGateway.value = newHandle.chatGateway
             _contactService.value = newHandle.contactService
+            val hasPersistedAccount = newHandle.accountManager.accountExists()
+            val hasDatabaseKey = newHandle.accountManager.hasDatabaseKey()
+            var identityExists = false
             // If a database key already exists, start services immediately so identity is available.
-            if (newHandle.accountManager.hasDatabaseKey()) {
+            if (hasDatabaseKey) {
                 val servicesStarted = newHandle.startServicesWithCurrentKey()
                 if (servicesStarted) {
-                    val identityExists = newHandle.hasIdentity
+                    identityExists = waitForIdentity(newHandle)
                     if (identityExists) {
+                        log("Briar identity available after ensureStarted")
                         newHandle.markIdentityReady()
+                    } else {
+                        log("Briar identity still unavailable after ensureStarted wait")
                     }
                     _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(identityExists))
                 } else {
-                    _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(newHandle.hasIdentity))
+                    log("Briar services did not start with current database key")
+                    identityExists = newHandle.hasIdentity
+                    _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(identityExists))
                 }
             } else {
-                _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(newHandle.hasIdentity))
+                log("No Briar database key present during ensureStarted")
+                identityExists = newHandle.hasIdentity
+                _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(identityExists))
             }
 
             updateStatus(
                 BriarRuntimeStatus(
                     phase = BriarRuntimePhase.RUNNING,
-                    storageDir = config.storageDir
+                    storageDir = config.storageDir,
+                    hasPersistedAccount = hasPersistedAccount,
+                    hasDatabaseKey = hasDatabaseKey,
+                    hasIdentity = identityExists,
                 )
             )
             log("Briar runtime started")
@@ -114,6 +127,14 @@ class BriarRuntimeManagerImpl(
                 return@withLock false
             }
             activeHandle.markIdentityReady()
+            updateStatus(
+                _status.value.copy(
+                    hasPersistedAccount = activeHandle.accountManager.accountExists(),
+                    hasDatabaseKey = activeHandle.accountManager.hasDatabaseKey(),
+                    hasIdentity = true,
+                    lastError = null,
+                )
+            )
             _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(true))
             true
         }
@@ -133,6 +154,14 @@ class BriarRuntimeManagerImpl(
                 if (waitForIdentity(activeHandle)) {
                     log("Briar identity available after sign-in")
                     activeHandle.markIdentityReady()
+                    updateStatus(
+                        _status.value.copy(
+                            hasPersistedAccount = activeHandle.accountManager.accountExists(),
+                            hasDatabaseKey = activeHandle.accountManager.hasDatabaseKey(),
+                            hasIdentity = true,
+                            lastError = null,
+                        )
+                    )
                     _diagnostics.tryEmit(BriarRuntimeEvent.IdentityStatus(true))
                     true
                 } else {
@@ -193,6 +222,7 @@ class BriarRuntimeManagerImpl(
     }
 
     private fun log(message: String) {
+        System.out.println("$TAG: $message")
         _diagnostics.tryEmit(BriarRuntimeEvent.Message(message))
     }
 
@@ -205,6 +235,7 @@ class BriarRuntimeManagerImpl(
     }
 
     companion object {
+        private const val TAG = "BriarRuntimeManager"
         private const val IDENTITY_WAIT_ATTEMPTS = 25
         private const val IDENTITY_WAIT_DELAY_MS = 200L
     }

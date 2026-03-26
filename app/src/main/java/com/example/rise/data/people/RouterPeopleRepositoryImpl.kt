@@ -1,5 +1,6 @@
 package com.example.rise.data.people
 
+import com.example.rise.featureflags.BriarTransportMode
 import com.example.rise.models.User
 import com.example.rise.transport.TransportRuntimeBridge
 import com.example.rise.transport.router.CanonicalIdentity
@@ -10,7 +11,6 @@ import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.PresenceStatus
 import com.example.rise.transport.router.TransportConnector
 import com.example.rise.transport.router.TransportId
-import com.example.rise.featureflags.BriarTransportMode
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import timber.log.Timber
 import java.net.ConnectException
 import java.net.SocketException
 import java.net.SocketTimeoutException
@@ -424,11 +425,20 @@ class BriarPeopleSync(
                     resetBackoff()
                     val currentUserId = runCatching { transportConnector.currentIdentity().id }.getOrNull()
                     currentUserIdState.value = currentUserId
+                    Timber.tag(BRIAR_PEOPLE_SYNC_TAG).i(
+                        "Collected Briar contacts=%s currentUserId=%s",
+                        contacts.contactSummary(),
+                        currentUserId ?: "<none>",
+                    )
                     snapshotProcessingMutex.withLock {
                         processBriarSnapshot(
                             contacts = contacts,
                             currentUserId = currentUserId,
                             identityRegistry = identityRegistry,
+                        )
+                        Timber.tag(BRIAR_PEOPLE_SYNC_TAG).i(
+                            "Identity registry after Briar snapshot -> %s",
+                            identityRegistry.identitiesSnapshot().identitySummary(),
                         )
                     }
                 }
@@ -441,6 +451,7 @@ class BriarPeopleSync(
     }
 
     private fun handleListenerError(error: Throwable) {
+        Timber.tag(BRIAR_PEOPLE_SYNC_TAG).w(error, "Briar people listener error")
         if (shouldSurfaceError(error)) {
             _errors.tryEmit(error)
         }
@@ -725,3 +736,19 @@ private fun preserveKnownPresence(
         existingPresence ?: PresenceStatus.UNKNOWN
     }
 }
+
+private const val BRIAR_PEOPLE_SYNC_TAG = "BriarPeopleSync"
+
+private fun List<ConnectorContact>.contactSummary(): String =
+    if (isEmpty()) {
+        "count=0"
+    } else {
+        "count=$size ids=${joinToString(prefix = "[", postfix = "]") { it.canonicalId }}"
+    }
+
+private fun List<IdentityRecord>.identitySummary(): String =
+    if (isEmpty()) {
+        "count=0"
+    } else {
+        "count=$size ids=${joinToString(prefix = "[", postfix = "]") { it.canonicalIdentity.id }}"
+    }

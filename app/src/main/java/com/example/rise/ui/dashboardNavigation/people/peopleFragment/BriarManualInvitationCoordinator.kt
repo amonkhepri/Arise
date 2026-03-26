@@ -16,16 +16,18 @@ internal class BriarManualInvitationCoordinator(
     is BriarInvitationAcceptanceResult.Accepted -> {
       val invitation = result.invitation
       val conversationId = result.conversationId
+      val resolvedIdentity = result.contactIdentity
+      val displayName = resolvedIdentity?.displayName ?: invitation.alias ?: invitation.duplicateKey
       if (conversationId != null) {
         Result.LaunchChat(
           ChatLaunchContract(
-            userId = invitation.duplicateKey,
-            userName = invitation.alias ?: invitation.duplicateKey,
+            userId = resolvedIdentity?.id ?: invitation.duplicateKey,
+            userName = displayName,
             conversationId = conversationId,
           ),
         )
       } else {
-        Result.ContactAddedPendingSync(invitation.alias ?: invitation.duplicateKey)
+        Result.ContactAddedPendingSync(displayName)
       }
     }
     is BriarInvitationAcceptanceResult.InvalidLink ->

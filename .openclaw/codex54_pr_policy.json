@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "enabled": true,
+  "remote": "origin",
+  "branch": "feature/briar-user-chat-overnight",
+  "base": "master",
+  "title": "Autowork: Briar invitation add-user loop",
+  "bodyPath": ".openclaw/codex54_pr_body.md"
+}

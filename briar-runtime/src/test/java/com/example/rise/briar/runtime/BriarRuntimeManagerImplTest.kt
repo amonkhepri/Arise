@@ -1,7 +1,5 @@
 package com.example.rise.briar.runtime
 
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -12,6 +10,8 @@ import org.briarproject.bramble.api.crypto.SecretKey
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class BriarRuntimeManagerImplTest {
 
@@ -93,16 +93,63 @@ class BriarRuntimeManagerImplTest {
     }
 
     @Test
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun `ensureStarted does not wait when identity missing after start`() = runTest {
+    fun `signIn marks runtime status with active briar session`() = runTest {
         val env = briarRuntimeEnvironment()
+        val factory = RecordingFactory(
+            identityExists = false,
+            databaseKeyLoaded = false,
+            persistedAccountExists = true,
+        )
+        val manager = BriarRuntimeManagerImpl(
+            briarRuntimeEnvironment = env,
+            componentFactory = factory,
+            ioDispatcher = StandardTestDispatcher(testScheduler)
+        )
+
+        val signedIn = manager.signIn("pw")
+
+        assertTrue(signedIn)
+        assertEquals(BriarRuntimePhase.RUNNING, manager.status.value.phase)
+        assertEquals(true, manager.status.value.hasPersistedAccount)
+        assertEquals(true, manager.status.value.hasDatabaseKey)
+        assertEquals(true, manager.status.value.hasIdentity)
+    }
+
+    @Test
+    fun `ensureStarted reports persisted account when encrypted key exists on disk but current process is locked`() = runTest {
+        val env = briarRuntimeEnvironment()
+        val factory = RecordingFactory(
+            identityExists = false,
+            databaseKeyLoaded = false,
+            persistedAccountExists = true,
+        )
+        val manager = BriarRuntimeManagerImpl(
+            briarRuntimeEnvironment = env,
+            componentFactory = factory,
+            ioDispatcher = StandardTestDispatcher(testScheduler)
+        )
+
+        manager.ensureStarted()
+
+        assertEquals(BriarRuntimePhase.RUNNING, manager.status.value.phase)
+        assertEquals(true, manager.status.value.hasPersistedAccount)
+        assertEquals(false, manager.status.value.hasDatabaseKey)
+        assertEquals(false, manager.status.value.hasIdentity)
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `ensureStarted waits for delayed identity after start and marks readiness`() = runTest {
+        val env = briarRuntimeEnvironment()
+        var markIdentityReadyCalls = 0
+        var hasIdentityChecks = 0
         val factory = object : BriarComponentFactory {
             override fun create(config: BriarRuntimeConfig): BriarRuntimeHandle {
                 return object : BriarRuntimeHandle {
                     override val chatGateway: BriarChatGateway = NoOpBriarChatGateway
                     override val contactService: BriarContactService = NoOpBriarContactService
                     override val hasIdentity: Boolean
-                        get() = false
+                        get() = hasIdentityChecks++ >= 2
                     override val accountManager: AccountManager =
                         object : AccountManager {
                             override fun hasDatabaseKey(): Boolean = true
@@ -114,7 +161,9 @@ class BriarRuntimeManagerImplTest {
                             override fun changePassword(oldPassword: String, newPassword: String) {}
                         }
 
-                    override fun markIdentityReady() = Unit
+                    override fun markIdentityReady() {
+                        markIdentityReadyCalls++
+                    }
                     override fun signIn(password: String) = Unit
                     override fun startServicesWithCurrentKey(): Boolean = true
                     override fun close() {}
@@ -130,9 +179,10 @@ class BriarRuntimeManagerImplTest {
 
         manager.ensureStarted()
 
-        assertEquals(0, testScheduler.currentTime)
+        assertEquals(400, testScheduler.currentTime)
+        assertEquals(1, markIdentityReadyCalls)
         val identityEvent = manager.diagnostics.first { it is BriarRuntimeEvent.IdentityStatus } as BriarRuntimeEvent.IdentityStatus
-        assertEquals(false, identityEvent.exists)
+        assertEquals(true, identityEvent.exists)
     }
 
     private fun briarRuntimeEnvironment(): BriarRuntimeEnvironment {
@@ -144,6 +194,8 @@ class BriarRuntimeManagerImplTest {
 
     private class RecordingFactory(
         private val identityExists: Boolean = true,
+        private val databaseKeyLoaded: Boolean = identityExists,
+        private val persistedAccountExists: Boolean = identityExists || databaseKeyLoaded,
     ) : BriarComponentFactory {
         var created: Boolean = false
             private set
@@ -169,22 +221,40 @@ class BriarRuntimeManagerImplTest {
 
         override fun create(config: BriarRuntimeConfig): BriarRuntimeHandle {
             created = true
+            var currentIdentityExists = identityExists
+            var currentDatabaseKeyLoaded = databaseKeyLoaded
+            var currentPersistedAccountExists = persistedAccountExists
             val briarRuntimeHandle = object : BriarRuntimeHandle {
                 override val chatGateway: BriarChatGateway = this@RecordingFactory.chatGateway
                 override val contactService: BriarContactService = this@RecordingFactory.contactService
-                override val hasIdentity: Boolean = identityExists
+                override val hasIdentity: Boolean
+                    get() = currentIdentityExists
                 override val accountManager: AccountManager =
                     object : AccountManager {
-                        override fun hasDatabaseKey(): Boolean = identityExists
+                        override fun hasDatabaseKey(): Boolean = currentDatabaseKeyLoaded
                         override fun getDatabaseKey(): SecretKey? = null
-                        override fun accountExists(): Boolean = identityExists
-                        override fun createAccount(name: String, password: String): Boolean = identityExists
+                        override fun accountExists(): Boolean = currentPersistedAccountExists
+                        override fun createAccount(name: String, password: String): Boolean {
+                            if (currentPersistedAccountExists) return false
+                            currentPersistedAccountExists = true
+                            currentDatabaseKeyLoaded = true
+                            currentIdentityExists = true
+                            return true
+                        }
                         override fun deleteAccount() {}
-                        override fun signIn(password: String) {}
+                        override fun signIn(password: String) {
+                            currentPersistedAccountExists = true
+                            currentDatabaseKeyLoaded = true
+                            currentIdentityExists = true
+                        }
                         override fun changePassword(oldPassword: String, newPassword: String) {}
                     }
                 override fun markIdentityReady() = Unit
-                override fun signIn(password: String) = Unit
+                override fun signIn(password: String) {
+                    currentPersistedAccountExists = true
+                    currentDatabaseKeyLoaded = true
+                    currentIdentityExists = true
+                }
                 override fun startServicesWithCurrentKey(): Boolean = true
 
                 override fun close() {

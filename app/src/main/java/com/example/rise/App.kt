@@ -4,78 +4,78 @@ import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import com.example.rise.auth.AuthenticationService
+import com.example.rise.auth.FirebaseAuthenticationService
+import com.example.rise.briar.BriarRuntimeEnvironmentImpl
+import com.example.rise.briar.runtime.BriarComponentFactory
+import com.example.rise.briar.runtime.BriarComponentFactoryImpl
+import com.example.rise.briar.runtime.BriarRuntimeEnvironment
+import com.example.rise.briar.runtime.BriarRuntimeManager
+import com.example.rise.briar.runtime.BriarRuntimeManagerImpl
 import com.example.rise.data.auth.AuthStateProvider
+import com.example.rise.data.auth.BriarAccountRepository
 import com.example.rise.data.auth.CompositeAuthStateProvider
 import com.example.rise.data.auth.DefaultTelegramAuthRepository
 import com.example.rise.data.auth.FirebaseAuthStateProvider
 import com.example.rise.data.auth.FirebaseSignInRepository
-import com.example.rise.data.auth.BriarAccountRepository
 import com.example.rise.data.auth.RuntimeBriarAccountRepository
 import com.example.rise.data.auth.SignInRepository
 import com.example.rise.data.auth.TelegramAuthRepository
 import com.example.rise.data.chat.ChatLocalCache
 import com.example.rise.data.chat.ChatRepository
-import com.example.rise.data.chat.TransportBackedChatRepository
 import com.example.rise.data.chat.RoomChatCache
+import com.example.rise.data.chat.TransportBackedChatRepository
 import com.example.rise.data.dashboard.AlarmRepository
 import com.example.rise.data.dashboard.FirestoreAlarmRepository
-import com.example.rise.data.myaccount.RouterMyAccountRepository
+import com.example.rise.data.firestore.ChatRemoteDataSource
+import com.example.rise.data.firestore.FirebaseChatRemoteDataSource
+import com.example.rise.data.firestore.FirebaseUserRemoteDataSource
+import com.example.rise.data.firestore.UserRemoteDataSource
 import com.example.rise.data.myaccount.MyAccountRepository
-import com.example.rise.data.people.FirestorePeopleSync
+import com.example.rise.data.myaccount.RouterMyAccountRepository
 import com.example.rise.data.people.BriarPeopleSync
+import com.example.rise.data.people.CompositePeopleSync
+import com.example.rise.data.people.FirestorePeopleSync
 import com.example.rise.data.people.IdentityBackfillCoordinator
 import com.example.rise.data.people.IdentityBackfillScheduler
 import com.example.rise.data.people.IdentityBackfillStatusTracker
-import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.PeopleSync
-import com.example.rise.data.people.CompositePeopleSync
+import com.example.rise.data.people.RouterPeopleRepository
 import com.example.rise.data.people.RouterPeopleRepositoryImpl
-import com.example.rise.briar.BriarRuntimeEnvironmentImpl
-import com.example.rise.briar.runtime.BriarComponentFactory
-import com.example.rise.briar.runtime.BriarRuntimeEnvironment
-import com.example.rise.briar.runtime.BriarRuntimeManager
-import com.example.rise.briar.runtime.BriarComponentFactoryImpl
-import com.example.rise.briar.runtime.BriarRuntimeManagerImpl
 import com.example.rise.debug.FeatureFlagsViewModel
 import com.example.rise.featureflags.DataStoreTransportModeProviderImpl
-import com.example.rise.featureflags.TransportModeProvider
 import com.example.rise.featureflags.TelegramAuthFlagProvider
+import com.example.rise.featureflags.TransportModeProvider
 import com.example.rise.featureflags.transportModeDataStore
-import com.example.rise.auth.AuthenticationService
-import com.example.rise.auth.FirebaseAuthenticationService
-import com.example.rise.transport.connectors.FirestoreConnector
+import com.example.rise.transport.TransportRuntimeBridge
+import com.example.rise.transport.TransportRuntimeBridgeImpl
+import com.example.rise.transport.briar.BriarChatAdapter
+import com.example.rise.transport.briar.BriarContactAdapter
+import com.example.rise.transport.briar.BriarContactRepository
+import com.example.rise.transport.briar.DefaultBriarChatAdapter
+import com.example.rise.transport.briar.DefaultBriarContactAdapter
+import com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCase
+import com.example.rise.transport.briar.invite.BriarInvitationLinkParser
 import com.example.rise.transport.connectors.BriarConnector
+import com.example.rise.transport.connectors.FirestoreConnector
 import com.example.rise.transport.router.BridgeOrchestrator
 import com.example.rise.transport.router.ConnectorHealthProvider
 import com.example.rise.transport.router.ConnectorHealthRepository
 import com.example.rise.transport.router.ConnectorRegistry
-import com.example.rise.transport.router.DefaultConnectorRegistry
+import com.example.rise.transport.router.ConnectorTelemetrySink
 import com.example.rise.transport.router.DefaultBridgeOrchestrator
+import com.example.rise.transport.router.DefaultConnectorRegistry
 import com.example.rise.transport.router.IdentityRegistry
 import com.example.rise.transport.router.IdentityRegistryImpl
 import com.example.rise.transport.router.IdentityRegistryStore
 import com.example.rise.transport.router.ObservableConnectorTelemetrySink
 import com.example.rise.transport.router.SharedPrefsIdentityRegistryStore
-import com.example.rise.transport.router.ConnectorTelemetrySink
 import com.example.rise.transport.router.TransportRouter
 import com.example.rise.transport.router.TransportRouterImpl
-import com.example.rise.transport.briar.BriarChatAdapter
-import com.example.rise.transport.briar.BriarContactAdapter
-import com.example.rise.transport.briar.DefaultBriarChatAdapter
-import com.example.rise.transport.briar.DefaultBriarContactAdapter
-import com.example.rise.transport.briar.BriarContactRepository
+import com.example.rise.transport.store.ChatCacheDao
 import com.example.rise.transport.store.ConversationDatabase
 import com.example.rise.transport.store.ConversationStore
-import com.example.rise.transport.store.ChatCacheDao
 import com.example.rise.transport.store.RoomConversationStore
-import com.example.rise.transport.TransportRuntimeBridge
-import com.example.rise.transport.TransportRuntimeBridgeImpl
-import com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCase
-import com.example.rise.transport.briar.invite.BriarInvitationLinkParser
-import com.example.rise.data.firestore.UserRemoteDataSource
-import com.example.rise.data.firestore.FirebaseUserRemoteDataSource
-import com.example.rise.data.firestore.ChatRemoteDataSource
-import com.example.rise.data.firestore.FirebaseChatRemoteDataSource
 import com.example.rise.ui.SplashActivityViewModel
 import com.example.rise.ui.dashboardNavigation.dashboard.DashboardViewModel
 import com.example.rise.ui.dashboardNavigation.myAccount.MyAccountViewModel
@@ -89,6 +89,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -98,7 +99,6 @@ import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import timber.log.Timber
 import java.time.Clock
-import kotlinx.coroutines.Dispatchers
 
 class App: Application() {
 
@@ -117,7 +117,13 @@ class App: Application() {
         single<TransportRuntimeBridge> { TransportRuntimeBridgeImpl(get(), get(), get()) }
 
         single { FirebaseAuthStateProvider(get()) }
-        single<AuthStateProvider> { CompositeAuthStateProvider(primary = get<FirebaseAuthStateProvider>(), identityRegistry = get()) }
+        single<AuthStateProvider> {
+            CompositeAuthStateProvider(
+                primary = get<FirebaseAuthStateProvider>(),
+                identityRegistry = get(),
+                briarRuntimeManager = get(),
+            )
+        }
         factory { BriarInvitationLinkParser() }
         factory { BriarInvitationDeepLinkEntrypoint(parser = get()) }
         single<SignInRepository> {

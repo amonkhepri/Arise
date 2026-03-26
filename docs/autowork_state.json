@@ -5,15 +5,15 @@
   "last_executor_commit": "916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3",
   "last_reviewed_commit": "916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3",
   "pending_fix_for_commit": "916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3",
-  "executor_summary": "Added a MainActivity invitation onboarding regression that verifies signed-in invite acceptance with a real conversationId launches ChatActivity with the expected contact and conversation extras.",
+  "executor_summary": "This run continued the exact pending-contact bootstrap task with TDD. The concrete requirement was to stop invitation acceptance from giving up after the first deferred wait when the accepted Briar peer is already surfaced as a fresh `pending:*` contact but the confirmed numeric contact appears slightly later. I added a failing regression in `BriarInvitationAcceptanceUseCaseTest` that keeps the accepted peer at `pending:fresh-3` first and only surfaces numeric contact `42` on a later retry window; the focused `./agent-tools/test.sh --tests com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCaseTest --timeout 900` run failed because `accept()` returned with `conversationId=null` before the later retry could resolve the contact. I then made the minimal production fix in `BriarInvitationAcceptanceUseCase.bootstrapConversationIfResolvable()`: when the active identity is already `pending:*` and `awaitAddedContactIdentity()` returns null for one retry window, keep consuming the existing retry budget instead of returning pending sync immediately. Validation passed with the focused acceptance suite and the adjacent `./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowBriarOnlyTest --timeout 900` suite. I did not rerun the live 5554/5556 device baseline in this heartbeat, so real-device confirmation of pending-contact promotion and chat launch is still outstanding.",
   "reviewer_summary": "Needs fix for commit 916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3: the new MainActivity invitation regression bypasses the STARTED lifecycle collector, so it does not cover the signed-in onboarding path it claims to protect.",
   "review_notes_ref": "docs/autowork_review_log.md",
   "review_round": 38,
-  "updated_by": "reviewer",
-  "updated_at": "2026-03-12T07:01:15Z",
-  "review_status_reason": "Needs fix for commit 916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3: MainActivity invitation onboarding coverage invokes the private handler directly on a CREATED activity instead of exercising the repeatOnLifecycle(STARTED) path.",
+  "updated_by": "executor",
+  "updated_at": "2026-03-26T10:35:00Z",
+  "review_status_reason": "Needs fix for commit 916cafeaa200b9b7c4feb3b9d0f8fb10d3505bd3 until a new executor commit is created; the working tree now includes a focused pending-contact late-resolution regression and a minimal retry fix in `BriarInvitationAcceptanceUseCase`, but the live 5554/5556 baseline has not yet been rerun to confirm the device symptom is resolved.",
   "pending_review_for_commit": null,
-  "feedback": "Replace the reflective CREATED-state test with a lifecycle-driven MainActivity regression that starts the activity and proves the queued invitation intent reaches chat launch through the STARTED uiState collector.",
+  "feedback": "Under test, invitation acceptance no longer short-circuits after the first pending-contact wait window; it now keeps retrying until a later numeric contact appears or the retry budget is exhausted. The next unknown is whether that same change is enough on the real 5554/5556 reciprocal baseline.",
   "next_action_owner": "executor",
-  "next_action": "Replace the reflective CREATED-state test with a STARTED/RESUMED MainActivity regression that drives the queued invitation intent through the real uiState collector and asserts the chat launch extras."
+  "next_action": "Build/install the current worktree on `emulator-5554` and rerun the live 5554/5556 reciprocal invitation baseline with the restored official peer link to confirm the fresh pending contact now promotes to a confirmed contact/chat, or capture the next precise device-side failure if it still stalls."
 }

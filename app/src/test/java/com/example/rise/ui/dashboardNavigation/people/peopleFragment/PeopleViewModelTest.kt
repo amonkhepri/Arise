@@ -65,6 +65,36 @@ class PeopleViewModelTest {
     }
 
     @org.junit.Test
+    fun `onPersonSelected emits pending-sync message for pending briar contact`() = runTest {
+        val repository = FakeRouterPeopleRepository()
+        val viewModel = PeopleViewModel(repository)
+        val summary = PersonSummary(
+            id = "pending:abc123",
+            name = "Alice",
+            bio = "Bio",
+            profilePicturePath = null,
+            presence = PresenceStatus.UNKNOWN,
+        )
+
+        viewModel.start()
+        advanceUntilIdle()
+        repository.emit(listOf(summary))
+        advanceUntilIdle()
+
+        viewModel.events.test {
+            viewModel.onPersonSelected(summary)
+
+            assertEquals(
+                PeopleViewModel.PeopleEvent.ShowMessage(
+                    "Briar contact added. Wait for Alice to finish connecting, then open the chat from People."
+                ),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @org.junit.Test
     fun `start surfaces sync errors`() = runTest {
         val repository = FakeRouterPeopleRepository()
         val viewModel = PeopleViewModel(repository)

@@ -1,9 +1,13 @@
 package com.example.rise.ui.mainActivity
 
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
+import com.example.rise.briar.runtime.BriarContact
+import com.example.rise.briar.runtime.BriarContactService
+import com.example.rise.briar.runtime.BriarPresenceStatus
 import com.example.rise.data.chat.TransportBackedChatRepository
 import com.example.rise.data.people.PersonSummary
 import com.example.rise.data.people.RouterPeopleRepository
@@ -34,12 +38,6 @@ import com.example.rise.transport.store.ConversationStore
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.ChatViewModel
 import com.example.rise.ui.dashboardNavigation.people.chatActivity.resolveChatLaunchContract
 import com.example.rise.util.MainDispatcherRule
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -55,9 +53,17 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import java.util.concurrent.ConcurrentHashMap
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class, sdk = [35])
 class BriarInvitationChatFlowBriarOnlyTest {
 
   @get:Rule
@@ -152,7 +158,104 @@ class BriarInvitationChatFlowBriarOnlyTest {
   }
 
   @Test
-  fun `raw external briar invitation stays pending sync when deferred conversation bootstrap never resolves`() = runTest {
+  fun `raw external briar invitation launches chat with resolved numeric contact id and sends first message to that contact`() = runTest {
+    val addedContacts = mutableListOf<Pair<String, String?>>()
+    val contacts = MutableStateFlow<List<BriarContact>>(emptyList())
+    val contactService = object : BriarContactService {
+      override val isAvailable: Boolean = true
+
+      override suspend fun addContactByLink(link: String, alias: String?) {
+        addedContacts += link to alias
+        contacts.value = listOf(
+          BriarContact(
+            canonicalId = "42",
+            transportAlias = "42",
+            displayName = "Alice",
+            presence = BriarPresenceStatus.UNKNOWN,
+          ),
+        )
+      }
+
+      override fun observeContacts(): Flow<List<BriarContact>> = contacts
+    }
+    val bridge = stubTransportRuntimeBridge(
+      mode = BriarTransportMode.BRIAR_ONLY,
+      contactService = contactService,
+    )
+    val identityRegistry = IdentityRegistryImpl(FakeIdentityRegistryStore())
+    val briarConnector = RecordingConnector(transport = TransportId.BRIAR)
+    val firestoreConnector = RecordingConnector(transport = TransportId.FIRESTORE).apply {
+      transportAliasGenerator = { canonicalId -> "firestore-$canonicalId" }
+    }
+    val router = TransportRouterImpl(
+      transportBridge = bridge,
+      connectorRegistry = DefaultConnectorRegistry(setOf(briarConnector, firestoreConnector)),
+      conversationStore = InMemoryConversationStore(),
+      identityRegistry = identityRegistry,
+      dispatcher = StandardTestDispatcher(testScheduler),
+    )
+    val numericIdRouter = NumericIdRequiredRouter(
+      delegate = router,
+      requiredContactId = "42",
+    )
+    val coordinator = BriarInvitationOnboardingCoordinator(
+      useCase = BriarInvitationAcceptanceUseCase(
+        contactRepository = BriarContactRepository(bridge),
+        identityRegistry = identityRegistry,
+        transportRouter = numericIdRouter,
+        deferredConversationRetryDelayMillis = 0L,
+      ),
+    )
+    val action = BriarInvitationOnboardingCoordinator.consumePendingAction(
+      Intent(Intent.ACTION_VIEW, Uri.parse(externalInvitationLink())),
+    )
+
+    assertNotNull(action)
+    val onboardingAction = requireNotNull(action)
+
+    val result = coordinator.accept(context, onboardingAction)
+    advanceUntilIdle()
+
+    assertTrue(result is BriarInvitationOnboardingCoordinator.Result.LaunchChat)
+    val launchIntent = (result as BriarInvitationOnboardingCoordinator.Result.LaunchChat).intent
+    val launchContract = resolveChatLaunchContract(
+      userId = launchIntent.getStringExtra(AppConstants.USER_ID),
+      userName = launchIntent.getStringExtra(AppConstants.USER_NAME),
+      conversationId = launchIntent.getStringExtra(AppConstants.CONVERSATION_ID),
+    )
+    val conversationId = requireNotNull(launchContract.conversationId)
+    val chatViewModel = ChatViewModel(
+      chatRepository = TransportBackedChatRepository(router),
+      routerPeopleRepository = FakeRouterPeopleRepository(),
+      clock = fixedClock,
+    )
+
+    chatViewModel.initialiseConversation(
+      otherUserId = launchContract.userId,
+      otherUserName = launchContract.userName,
+      conversationId = conversationId,
+    )
+    advanceUntilIdle()
+    chatViewModel.sendMessage("Hello from resolved contact invite")
+    advanceUntilIdle()
+
+    assertEquals(listOf(externalInvitationLink() to null), addedContacts)
+    assertEquals(listOf("link:${externalInvitationLink()}", "42"), numericIdRouter.requestedIdentityIds)
+    assertTrue(chatViewModel.uiState.value.inputEnabled)
+    assertEquals(conversationId, chatViewModel.uiState.value.conversationId)
+    assertEquals("42", launchContract.userId)
+    assertEquals("Alice", launchContract.userName)
+    assertEquals(1, briarConnector.ensureConversationCalls)
+    assertEquals(1, briarConnector.sentMessages.size)
+    assertEquals(conversationId, briarConnector.sentMessages.single().conversationId)
+    assertEquals(setOf("42"), briarConnector.sentMessages.single().recipientIds)
+    assertEquals("Hello from resolved contact invite", briarConnector.sentMessages.single().body)
+    assertEquals(1, firestoreConnector.ensureConversationCalls)
+    assertTrue(firestoreConnector.sentMessages.isEmpty())
+  }
+
+  @Test
+  fun `raw external briar invitation returns pending sync when deferred conversation bootstrap never resolves`() = runTest {
     val addedContacts = mutableListOf<Pair<String, String?>>()
     val contactService = stubBriarContactService(
       isAvailable = true,
@@ -199,9 +302,7 @@ class BriarInvitationChatFlowBriarOnlyTest {
     assertEquals(listOf(externalInvitationLink() to null), addedContacts)
     assertEquals(121, deferredBootstrapRouter.ensureConversationAttempts)
     assertEquals(
-      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync(
-        "link:${externalInvitationLink()}",
-      ),
+      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync("link:${externalInvitationLink()}"),
       result,
     )
     assertEquals(0, briarConnector.ensureConversationCalls)
@@ -211,7 +312,7 @@ class BriarInvitationChatFlowBriarOnlyTest {
   }
 
   @Test
-  fun `raw external briar invitation stays pending sync when bootstrap returns whitespace conversation id`() = runTest {
+  fun `raw external briar invitation returns pending sync when bootstrap returns whitespace conversation id`() = runTest {
     val addedContacts = mutableListOf<Pair<String, String?>>()
     val contactService = stubBriarContactService(
       isAvailable = true,
@@ -257,9 +358,7 @@ class BriarInvitationChatFlowBriarOnlyTest {
     assertEquals(listOf(externalInvitationLink() to null), addedContacts)
     assertEquals(1, whitespaceConversationIdRouter.ensureConversationCalls)
     assertEquals(
-      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync(
-        "link:${externalInvitationLink()}",
-      ),
+      BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync("link:${externalInvitationLink()}"),
       result,
     )
     assertTrue(briarConnector.sentMessages.isEmpty())
@@ -511,6 +610,21 @@ class BriarInvitationChatFlowBriarOnlyTest {
     override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
       ensureConversationCalls += 1
       return delegate.ensureConversation(otherIdentity).copy(id = conversationId)
+    }
+  }
+
+  private class NumericIdRequiredRouter(
+    private val delegate: TransportRouterImpl,
+    private val requiredContactId: String,
+  ) : com.example.rise.transport.router.TransportRouter by delegate {
+    val requestedIdentityIds = mutableListOf<String>()
+
+    override suspend fun ensureConversation(otherIdentity: CanonicalIdentity): CanonicalConversation {
+      requestedIdentityIds += otherIdentity.id
+      if (otherIdentity.id != requiredContactId) {
+        throw IllegalArgumentException("Expected exactly one numeric Briar contact id")
+      }
+      return delegate.ensureConversation(otherIdentity)
     }
   }
 
