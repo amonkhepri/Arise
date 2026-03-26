@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-REPO_DIR="/Users/amunratis/AndroidStudioProjects/Arise-autowork"
+REPO_DIR="${REPO_DIR:-/Users/amunratis/AndroidStudioProjects/Arise-autowork}"
 
 if [[ $# -lt 2 ]]; then
   echo "usage: $0 <executor|reviewer|supervisor> <message>" >&2

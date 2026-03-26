@@ -35,7 +35,7 @@ class BriarInvitationOnboardingResultHandlerTest {
   }
 
   @Test
-  fun `pending sync result preserves fallback message and does not start chat`() {
+  fun `pending sync result preserves fallback message and keeps onboarding active for retry`() {
     val launchedIntents = mutableListOf<Intent>()
     val shownMessages = mutableListOf<String>()
     var handledCount = 0
@@ -54,7 +54,7 @@ class BriarInvitationOnboardingResultHandlerTest {
       listOf(BriarInvitationOnboardingResultHandler.pendingSyncMessage("Alice")),
       shownMessages,
     )
-    assertEquals(1, handledCount)
+    assertEquals(0, handledCount)
   }
 
   @Test

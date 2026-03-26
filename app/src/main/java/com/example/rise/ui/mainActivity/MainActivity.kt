@@ -212,11 +212,23 @@ class MainActivity : BaseActivity() {
         pendingInvitationOnboardingJob?.cancel()
         pendingInvitationOnboardingActionInFlight = action
         pendingInvitationOnboardingJob = lifecycleScope.launch {
+            var pendingSyncFeedbackShown = false
             try {
-                val result = briarInvitationOnboardingCoordinator.accept(this@MainActivity, action)
-                if (pendingInvitationOnboardingActionInFlight != action) return@launch
-                pendingInvitationOnboardingActionInFlight = null
-                briarInvitationOnboardingResultHandler.handle(result)
+                while (pendingInvitationOnboardingActionInFlight == action) {
+                    val result = briarInvitationOnboardingCoordinator.accept(this@MainActivity, action)
+                    if (pendingInvitationOnboardingActionInFlight != action) return@launch
+                    if (result is BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync) {
+                        if (!pendingSyncFeedbackShown) {
+                            briarInvitationOnboardingResultHandler.handle(result)
+                            pendingSyncFeedbackShown = true
+                        }
+                        kotlinx.coroutines.delay(PENDING_SYNC_RETRY_DELAY_MS)
+                    } else {
+                        pendingInvitationOnboardingActionInFlight = null
+                        briarInvitationOnboardingResultHandler.handle(result)
+                        return@launch
+                    }
+                }
             } finally {
                 if (pendingInvitationOnboardingActionInFlight == action) {
                     pendingInvitationOnboardingActionInFlight = null
@@ -227,6 +239,7 @@ class MainActivity : BaseActivity() {
 
     private companion object {
         private const val FEATURE_FLAGS_MENU_ID = 1001
+        private const val PENDING_SYNC_RETRY_DELAY_MS = 5_000L
         private const val TAG = "MainActivity"
     }
 }

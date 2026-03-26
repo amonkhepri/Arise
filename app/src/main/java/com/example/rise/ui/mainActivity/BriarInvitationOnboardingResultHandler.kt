@@ -20,7 +20,6 @@ internal class BriarInvitationOnboardingResultHandler(
             }
             is BriarInvitationOnboardingCoordinator.Result.ContactAddedPendingSync -> {
                 showMessage(pendingSyncMessage(result.displayName))
-                markHandled()
             }
             is BriarInvitationOnboardingCoordinator.Result.InvalidInvitation -> {
                 logInvalidInvitation(result)

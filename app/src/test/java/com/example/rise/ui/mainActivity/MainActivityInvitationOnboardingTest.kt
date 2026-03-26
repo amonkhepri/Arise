@@ -170,6 +170,79 @@ class MainActivityInvitationOnboardingTest {
   }
 
   @Test
+  fun `signed-in invitation onboarding retries pending sync result and later launches chat`() {
+    val application = ApplicationProvider.getApplicationContext<Application>()
+    val invitationAction = BriarInvitationOnboardingAction(
+      briarLink = "briar://invite?c=abc",
+      alias = "Alice",
+      duplicateKey = "peer-123",
+    )
+    val invitationUseCase = mockk<BriarInvitationAcceptanceUseCase>()
+    var acceptanceCalls = 0
+    coEvery {
+      invitationUseCase.accept(invitationAction.briarLink)
+    } coAnswers {
+      acceptanceCalls += 1
+      when (acceptanceCalls) {
+        1 -> BriarInvitationAcceptanceResult.Accepted(
+          invitation = BriarInvitationLink(
+            briarLink = invitationAction.briarLink,
+            alias = invitationAction.alias,
+            duplicateKey = invitationAction.duplicateKey,
+          ),
+          conversationId = null,
+        )
+        else -> BriarInvitationAcceptanceResult.Accepted(
+          invitation = BriarInvitationLink(
+            briarLink = invitationAction.briarLink,
+            alias = invitationAction.alias,
+            duplicateKey = invitationAction.duplicateKey,
+          ),
+          conversationId = "conversation-42",
+        )
+      }
+    }
+    startSignedInKoin(application, invitationUseCase)
+
+    val launchIntent = Intent(application, MainActivity::class.java).also(invitationAction::applyTo)
+    val controller = Robolectric.buildActivity(MainActivity::class.java, launchIntent)
+      .create()
+      .start()
+      .resume()
+
+    try {
+      val activity = controller.get()
+
+      drainLifecycleWork()
+      assertNotNull(activity.findViewById<BottomNavigationView>(R.id.bottomNavigation))
+
+      assertEquals(
+        BriarInvitationOnboardingResultHandler.pendingSyncMessage("Alice"),
+        ShadowToast.getTextOfLatestToast(),
+      )
+      assertNull(shadowOf(activity).nextStartedActivity)
+
+      dispatcherRule.testDispatcher.scheduler.advanceTimeBy(4_999L)
+      drainLifecycleWork()
+
+      assertNull(shadowOf(activity).nextStartedActivity)
+
+      dispatcherRule.testDispatcher.scheduler.advanceTimeBy(1L)
+      drainLifecycleWork()
+
+      val startedIntent = requireNotNull(awaitStartedActivity(activity))
+      assertEquals(ChatActivity::class.java.name, startedIntent.component?.className)
+      assertEquals("peer-123", startedIntent.getStringExtra(AppConstants.USER_ID))
+      assertEquals("Alice", startedIntent.getStringExtra(AppConstants.USER_NAME))
+      assertEquals("conversation-42", startedIntent.getStringExtra(AppConstants.CONVERSATION_ID))
+      assertEquals(2, acceptanceCalls)
+      coVerify(exactly = 2) { invitationUseCase.accept(invitationAction.briarLink) }
+    } finally {
+      controller.pause().stop().destroy()
+    }
+  }
+
+  @Test
   fun `signed-out invitation onboarding queued on launch relays into sign-in handoff`() {
     val application = ApplicationProvider.getApplicationContext<Application>()
     val invitationAction = BriarInvitationOnboardingAction(

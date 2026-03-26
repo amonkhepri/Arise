@@ -2,18 +2,21 @@
 
 ## Latest heartbeat
 
-- Time: 2026-03-26T10:35:00Z
+- Time: 2026-03-26T12:10:35Z
 - Priority: enable Briar messaging by first enabling adding users via invitation link
 - Mode: autonomous executor
-- Task: Add failing coverage for late-resolution pending-contact bootstrap and minimally stop `BriarInvitationAcceptanceUseCase` from returning after the first pending wait window.
-- Files changed: app/src/main/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCase.kt; app/src/test/java/com/example/rise/transport/briar/invite/BriarInvitationAcceptanceUseCaseTest.kt; docs/autowork_state.json; docs/briar_invitation_chat_roadmap.md; ./.openclaw/heartbeat-report.md
-- Tests run: `./agent-tools/test.sh --tests com.example.rise.transport.briar.invite.BriarInvitationAcceptanceUseCaseTest --timeout 900`; `./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationChatFlowBriarOnlyTest --timeout 900`
-- Commit: none; HEAD 9544e1d91f2279f468104772fbea91c8338e377b with uncommitted workspace changes
-- Blocker: no external blocker was hit in this heartbeat, but the live 5554/5556 baseline has not been rerun yet, so real-device confirmation of pending-contact promotion/chat launch is still pending
-- Next step: install the current worktree on `emulator-5554` and rerun the live reciprocal 5554/5556 invitation baseline against the restored official Briar peer
+- Task: Validate the new `MainActivity` pending-sync retry on the live `emulator-5554`/`emulator-5556` reciprocal baseline and record the remaining blocker.
+- Files changed: HEARTBEAT.md; memory/invite-link-environment.md; .openclaw/bin/codex54_git_commit.sh; .openclaw/bin/codex54_heartbeat_commit.sh; MEMORY.md; app/src/main/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingResultHandler.kt; app/src/main/java/com/example/rise/ui/mainActivity/MainActivity.kt; app/src/test/java/com/example/rise/ui/mainActivity/BriarInvitationOnboardingResultHandlerTest.kt; app/src/test/java/com/example/rise/ui/mainActivity/MainActivityInvitationOnboardingTest.kt; docs/autowork_state.json; docs/briar_invitation_chat_roadmap.md; ./.openclaw/heartbeat-report.md
+- Tests run: `./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.BriarInvitationOnboardingResultHandlerTest --timeout 900`; `./agent-tools/test.sh --tests com.example.rise.ui.mainActivity.MainActivityInvitationOnboardingTest --timeout 900`; `ANDROID_SERIAL=emulator-5554 ./agent-tools/install.sh`; `./agent-tools/briar-invitation-e2e-diagnose.sh --device emulator-5554 --skip-install --settle-seconds 20 'briar://ac4rqz7nzcf656k3kqba3axajtbni4ha2jk2cfnci774pcod2ghx2'`; direct adb reauth and UI verification on `emulator-5554` and `emulator-5556`
+- Commit: `heartbeat(arise): validate pending-sync retry live baseline`
+- Blocker: official Briar on `emulator-5556` reaches `Pending Contact Requests -> ArisePeer -> Waiting for contact to come online…`, but Arise on `emulator-5554` still loops over the same seven `pending:` identities and never resolves a confirmed contact or chat
+- Next step: add TDD coverage for resuming invitation bootstrap from an already-existing pending-contact set after the reciprocal peer is already waiting or connecting, then minimally fix that promotion path instead of re-adding the same link
 
 ## Recent heartbeats
 
+- 2026-03-26T12:10:35Z | executor | reran the focused onboarding suites, installed the pending-sync retry build on `5554`, confirmed on `5556` that official Briar reaches `ArisePeer -> Waiting for contact to come online…`, and narrowed the remaining blocker to resuming from an already-existing pending-contact set rather than dropping the invite
+- 2026-03-26T11:36:51Z | executor | added failing pending-sync continuation coverage in the result-handler and main-activity onboarding tests, fixed `MainActivity` to preserve and retry the same invitation action after the first pending result, and revalidated the focused JVM suites serially
+- 2026-03-26T11:21:03Z | executor | revalidated the live 5554/5556 reciprocal baseline, recovered 5554 via in-flow Briar sign-up when the cold invite reported no key file, exchanged Arise's reciprocal link back into official Briar, and confirmed the remaining blocker is Arise-side continuation after reciprocal pending contact exchange rather than auth or raw-link routing
 - 2026-03-26T10:35:00Z | executor | added a failing late-resolution pending-contact regression, fixed `BriarInvitationAcceptanceUseCase` to keep retrying across pending wait windows, and revalidated the focused acceptance plus Briar-only invitation chat-flow suites
 - 2026-03-26T10:13:05Z | executor | recovered the locked `5556` official Briar peer, reran the reciprocal 5554/5556 invite baseline, and narrowed the remaining failure to app-side pending-contact promotion/chat bootstrap after reciprocal exchange
 - 2026-03-25T22:35:56Z | executor | added a failing `MainActivity` signed-out invite regression, fixed the lost cold-start sign-in event in `MainActivity`, and revalidated on `5554` that the same cold invite path now reaches `SignInActivity`
@@ -31,6 +34,3 @@
 - 2026-03-19T17:05:59Z | executor | resumed the preserved `Rise` invite task from recents after the cold external launch, reauthenticated into `MainActivity`, and confirmed the next blocker is the immediate numeric-contact `ensureConversation()` failure on pending-only identities
 - 2026-03-19T16:34:00Z | executor | verified the official Briar peer is at `ready_home`, reran the raw external invite, and confirmed the current blocker is still the cold-launch auth handoff into `SignInActivity` with no confirmed-contact signals
 - 2026-03-19T16:05:53Z | executor | rebuilt/installed the updated build, restored the local Briar session, and confirmed on device that tapping a pending `People` row stays in `MainActivity`/People instead of reproducing the old chat numeric-id failure
-- 2026-03-19T15:36:10Z | executor | added a failing pending-contact People-tap regression, fixed `PeopleViewModel` to keep `pending:` Briar contacts in pending sync instead of launching broken chat, and left emulator revalidation as the next step
-- 2026-03-19T15:04:12Z | executor | reran the external invite flow after the stale-pending short-circuit; the 30-second retry loop is gone, a short-lived toast now appears, and `People` shows two pending-looking `Contact` rows, but chat still does not auto-open
-- 2026-03-19T14:33:38Z | executor | added a failing stale-pending deferred-bootstrap regression, fixed the use case to stop retrying the same pending id under test, and left the new device verification as the next step
